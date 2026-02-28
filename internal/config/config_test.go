@@ -323,12 +323,6 @@ daemon:
 
 // --- targets_file tests ---
 
-// baseYAMLWithoutTargets is a minimal valid config with no inline targets,
-// suitable for pairing with a targets_file.
-const baseYAMLWithoutTargets = `
-targets_file: %q
-`
-
 func TestTargetsFile_BasicLoad(t *testing.T) {
 	targetsContent := `
 # comment line

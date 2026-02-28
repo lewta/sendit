@@ -21,13 +21,14 @@ Switched to `atomic.Pointer[rate.Limiter]` — nil by default, no type assertion
 
 ## Tier 2 — Core quality for distribution
 
-### C. Integration / smoke tests
-Add `go test`-based end-to-end tests that spin up real local servers and exercise the full dispatch pipeline.
-
-- `net/http/httptest` server for HTTP and WebSocket targets
-- `github.com/miekg/dns` server stub for DNS targets
-- Tests cover: happy path, 429 backoff, resource gate (mock monitor), graceful shutdown
-- Tag with `//go:build integration` so they are excluded from the default `go test ./...` run and opt-in via `go test -tags integration ./...`
+### ~~C. Integration / smoke tests~~ ✓ DONE
+Six `//go:build integration` tests in `internal/engine/integration_test.go` exercise the full
+dispatch pipeline against real local servers (httptest, miekg/dns stub, nhooyr.io WebSocket).
+Tests cover: HTTP happy path, 429 backoff/retry, graceful shutdown, resource gate (CPU=0),
+DNS A-record query, and WebSocket connection. Run with:
+```sh
+go test -tags integration -race -v ./internal/engine/...
+```
 
 ### B. Dry-run mode
 Add a `--dry-run` flag to `sendit start` that loads and validates the config, logs what would be dispatched (target selection distribution, pacing summary), and exits without making any real requests.

@@ -77,9 +77,6 @@ Each browser task spawns its own `chromedp.ExecAllocator`. This is intentional �
 
 `config.Load` in `internal/config/config.go` uses Viper with `mapstructure` tags. All defaults are set via `viper.SetDefault` before unmarshalling. The `targets_file` is read and appended to `cfg.Targets` after YAML parse, with `target_defaults` applied to each file-loaded entry.
 
-## Open Work (TODO.md)
+## Roadmap
 
-1. **Item 7** (medium) — reuse `dns.Client` per driver instance in `internal/driver/dns.go`
-2. **Item 8** (medium) — `Scheduler.limiter` unsafe cast; switch to `atomic.Pointer[rate.Limiter]`
-3. **Item 9** (low) — pass `200ms` interval to `cpu.Percent` in `internal/resource/monitor.go`
-4. **Item 10** (low) — isolate Prometheus registry in `metrics.New()` to prevent double-registration panics in tests
+Planned features are tracked in `ROADMAP.md`.

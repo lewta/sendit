@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"slices"
 	"strconv"
 	"syscall"
 	"time"
@@ -50,6 +51,7 @@ func startCmd() *cobra.Command {
 		cfgPath    string
 		foreground bool
 		logLevel   string
+		dryRun     bool
 	)
 
 	cmd := &cobra.Command{
@@ -81,6 +83,11 @@ in-flight requests to complete before exiting.`,
 			cfg, err := config.Load(cfgPath)
 			if err != nil {
 				return err
+			}
+
+			if dryRun {
+				printDryRun(cfgPath, cfg)
+				return nil
 			}
 
 			// CLI flag overrides config log level.
@@ -121,6 +128,7 @@ in-flight requests to complete before exiting.`,
 	cmd.Flags().StringVarP(&cfgPath, "config", "c", "config/example.yaml", "Path to YAML config file")
 	cmd.Flags().BoolVar(&foreground, "foreground", false, "Skip writing the PID file (process always runs in foreground)")
 	cmd.Flags().StringVar(&logLevel, "log-level", "", "Override log level (debug|info|warn|error)")
+	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Print config summary and exit without sending any traffic")
 
 	return cmd
 }
@@ -227,6 +235,58 @@ Exits non-zero and prints the validation error on failure.`,
 }
 
 // --- helpers ---
+
+func printDryRun(path string, cfg *config.Config) {
+	fmt.Printf("Config: %s  ✓ valid\n\n", path)
+
+	// Compute total weight.
+	totalWeight := 0
+	for _, t := range cfg.Targets {
+		totalWeight += t.Weight
+	}
+
+	// Sort a copy by weight descending.
+	sorted := make([]config.TargetConfig, len(cfg.Targets))
+	copy(sorted, cfg.Targets)
+	slices.SortFunc(sorted, func(a, b config.TargetConfig) int {
+		return b.Weight - a.Weight
+	})
+
+	fmt.Printf("Targets (%d):\n", len(sorted))
+	fmt.Printf("  %-40s %-10s %-10s %s\n", "URL", "TYPE", "WEIGHT", "SHARE")
+	for _, t := range sorted {
+		share := 0.0
+		if totalWeight > 0 {
+			share = float64(t.Weight) / float64(totalWeight) * 100
+		}
+		fmt.Printf("  %-40s %-10s %-10d %.1f%%\n", t.URL, t.Type, t.Weight, share)
+	}
+	fmt.Printf("  Total weight: %d\n", totalWeight)
+	fmt.Println()
+
+	// Pacing.
+	p := cfg.Pacing
+	switch p.Mode {
+	case "human":
+		fmt.Printf("Pacing:\n  mode: human | delay: %dms–%dms (random uniform)\n", p.MinDelayMs, p.MaxDelayMs)
+	case "rate_limited":
+		rps := p.RequestsPerMinute / 60.0
+		fmt.Printf("Pacing:\n  mode: rate_limited | rpm: %.0f (~%.2f rps) | jitter: ≤200ms\n", p.RequestsPerMinute, rps)
+	case "scheduled":
+		fmt.Printf("Pacing:\n  mode: scheduled\n")
+		for i, s := range p.Schedule {
+			fmt.Printf("  [%d] cron: %q  duration: %dm  rpm: %.0f\n", i, s.Cron, s.DurationMinutes, s.RequestsPerMinute)
+		}
+	default:
+		fmt.Printf("Pacing:\n  mode: %s\n", p.Mode)
+	}
+	fmt.Println()
+
+	// Limits.
+	l := cfg.Limits
+	fmt.Printf("Limits:\n  workers: %d (browser: %d) | cpu: %.0f%% | memory: %d MB\n",
+		l.MaxWorkers, l.MaxBrowserWorkers, l.CPUThresholdPct, l.MemoryThresholdMB)
+}
 
 func initLogger(level, format string) {
 	lvl, err := zerolog.ParseLevel(level)

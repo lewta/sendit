@@ -30,12 +30,10 @@ DNS A-record query, and WebSocket connection. Run with:
 go test -tags integration -race -v ./internal/engine/...
 ```
 
-### B. Dry-run mode
-Add a `--dry-run` flag to `sendit start` that loads and validates the config, logs what would be dispatched (target selection distribution, pacing summary), and exits without making any real requests.
-
-- Print weighted target breakdown (url, type, effective weight %)
-- Print resolved pacing parameters for the configured mode
-- Useful for sanity-checking a new config before running live
+### ~~B. Dry-run mode~~ ✓ DONE
+`--dry-run` flag added to `sendit start`. Prints target breakdown (url, type, weight, effective %),
+pacing parameters for the configured mode, and concurrency/resource limits, then exits without
+making any requests.
 
 ### ~~9. Use a measurement interval in `cpu.Percent`~~ ✓ DONE
 Passing `200 * time.Millisecond` to `cpu.Percent` for stable, non-noisy readings.

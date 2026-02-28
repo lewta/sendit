@@ -7,6 +7,12 @@ linters:
     - misspell
     - unconvert
     - gosec
+  exclusions:
+    rules:
+      # G304: file path from variable — intentional for a CLI tool that reads
+      # user-specified config, targets, and PID files.
+      - linters: [gosec]
+        text: "G304"
 
 formatters:
   enable:
@@ -16,8 +22,3 @@ formatters:
 issues:
   # Don't report the same issue more than once
   max-same-issues: 0
-  exclude-rules:
-    # G304: file path from variable — intentional for a CLI tool that reads
-    # user-specified config, targets, and PID files.
-    - linters: [gosec]
-      text: "G304"

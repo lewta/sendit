@@ -9,9 +9,6 @@ linters:
     - misspell
     - unconvert
     - gosec
-  settings:
-    gofmt:
-      simplify: true
 
 issues:
   # Don't report the same issue more than once

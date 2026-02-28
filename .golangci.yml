@@ -2,16 +2,13 @@ version: "2"
 
 linters:
   enable:
+    - gofmt
     - govet
     - staticcheck
+    - goimports
     - misspell
     - unconvert
     - gosec
-
-formatters:
-  enable:
-    - gofmt
-    - goimports
   settings:
     gofmt:
       simplify: true

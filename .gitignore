@@ -1,0 +1,16 @@
+# Binary
+/sendit
+
+# PID file
+/tmp/sendit.pid
+
+# Test cache / coverage
+*.out
+
+# Claude Code local settings
+.claude/
+
+# Editor
+.idea/
+.vscode/
+*.swp

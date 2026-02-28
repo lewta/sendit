@@ -7,32 +7,17 @@ Items 1-6 and 8 have been implemented (commits 197655e, c59b3dd).
 
 ## Tier 1 — Foundational (do first)
 
-### A. Naming and rebranding
-Give the project a proper name to replace the placeholder `sendit` / `sendit`.
-Blocks everything downstream (module path, Docker image name, metric prefix).
-
-Considerations:
-- Name should be short, memorable, and hintable from the CLI (tab-completion friendly)
-- Avoid names already taken on pkg.go.dev, GitHub, and common package registries
-- Update once a name is chosen:
-  - `go.mod` module path (`github.com/<user>/<name>`)
-  - All internal import paths
-  - Binary name in `go build -o <name>`
-  - `cmd/sendit/` directory → `cmd/<name>/`
-  - README title, badges, and install instructions
-  - Docker image name and compose service name
-  - Prometheus metric prefix (`sendit_*` → `<name>_*`)
-  - PID file default path (`/tmp/sendit.pid` → `/tmp/<name>.pid`)
+### ~~A. Naming and rebranding~~ ✓ DONE
+Project renamed to `sendit`. Module path, binary, CLI, metrics prefix, PID file, and all
+import paths updated. GitHub repo: https://github.com/lewta/sendit (branch: main).
 
 ### 7. Reuse `dns.Client` across queries
 **File:** `internal/driver/dns.go`
 
 `Execute` allocates a new `&dns.Client{}` on every call. Create a shared client per driver instance (or per resolver address) to avoid repeated allocations on high-frequency DNS targets.
 
-### 8. Fix unsafe type assertion on `Scheduler.limiter`
-**File:** `internal/engine/scheduler.go`
-
-`s.limiter.Load().(*rate.Limiter)` panics if the `atomic.Value` is nil (which it is when `mode: human`). The mode-switch in `Wait` currently prevents this in practice, but it is fragile. Use `atomic.Pointer[rate.Limiter]` (Go 1.19+) or store a typed wrapper struct to make the nil case explicit and safe.
+### ~~8. Fix unsafe type assertion on `Scheduler.limiter`~~ ✓ DONE
+Switched to `atomic.Pointer[rate.Limiter]` — nil by default, no type assertion needed.
 
 ---
 

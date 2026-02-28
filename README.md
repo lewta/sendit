@@ -27,9 +27,21 @@ Key properties:
 ### Build
 
 ```sh
-git clone <repo>
+git clone https://github.com/lewta/sendit
 cd sendit
 go build -o sendit ./cmd/sendit
+```
+
+### Test an endpoint without a config file
+
+`sendit probe` works with no config — it auto-detects HTTP from `https://` and DNS from a bare hostname:
+
+```sh
+# HTTP
+./sendit probe https://example.com
+
+# DNS
+./sendit probe example.com
 ```
 
 ### Validate your config
@@ -124,6 +136,88 @@ sendit completion <shell>
 | Flag | Short | Default | Description |
 |------|-------|---------|-------------|
 | `--config` | `-c` | `config/example.yaml` | Path to YAML config file |
+
+---
+
+## Dry-run mode
+
+Pass `--dry-run` to `sendit start` to preview the effective configuration — target weights, pacing parameters, and resource limits — without sending any traffic:
+
+```sh
+./sendit start --config config/example.yaml --dry-run
+```
+
+```
+Config: config/example.yaml  ✓ valid
+
+Targets (4):
+  URL                                      TYPE       WEIGHT     SHARE
+  https://httpbin.org/get                  http       10         47.6%
+  https://httpbin.org/status/200           http       5          23.8%
+  https://news.ycombinator.com             browser    3          14.3%
+  example.com                              dns        3          14.3%
+  Total weight: 21
+
+Pacing:
+  mode: human | delay: 800ms–8000ms (random uniform)
+
+Limits:
+  workers: 4 (browser: 1) | cpu: 60% | memory: 512 MB
+```
+
+---
+
+## Probe
+
+`sendit probe <target>` tests a single HTTP or DNS endpoint in a loop with no config file. Press Ctrl-C to stop and print a summary.
+
+**Type auto-detection:**
+
+| Target format | Detected type |
+|---|---|
+| `https://example.com` | `http` |
+| `http://example.com` | `http` |
+| `example.com` | `dns` |
+
+Override with `--type http` or `--type dns`.
+
+**HTTP example:**
+
+```sh
+./sendit probe https://example.com
+```
+
+```
+Probing https://example.com (http) — Ctrl-C to stop
+
+  200   142ms  1.2 KB
+  200    38ms  1.2 KB
+  200   503ms  1.2 KB
+^C
+
+--- https://example.com ---
+3 sent, 3 ok, 0 error(s)
+min/avg/max latency: 38ms / 227ms / 503ms
+```
+
+**DNS example:**
+
+```sh
+./sendit probe example.com --record-type A --resolver 1.1.1.1:53
+```
+
+```
+Probing example.com (dns, A @ 1.1.1.1:53) — Ctrl-C to stop
+
+  NOERROR    12ms
+  NOERROR     8ms
+  NOERROR    11ms
+^C
+
+--- example.com ---
+3 sent, 3 ok, 0 error(s)
+min/avg/max latency: 8ms / 10ms / 12ms
+```
 
 ---
 
@@ -409,8 +503,11 @@ DNS RCODEs are mapped to HTTP-like status codes so the engine's unified error cl
 
 ```sh
 go test ./...
-go test -race ./...      # with race detector
+go test -race ./...                                       # with race detector
+go test -tags integration -race -v ./internal/engine/... # full pipeline integration tests
 ```
+
+Integration tests spin up local HTTP, DNS, and WebSocket servers and exercise the complete dispatch pipeline including backoff, graceful shutdown, and the resource gate.
 
 ---
 
@@ -428,3 +525,7 @@ go test -race ./...      # with race detector
 | Rate limiting | Set `default_rps: 0.1`, `max_workers: 1` → ~1 req/10s per domain observed |
 | Backoff | Point a target at a URL returning 429; observe exponential `backoff=` delay in WRN logs |
 | Graceful shutdown | Send SIGTERM during active requests → process logs "engine stopped" after in-flight tasks finish |
+| Dry-run | `sendit start --config config/example.yaml --dry-run` → prints target table, pacing, and limits then exits 0 |
+| Result export | Set `output.enabled: true`, run briefly, inspect the output file for JSONL records |
+| Probe (HTTP) | `sendit probe https://httpbin.org/get` → prints status/latency/bytes per request |
+| Probe (DNS) | `sendit probe example.com` → prints NOERROR/latency per query |

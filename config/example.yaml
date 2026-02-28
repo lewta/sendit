@@ -1,0 +1,99 @@
+pacing:
+  mode: human                   # human | rate_limited | scheduled
+  requests_per_minute: 20
+  jitter_factor: 0.4
+  min_delay_ms: 800
+  max_delay_ms: 8000
+  # schedule is only used when mode: scheduled
+  schedule:
+    - cron: "0 9 * * 1-5"       # weekdays at 09:00
+      duration_minutes: 30
+      requests_per_minute: 40
+
+limits:
+  max_workers: 4
+  max_browser_workers: 1
+  cpu_threshold_pct: 60.0
+  memory_threshold_mb: 512
+
+rate_limits:
+  default_rps: 0.5
+  per_domain:
+    - domain: "example.com"
+      rps: 0.2
+    - domain: "httpbin.org"
+      rps: 1.0
+
+backoff:
+  initial_ms: 1000
+  max_ms: 120000
+  multiplier: 2.0
+  max_attempts: 3
+
+# Optional: load targets from a plain-text file (url + type per line).
+# Targets from targets_file are appended to any inline targets defined below.
+# targets_file: "config/targets.txt"
+
+# Default values applied to every target loaded from targets_file.
+# Override any field per-target by specifying it in the file (weight only)
+# or use inline targets for full control.
+target_defaults:
+  weight: 1
+  http:
+    method: GET
+    headers:
+      User-Agent: "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36"
+    timeout_s: 15
+  browser:
+    scroll: false
+    timeout_s: 30
+  dns:
+    resolver: "8.8.8.8:53"
+    record_type: A
+  websocket:
+    duration_s: 30
+    expect_messages: 0
+
+targets:
+  - url: "https://httpbin.org/get"
+    weight: 10
+    type: http
+    http:
+      method: GET
+      headers:
+        User-Agent: "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36"
+        Accept: "text/html,application/xhtml+xml"
+      timeout_s: 15
+
+  - url: "https://httpbin.org/status/200"
+    weight: 5
+    type: http
+    http:
+      method: GET
+      headers:
+        User-Agent: "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36"
+      timeout_s: 10
+
+  - url: "https://news.ycombinator.com"
+    weight: 3
+    type: browser
+    browser:
+      scroll: true
+      wait_for_selector: "#hnmain"
+      timeout_s: 30
+
+  - url: "example.com"
+    weight: 3
+    type: dns
+    dns:
+      resolver: "8.8.8.8:53"
+      record_type: A
+
+metrics:
+  enabled: false
+  prometheus_port: 9090
+
+daemon:
+  pid_file: "/tmp/sendit.pid"
+  log_level: info
+  log_format: text

@@ -1,0 +1,15 @@
+# targets.txt — simple target list for use with targets_file in the config.
+#
+# Format: <url> <type> [weight]
+#
+#   url     Full URL (https://, wss://) or bare hostname for dns targets.
+#   type    One of: http | browser | dns | websocket
+#   weight  Optional positive integer (default: target_defaults.weight).
+#
+# Blank lines and lines beginning with '#' are ignored.
+
+https://httpbin.org/get         http   5
+https://httpbin.org/status/200  http   3
+https://httpbin.org/delay/1     http   1
+example.com                     dns    2
+github.com                      dns    1

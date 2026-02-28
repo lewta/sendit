@@ -1,0 +1,65 @@
+pacing:
+  mode: rate_limited
+  requests_per_minute: 30    # 1 request every 2s — easy to watch
+  jitter_factor: 0.2
+
+limits:
+  max_workers: 2
+  max_browser_workers: 1
+  cpu_threshold_pct: 95.0
+  memory_threshold_mb: 8192
+
+rate_limits:
+  default_rps: 2.0
+
+backoff:
+  initial_ms: 1000
+  max_ms: 30000
+  multiplier: 2.0
+  max_attempts: 3
+
+targets:
+  - url: "https://httpbin.org/get"
+    weight: 5
+    type: http
+    http:
+      method: GET
+      headers:
+        User-Agent: "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36"
+      timeout_s: 10
+
+  - url: "https://httpbin.org/status/200"
+    weight: 3
+    type: http
+    http:
+      method: GET
+      timeout_s: 10
+
+  - url: "https://httpbin.org/delay/1"
+    weight: 2
+    type: http
+    http:
+      method: GET
+      timeout_s: 10
+
+  - url: "example.com"
+    weight: 2
+    type: dns
+    dns:
+      resolver: "8.8.8.8:53"
+      record_type: A
+
+  - url: "github.com"
+    weight: 1
+    type: dns
+    dns:
+      resolver: "1.1.1.1:53"
+      record_type: A
+
+metrics:
+  enabled: false
+
+daemon:
+  pid_file: "/tmp/sendit-test.pid"
+  log_level: debug
+  log_format: text

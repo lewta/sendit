@@ -37,6 +37,9 @@ browser, DNS, and WebSocket protocols.
 Targets are defined in a YAML config file under 'targets' (inline) and/or
 loaded from a plain-text file via 'targets_file'. Both can be used together.
 
+Use 'sendit probe <target>' to test a single endpoint interactively without
+a config file — works like ping for HTTP and DNS targets.
+
 Use 'sendit validate' to check a config before running.`,
 }
 
@@ -281,7 +284,11 @@ Default field values for file-loaded targets (method, timeout, resolver,
 etc.) are configured under 'target_defaults:' in the YAML.
 
 The engine shuts down gracefully on SIGINT or SIGTERM, waiting for all
-in-flight requests to complete before exiting.`,
+in-flight requests to complete before exiting.
+
+Send SIGHUP to reload the config without restarting. Targets, rate limits,
+backoff, and pacing are updated atomically with no dropped requests. Changes
+to pacing mode or resource limits (workers, cpu, memory) require a restart.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg, err := config.Load(cfgPath)
 			if err != nil {

@@ -38,7 +38,7 @@ jobs:
 
       - name: Release (tag push)
         if: github.event_name == 'push'
-        uses: goreleaser/goreleaser-action@v6
+        uses: goreleaser/goreleaser-action@v7
         with:
           version: "~> v2"
           args: release --clean
@@ -47,7 +47,7 @@ jobs:
 
       - name: Release (manual)
         if: github.event_name == 'workflow_dispatch'
-        uses: goreleaser/goreleaser-action@v6
+        uses: goreleaser/goreleaser-action@v7
         with:
           version: "~> v2"
           args: release --clean

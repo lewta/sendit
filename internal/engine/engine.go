@@ -2,11 +2,13 @@ package engine
 
 import (
 	"context"
+	"fmt"
 	"net/url"
 
 	"github.com/lewta/sendit/internal/config"
 	"github.com/lewta/sendit/internal/driver"
 	"github.com/lewta/sendit/internal/metrics"
+	"github.com/lewta/sendit/internal/output"
 	"github.com/lewta/sendit/internal/ratelimit"
 	"github.com/lewta/sendit/internal/resource"
 	"github.com/lewta/sendit/internal/task"
@@ -23,6 +25,7 @@ type Engine struct {
 	backoff   *ratelimit.BackoffRegistry
 	monitor   *resource.Monitor
 	metrics   *metrics.Metrics
+	writer    *output.Writer
 	drivers   map[string]driver.Driver
 }
 
@@ -59,12 +62,25 @@ func New(cfg *config.Config, m *metrics.Metrics) (*Engine, error) {
 			"websocket": driver.NewWebSocketDriver(),
 		},
 	}
+
+	if cfg.Output.Enabled {
+		w, err := output.New(cfg.Output)
+		if err != nil {
+			return nil, fmt.Errorf("creating output writer: %w", err)
+		}
+		e.writer = w
+	}
+
 	return e, nil
 }
 
 // Run starts the engine and blocks until ctx is cancelled.
 // After ctx is cancelled it waits for all in-flight tasks to complete.
 func (e *Engine) Run(ctx context.Context) {
+	if e.writer != nil {
+		defer e.writer.Close()
+	}
+
 	e.monitor.Start(ctx)
 	e.scheduler.Start(ctx)
 
@@ -131,6 +147,10 @@ func (e *Engine) dispatch(ctx context.Context, t task.Task) {
 	result := drv.Execute(ctx, t)
 
 	e.metrics.Record(result)
+
+	if e.writer != nil {
+		e.writer.Send(result)
+	}
 
 	if result.Error != nil {
 		class := ratelimit.ClassifyError(result.Error)

@@ -16,7 +16,7 @@ Features planned for future releases of sendit. Contributions are welcome — op
 
 ---
 
-## v0.2.0 — Result export
+## v0.2.0 — Result export ✓
 
 Write request results to a file for offline analysis, complementing the Prometheus scrape endpoint.
 

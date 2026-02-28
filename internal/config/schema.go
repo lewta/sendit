@@ -9,6 +9,7 @@ type Config struct {
 	Targets        []TargetConfig       `mapstructure:"targets"`
 	TargetsFile    string               `mapstructure:"targets_file"`
 	TargetDefaults TargetDefaultsConfig `mapstructure:"target_defaults"`
+	Output         OutputConfig         `mapstructure:"output"`
 	Metrics        MetricsConfig        `mapstructure:"metrics"`
 	Daemon         DaemonConfig         `mapstructure:"daemon"`
 }
@@ -106,6 +107,14 @@ type WebSocketConfig struct {
 	DurationS      int      `mapstructure:"duration_s"`
 	SendMessages   []string `mapstructure:"send_messages"`
 	ExpectMessages int      `mapstructure:"expect_messages"`
+}
+
+// OutputConfig controls writing request results to a file.
+type OutputConfig struct {
+	Enabled bool   `mapstructure:"enabled"`
+	File    string `mapstructure:"file"`
+	Format  string `mapstructure:"format"` // jsonl | csv
+	Append  bool   `mapstructure:"append"`
 }
 
 // MetricsConfig controls Prometheus metrics exposition.

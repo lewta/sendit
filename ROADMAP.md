@@ -52,7 +52,7 @@ min/avg/max latency: 38ms / 90ms / 142ms
 
 ---
 
-## v0.4.0 — Config hot-reload
+## v0.4.0 — Config hot-reload ✓
 
 Reload configuration on `SIGHUP` without restarting the process or dropping in-flight requests.
 

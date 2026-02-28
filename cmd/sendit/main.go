@@ -323,6 +323,29 @@ in-flight requests to complete before exiting.`,
 				return fmt.Errorf("creating engine: %w", err)
 			}
 
+			// Hot-reload on SIGHUP.
+			sighupCh := make(chan os.Signal, 1)
+			signal.Notify(sighupCh, syscall.SIGHUP)
+			go func() {
+				for {
+					select {
+					case <-ctx.Done():
+						signal.Stop(sighupCh)
+						return
+					case <-sighupCh:
+						log.Info().Str("config", cfgPath).Msg("SIGHUP received, reloading config")
+						newCfg, err := config.Load(cfgPath)
+						if err != nil {
+							log.Error().Err(err).Msg("hot-reload: invalid config, keeping current")
+							continue
+						}
+						if err := eng.Reload(newCfg); err != nil {
+							log.Error().Err(err).Msg("hot-reload: reload failed, keeping current")
+						}
+					}
+				}
+			}()
+
 			eng.Run(ctx)
 			return nil
 		},

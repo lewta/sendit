@@ -60,6 +60,11 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("backoff.multiplier", 2.0)
 	v.SetDefault("backoff.max_attempts", 3)
 
+	v.SetDefault("output.enabled", false)
+	v.SetDefault("output.file", "sendit-results.jsonl")
+	v.SetDefault("output.format", "jsonl")
+	v.SetDefault("output.append", false)
+
 	v.SetDefault("metrics.enabled", false)
 	v.SetDefault("metrics.prometheus_port", 9090)
 
@@ -221,6 +226,16 @@ func validate(cfg *Config) error {
 		}
 		if !validTypes[t.Type] {
 			errs = append(errs, fmt.Sprintf("targets[%d].type must be one of http|browser|dns|websocket, got %q", i, t.Type))
+		}
+	}
+
+	if cfg.Output.Enabled {
+		if cfg.Output.File == "" {
+			errs = append(errs, "output.file must not be empty when output.enabled is true")
+		}
+		validFormats := map[string]bool{"jsonl": true, "csv": true}
+		if !validFormats[cfg.Output.Format] {
+			errs = append(errs, fmt.Sprintf("output.format must be jsonl|csv, got %q", cfg.Output.Format))
 		}
 	}
 

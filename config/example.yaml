@@ -89,6 +89,13 @@ targets:
       resolver: "8.8.8.8:53"
       record_type: A
 
+# Optional: write request results to a file for offline analysis.
+# output:
+#   enabled: true
+#   file: "sendit-results.jsonl"  # path to output file
+#   format: jsonl                  # jsonl | csv
+#   append: false                  # true = append to existing file
+
 metrics:
   enabled: false
   prometheus_port: 9090

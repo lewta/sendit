@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/url"
+	"sync/atomic"
 
 	"github.com/lewta/sendit/internal/config"
 	"github.com/lewta/sendit/internal/driver"
@@ -17,12 +18,12 @@ import (
 
 // Engine orchestrates the dispatch loop.
 type Engine struct {
-	cfg       *config.Config
+	cfg       atomic.Pointer[config.Config]
 	pool      *Pool
 	scheduler *Scheduler
-	selector  *task.Selector
-	rl        *ratelimit.Registry
-	backoff   *ratelimit.BackoffRegistry
+	selector  atomic.Pointer[task.Selector]
+	rl        atomic.Pointer[ratelimit.Registry]
+	backoff   atomic.Pointer[ratelimit.BackoffRegistry]
 	monitor   *resource.Monitor
 	metrics   *metrics.Metrics
 	writer    *output.Writer
@@ -42,19 +43,10 @@ func New(cfg *config.Config, m *metrics.Metrics) (*Engine, error) {
 	}
 
 	e := &Engine{
-		cfg:       cfg,
 		pool:      NewPool(cfg.Limits.MaxWorkers, cfg.Limits.MaxBrowserWorkers),
 		scheduler: NewScheduler(cfg.Pacing),
-		selector:  sel,
-		rl:        ratelimit.NewRegistry(cfg.RateLimits.DefaultRPS, perDomain),
-		backoff: ratelimit.NewBackoffRegistry(
-			cfg.Backoff.InitialMs,
-			cfg.Backoff.MaxMs,
-			cfg.Backoff.Multiplier,
-			cfg.Backoff.MaxAttempts,
-		),
-		monitor: resource.New(cfg.Limits.CPUThresholdPct, cfg.Limits.MemoryThresholdMB),
-		metrics: m,
+		monitor:   resource.New(cfg.Limits.CPUThresholdPct, cfg.Limits.MemoryThresholdMB),
+		metrics:   m,
 		drivers: map[string]driver.Driver{
 			"http":      driver.NewHTTPDriver(),
 			"browser":   driver.NewBrowserDriver(),
@@ -62,6 +54,16 @@ func New(cfg *config.Config, m *metrics.Metrics) (*Engine, error) {
 			"websocket": driver.NewWebSocketDriver(),
 		},
 	}
+
+	e.cfg.Store(cfg)
+	e.selector.Store(sel)
+	e.rl.Store(ratelimit.NewRegistry(cfg.RateLimits.DefaultRPS, perDomain))
+	e.backoff.Store(ratelimit.NewBackoffRegistry(
+		cfg.Backoff.InitialMs,
+		cfg.Backoff.MaxMs,
+		cfg.Backoff.Multiplier,
+		cfg.Backoff.MaxAttempts,
+	))
 
 	if cfg.Output.Enabled {
 		w, err := output.New(cfg.Output)
@@ -84,9 +86,10 @@ func (e *Engine) Run(ctx context.Context) {
 	e.monitor.Start(ctx)
 	e.scheduler.Start(ctx)
 
+	cfg := e.cfg.Load()
 	log.Info().
-		Str("mode", e.cfg.Pacing.Mode).
-		Int("max_workers", e.cfg.Limits.MaxWorkers).
+		Str("mode", cfg.Pacing.Mode).
+		Int("max_workers", cfg.Limits.MaxWorkers).
 		Msg("engine started")
 
 	for {
@@ -95,7 +98,7 @@ func (e *Engine) Run(ctx context.Context) {
 			break
 		}
 
-		t := e.selector.Pick()
+		t := e.selector.Load().Pick()
 
 		// --- Resource gate ---
 		if err := e.monitor.Admit(ctx); err != nil {
@@ -129,13 +132,18 @@ func (e *Engine) dispatch(ctx context.Context, t task.Task) {
 
 	host := hostname(t.URL)
 
+	// Snapshot the registries once so that a concurrent Reload cannot
+	// swap them mid-dispatch.
+	rl := e.rl.Load()
+	bo := e.backoff.Load()
+
 	// --- Backoff wait ---
-	if err := e.backoff.Wait(ctx, host); err != nil {
+	if err := bo.Wait(ctx, host); err != nil {
 		return // context cancelled
 	}
 
 	// --- Per-domain rate limit ---
-	if err := e.rl.Wait(ctx, host); err != nil {
+	if err := rl.Wait(ctx, host); err != nil {
 		return // context cancelled
 	}
 
@@ -158,8 +166,8 @@ func (e *Engine) dispatch(ctx context.Context, t task.Task) {
 			return
 		}
 		if class == ratelimit.ErrorClassTransient {
-			if e.backoff.Attempts(host) < e.backoff.MaxAttempts() {
-				delay := e.backoff.RecordError(host)
+			if bo.Attempts(host) < bo.MaxAttempts() {
+				delay := bo.RecordError(host)
 				log.Warn().
 					Str("host", host).
 					Dur("backoff", delay).
@@ -183,8 +191,8 @@ func (e *Engine) dispatch(ctx context.Context, t task.Task) {
 	class := ratelimit.ClassifyStatusCode(result.StatusCode)
 	switch class {
 	case ratelimit.ErrorClassTransient:
-		if e.backoff.Attempts(host) < e.backoff.MaxAttempts() {
-			delay := e.backoff.RecordError(host)
+		if bo.Attempts(host) < bo.MaxAttempts() {
+			delay := bo.RecordError(host)
 			log.Warn().
 				Str("host", host).
 				Int("status", result.StatusCode).
@@ -197,7 +205,7 @@ func (e *Engine) dispatch(ctx context.Context, t task.Task) {
 			Int("status", result.StatusCode).
 			Msg("permanent HTTP error, skipping")
 	case ratelimit.ErrorClassNone:
-		e.backoff.RecordSuccess(host)
+		bo.RecordSuccess(host)
 		log.Info().
 			Str("url", t.URL).
 			Str("type", t.Type).
@@ -205,6 +213,74 @@ func (e *Engine) dispatch(ctx context.Context, t task.Task) {
 			Dur("duration", result.Duration).
 			Int64("bytes", result.BytesRead).
 			Msg("task complete")
+	}
+}
+
+// Reload atomically applies a new configuration to the running engine.
+// Targets, rate limits, backoff, and pacing are updated in-place.
+// Changes to pacing mode, resource limits, or scheduled windows require a restart.
+func (e *Engine) Reload(newCfg *config.Config) error {
+	old := e.cfg.Load()
+
+	// Log target diff.
+	logTargetsDiff(old.Targets, newCfg.Targets)
+
+	// Swap Selector.
+	sel, err := task.NewSelector(newCfg.Targets)
+	if err != nil {
+		return fmt.Errorf("hot-reload: building selector: %w", err)
+	}
+	e.selector.Store(sel)
+
+	// Swap rate-limit registry.
+	perDomain := make(map[string]float64, len(newCfg.RateLimits.PerDomain))
+	for _, d := range newCfg.RateLimits.PerDomain {
+		perDomain[d.Domain] = d.RPS
+	}
+	e.rl.Store(ratelimit.NewRegistry(newCfg.RateLimits.DefaultRPS, perDomain))
+
+	// Swap backoff registry.
+	e.backoff.Store(ratelimit.NewBackoffRegistry(
+		newCfg.Backoff.InitialMs, newCfg.Backoff.MaxMs,
+		newCfg.Backoff.Multiplier, newCfg.Backoff.MaxAttempts,
+	))
+
+	// Update pacing (or warn if mode change requires restart).
+	if old.Pacing.Mode != newCfg.Pacing.Mode {
+		log.Warn().Str("old", old.Pacing.Mode).Str("new", newCfg.Pacing.Mode).
+			Msg("hot-reload: pacing mode change requires restart")
+	} else {
+		e.scheduler.UpdatePacing(newCfg.Pacing)
+	}
+
+	// Warn if resource limits changed.
+	if old.Limits != newCfg.Limits {
+		log.Warn().Msg("hot-reload: resource limit changes (workers, cpu, memory) require restart")
+	}
+
+	e.cfg.Store(newCfg)
+	log.Info().Msg("hot-reload: config reloaded")
+	return nil
+}
+
+func logTargetsDiff(old, next []config.TargetConfig) {
+	oldSet := make(map[string]bool, len(old))
+	for _, t := range old {
+		oldSet[t.URL] = true
+	}
+	for _, t := range next {
+		if !oldSet[t.URL] {
+			log.Info().Str("url", t.URL).Msg("hot-reload: target added")
+		}
+	}
+	newSet := make(map[string]bool, len(next))
+	for _, t := range next {
+		newSet[t.URL] = true
+	}
+	for _, t := range old {
+		if !newSet[t.URL] {
+			log.Info().Str("url", t.URL).Msg("hot-reload: target removed")
+		}
 	}
 }
 

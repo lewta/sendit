@@ -17,6 +17,10 @@ import (
 type Scheduler struct {
 	cfg config.PacingConfig
 
+	// minDelayMs / maxDelayMs are used in human mode and are reloadable.
+	minDelayMs atomic.Int64
+	maxDelayMs atomic.Int64
+
 	// activeRPM is used in rate_limited / scheduled mode.
 	activeRPM atomic.Value // stores float64
 
@@ -30,6 +34,9 @@ type Scheduler struct {
 // NewScheduler creates a Scheduler from the pacing config.
 func NewScheduler(cfg config.PacingConfig) *Scheduler {
 	s := &Scheduler{cfg: cfg}
+
+	s.minDelayMs.Store(int64(cfg.MinDelayMs))
+	s.maxDelayMs.Store(int64(cfg.MaxDelayMs))
 
 	switch cfg.Mode {
 	case "rate_limited":
@@ -116,8 +123,8 @@ func (s *Scheduler) Wait(ctx context.Context) error {
 }
 
 func (s *Scheduler) humanWait(ctx context.Context) error {
-	minMs := int64(s.cfg.MinDelayMs)
-	maxMs := int64(s.cfg.MaxDelayMs)
+	minMs := s.minDelayMs.Load()
+	maxMs := s.maxDelayMs.Load()
 
 	var delayMs int64
 	if maxMs <= minMs {
@@ -127,6 +134,25 @@ func (s *Scheduler) humanWait(ctx context.Context) error {
 	}
 
 	return sleepCtx(ctx, time.Duration(delayMs)*time.Millisecond)
+}
+
+// UpdatePacing updates reloadable pacing parameters at runtime.
+// Mode changes are not supported — callers should warn and skip.
+func (s *Scheduler) UpdatePacing(cfg config.PacingConfig) {
+	switch s.cfg.Mode {
+	case "human":
+		s.minDelayMs.Store(int64(cfg.MinDelayMs))
+		s.maxDelayMs.Store(int64(cfg.MaxDelayMs))
+		log.Info().Int("min_ms", cfg.MinDelayMs).Int("max_ms", cfg.MaxDelayMs).
+			Msg("hot-reload: human pacing updated")
+	case "rate_limited":
+		rpm := cfg.RequestsPerMinute
+		s.limiter.Store(rate.NewLimiter(rate.Limit(rpm/60.0), 1))
+		s.activeRPM.Store(rpm)
+		log.Info().Float64("rpm", rpm).Msg("hot-reload: rate_limited pacing updated")
+	case "scheduled":
+		log.Warn().Msg("hot-reload: scheduled pacing changes require restart")
+	}
 }
 
 func (s *Scheduler) rateLimitedWait(ctx context.Context) error {

@@ -26,7 +26,35 @@ Write request results to a file for offline analysis, complementing the Promethe
 
 ---
 
-## v0.3.0 — Config hot-reload
+## v0.3.0 — Probe command
+
+A `sendit probe <target>` subcommand for interactively testing a single HTTP or DNS endpoint in a loop — no config file needed. Designed to work like `ping` but for web targets.
+
+- Accepts a bare URL or hostname; auto-detects type from the scheme (`https://` → http, bare hostname → dns)
+- `--type` flag to override auto-detection (`http` | `dns`)
+- `--interval` flag for delay between requests (default `1s`)
+- `--timeout` flag for per-request timeout (default `5s`)
+- `--resolver` flag for DNS targets (default `8.8.8.8:53`)
+- Prints one line per request with status, latency, and bytes received
+- Prints a summary (total, success, errors, min/avg/max latency) on Ctrl-C
+
+```
+$ sendit probe https://example.com
+
+Probing https://example.com (http) — Ctrl-C to stop
+
+  200  142ms  1.2 KB
+  200  138ms  1.2 KB
+  200  503ms  1.2 KB
+^C
+--- https://example.com ---
+3 sent, 3 ok, 0 errors
+min/avg/max latency: 138ms / 261ms / 503ms
+```
+
+---
+
+## v0.4.0 — Config hot-reload
 
 Reload configuration on `SIGHUP` without restarting the process or dropping in-flight requests.
 
@@ -36,7 +64,7 @@ Reload configuration on `SIGHUP` without restarting the process or dropping in-f
 
 ---
 
-## v0.4.0 — Container support
+## v0.5.0 — Container support
 
 Package sendit as a Docker image for portability and scheduled runs in CI or on a server.
 
@@ -47,7 +75,7 @@ Package sendit as a Docker image for portability and scheduled runs in CI or on 
 
 ---
 
-## v0.5.0 — Documentation site
+## v0.6.0 — Documentation site
 
 Public reference documentation hosted on GitHub Pages.
 

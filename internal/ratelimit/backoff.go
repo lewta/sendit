@@ -60,11 +60,11 @@ type domainBackoff struct {
 
 // BackoffRegistry tracks backoff state per domain using decorrelated jitter.
 type BackoffRegistry struct {
-	mu         sync.Mutex
-	domains    map[string]*domainBackoff
-	initialMs  int
-	maxMs      int
-	multiplier float64
+	mu          sync.Mutex
+	domains     map[string]*domainBackoff
+	initialMs   int
+	maxMs       int
+	multiplier  float64
 	maxAttempts int
 }
 

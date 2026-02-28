@@ -1,0 +1,16 @@
+linters:
+  enable:
+    - gofmt
+    - govet
+    - staticcheck
+    - goimports
+    - misspell
+    - unconvert
+
+linters-settings:
+  gofmt:
+    simplify: true
+
+issues:
+  # Don't report the same issue more than once
+  max-same-issues: 0

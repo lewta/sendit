@@ -324,9 +324,9 @@ func TestIntegration_WebSocket(t *testing.T) {
 	defer srv.Close()
 
 	cfg := testCfg([]config.TargetConfig{{
-		URL:    "ws://" + srv.Listener.Addr().String(),
-		Type:   "websocket",
-		Weight: 1,
+		URL:       "ws://" + srv.Listener.Addr().String(),
+		Type:      "websocket",
+		Weight:    1,
 		WebSocket: config.WebSocketConfig{DurationS: 1},
 	}})
 

@@ -75,19 +75,23 @@ target_defaults:
 ## CLI Commands
 
 ```
-sendit start    [-c <path>] [--foreground] [--log-level debug|info|warn|error]
+sendit start    [-c <path>] [--foreground] [--log-level debug|info|warn|error] [--dry-run]
+sendit probe    <target>   [--type http|dns] [--interval 1s] [--timeout 5s]
 sendit stop     [--pid-file <path>]
 sendit status   [--pid-file <path>]
 sendit validate [-c <path>]
+sendit version
 sendit completion <shell>
 ```
 
 | Command      | Description |
 |--------------|-------------|
 | `start`      | Start the engine. Writes a PID file by default so `stop`/`status` can find the process; use `--foreground` to skip writing the PID file. |
+| `probe`      | Test a single HTTP or DNS endpoint in a loop (like ping). No config file required. |
 | `stop`       | Send SIGTERM to a running instance via its PID file. |
 | `status`     | Check whether the process in the PID file is still alive. |
 | `validate`   | Parse and validate a config file without starting the engine. Exits 0 on success, non-zero with a message on failure. |
+| `version`    | Print version, commit, and build date. |
 | `completion` | Generate shell autocompletion scripts (bash, zsh, fish, powershell). |
 
 ### `start` flags
@@ -98,6 +102,16 @@ sendit completion <shell>
 | `--foreground` | | `false` | Skip writing the PID file (process always runs in the foreground) |
 | `--log-level` | | *(from config)* | Override log level: `debug` \| `info` \| `warn` \| `error` |
 | `--dry-run` | | `false` | Print config summary (targets, pacing, limits) and exit without sending traffic |
+
+### `probe` flags
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--type` | *(auto-detected)* | Driver type: `http` \| `dns` |
+| `--interval` | `1s` | Delay between requests |
+| `--timeout` | `5s` | Per-request timeout |
+| `--resolver` | `8.8.8.8:53` | DNS resolver (dns targets only) |
+| `--record-type` | `A` | DNS record type (dns targets only) |
 
 ### `stop` / `status` flags
 

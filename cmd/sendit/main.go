@@ -7,12 +7,15 @@ import (
 	"os/signal"
 	"slices"
 	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
 	"github.com/lewta/sendit/internal/config"
+	"github.com/lewta/sendit/internal/driver"
 	"github.com/lewta/sendit/internal/engine"
 	"github.com/lewta/sendit/internal/metrics"
+	"github.com/lewta/sendit/internal/task"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
@@ -50,6 +53,186 @@ func init() {
 	rootCmd.AddCommand(statusCmd())
 	rootCmd.AddCommand(validateCmd())
 	rootCmd.AddCommand(versionCmd())
+	rootCmd.AddCommand(probeCmd())
+}
+
+// --- probe ---
+
+func probeCmd() *cobra.Command {
+	var (
+		driverType string
+		interval   time.Duration
+		timeout    time.Duration
+		resolver   string
+		recordType string
+	)
+
+	cmd := &cobra.Command{
+		Use:   "probe <target>",
+		Short: "Test a single endpoint in a loop (like ping for HTTP/DNS)",
+		Long: `Probe an HTTP or DNS endpoint in a loop until stopped.
+
+No config file is required. The driver type is auto-detected from the target:
+  https:// or http:// prefix → http
+  bare hostname              → dns
+
+Examples:
+  sendit probe https://example.com
+  sendit probe example.com
+  sendit probe example.com --type dns --record-type AAAA --resolver 1.1.1.1:53`,
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			target := args[0]
+
+			if driverType == "" {
+				driverType = detectProbeType(target)
+			}
+			if driverType != "http" && driverType != "dns" {
+				return fmt.Errorf("probe supports http and dns targets; got type %q", driverType)
+			}
+
+			t := task.Task{
+				URL:  target,
+				Type: driverType,
+				Config: config.TargetConfig{
+					URL:    target,
+					Type:   driverType,
+					Weight: 1,
+					HTTP: config.HTTPConfig{
+						Method:   "GET",
+						TimeoutS: int(timeout.Seconds()),
+					},
+					DNS: config.DNSConfig{
+						Resolver:   resolver,
+						RecordType: recordType,
+					},
+				},
+			}
+
+			var drv driver.Driver
+			switch driverType {
+			case "http":
+				drv = driver.NewHTTPDriver()
+			case "dns":
+				drv = driver.NewDNSDriver()
+			}
+
+			ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+			defer stop()
+
+			header := fmt.Sprintf("Probing %s (http)", target)
+			if driverType == "dns" {
+				header = fmt.Sprintf("Probing %s (dns, %s @ %s)", target, strings.ToUpper(recordType), resolver)
+			}
+			fmt.Printf("\n%s — Ctrl-C to stop\n\n", header)
+
+			var (
+				total   int
+				success int
+				minDur  time.Duration
+				maxDur  time.Duration
+				sumDur  time.Duration
+			)
+
+			run := func() {
+				execCtx, cancel := context.WithTimeout(ctx, timeout)
+				result := drv.Execute(execCtx, t)
+				cancel()
+
+				total++
+				dur := result.Duration.Round(time.Millisecond)
+
+				if result.Error != nil {
+					fmt.Printf("  ERR  %v\n", result.Error)
+					return
+				}
+
+				success++
+				sumDur += result.Duration
+				if success == 1 || result.Duration < minDur {
+					minDur = result.Duration
+				}
+				if result.Duration > maxDur {
+					maxDur = result.Duration
+				}
+
+				if driverType == "dns" {
+					fmt.Printf("  %-8s  %6s\n", probeRcodeLabel(result.StatusCode), dur)
+				} else {
+					fmt.Printf("  %3d  %6s  %s\n", result.StatusCode, dur, probeFormatBytes(result.BytesRead))
+				}
+			}
+
+			// Fire immediately, then on each tick.
+			run()
+			ticker := time.NewTicker(interval)
+			defer ticker.Stop()
+			for {
+				select {
+				case <-ctx.Done():
+					probeSummary(target, total, success, minDur, maxDur, sumDur)
+					return nil
+				case <-ticker.C:
+					run()
+				}
+			}
+		},
+	}
+
+	cmd.Flags().StringVar(&driverType, "type", "", "Driver type: http|dns (auto-detected from target if omitted)")
+	cmd.Flags().DurationVar(&interval, "interval", time.Second, "Delay between requests")
+	cmd.Flags().DurationVar(&timeout, "timeout", 5*time.Second, "Per-request timeout")
+	cmd.Flags().StringVar(&resolver, "resolver", "8.8.8.8:53", "DNS resolver address (dns targets only)")
+	cmd.Flags().StringVar(&recordType, "record-type", "A", "DNS record type (dns targets only)")
+
+	return cmd
+}
+
+func detectProbeType(target string) string {
+	if strings.HasPrefix(target, "http://") || strings.HasPrefix(target, "https://") {
+		return "http"
+	}
+	return "dns"
+}
+
+func probeRcodeLabel(status int) string {
+	switch status {
+	case 200:
+		return "NOERROR"
+	case 404:
+		return "NXDOMAIN"
+	case 403:
+		return "REFUSED"
+	case 503:
+		return "SERVFAIL"
+	default:
+		return fmt.Sprintf("RCODE_%d", status)
+	}
+}
+
+func probeFormatBytes(n int64) string {
+	switch {
+	case n >= 1024*1024:
+		return fmt.Sprintf("%.1f MB", float64(n)/(1024*1024))
+	case n >= 1024:
+		return fmt.Sprintf("%.1f KB", float64(n)/1024)
+	default:
+		return fmt.Sprintf("%d B", n)
+	}
+}
+
+func probeSummary(target string, total, success int, minDur, maxDur, sumDur time.Duration) {
+	errs := total - success
+	fmt.Printf("\n--- %s ---\n", target)
+	fmt.Printf("%d sent, %d ok, %d error(s)\n", total, success, errs)
+	if success > 0 {
+		avg := sumDur / time.Duration(success)
+		fmt.Printf("min/avg/max latency: %s / %s / %s\n",
+			minDur.Round(time.Millisecond),
+			avg.Round(time.Millisecond),
+			maxDur.Round(time.Millisecond),
+		)
+	}
 }
 
 // --- version ---

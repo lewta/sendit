@@ -23,7 +23,8 @@ type Scheduler struct {
 	// inWindow indicates whether a cron window is currently active.
 	inWindow atomic.Bool
 
-	limiter atomic.Value // stores *rate.Limiter (rate_limited / scheduled)
+	// limiter is only set in rate_limited / scheduled mode; nil otherwise.
+	limiter atomic.Pointer[rate.Limiter]
 }
 
 // NewScheduler creates a Scheduler from the pacing config.
@@ -129,7 +130,7 @@ func (s *Scheduler) humanWait(ctx context.Context) error {
 }
 
 func (s *Scheduler) rateLimitedWait(ctx context.Context) error {
-	lim := s.limiter.Load().(*rate.Limiter)
+	lim := s.limiter.Load()
 	if err := lim.Wait(ctx); err != nil {
 		return err
 	}

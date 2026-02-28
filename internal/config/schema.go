@@ -27,19 +27,19 @@ type TargetDefaultsConfig struct {
 
 // PacingConfig controls how requests are spaced in time.
 type PacingConfig struct {
-	Mode              string           `mapstructure:"mode"`               // human | rate_limited | scheduled
-	RequestsPerMinute float64          `mapstructure:"requests_per_minute"`
-	JitterFactor      float64          `mapstructure:"jitter_factor"`
-	MinDelayMs        int              `mapstructure:"min_delay_ms"`
-	MaxDelayMs        int              `mapstructure:"max_delay_ms"`
-	Schedule          []ScheduleEntry  `mapstructure:"schedule"`
+	Mode              string          `mapstructure:"mode"` // human | rate_limited | scheduled
+	RequestsPerMinute float64         `mapstructure:"requests_per_minute"`
+	JitterFactor      float64         `mapstructure:"jitter_factor"`
+	MinDelayMs        int             `mapstructure:"min_delay_ms"`
+	MaxDelayMs        int             `mapstructure:"max_delay_ms"`
+	Schedule          []ScheduleEntry `mapstructure:"schedule"`
 }
 
 // ScheduleEntry defines a cron-based active window with its own RPM.
 type ScheduleEntry struct {
-	Cron               string  `mapstructure:"cron"`
-	DurationMinutes    int     `mapstructure:"duration_minutes"`
-	RequestsPerMinute  float64 `mapstructure:"requests_per_minute"`
+	Cron              string  `mapstructure:"cron"`
+	DurationMinutes   int     `mapstructure:"duration_minutes"`
+	RequestsPerMinute float64 `mapstructure:"requests_per_minute"`
 }
 
 // LimitsConfig controls concurrency and resource thresholds.
@@ -72,28 +72,28 @@ type BackoffConfig struct {
 
 // TargetConfig describes a single request target.
 type TargetConfig struct {
-	URL       string           `mapstructure:"url"`
-	Weight    int              `mapstructure:"weight"`
-	Type      string           `mapstructure:"type"` // http | browser | dns | websocket
-	HTTP      HTTPConfig       `mapstructure:"http"`
-	Browser   BrowserConfig    `mapstructure:"browser"`
-	DNS       DNSConfig        `mapstructure:"dns"`
-	WebSocket WebSocketConfig  `mapstructure:"websocket"`
+	URL       string          `mapstructure:"url"`
+	Weight    int             `mapstructure:"weight"`
+	Type      string          `mapstructure:"type"` // http | browser | dns | websocket
+	HTTP      HTTPConfig      `mapstructure:"http"`
+	Browser   BrowserConfig   `mapstructure:"browser"`
+	DNS       DNSConfig       `mapstructure:"dns"`
+	WebSocket WebSocketConfig `mapstructure:"websocket"`
 }
 
 // HTTPConfig holds HTTP-specific target settings.
 type HTTPConfig struct {
-	Method    string            `mapstructure:"method"`
-	Headers   map[string]string `mapstructure:"headers"`
-	Body      string            `mapstructure:"body"`
-	TimeoutS  int               `mapstructure:"timeout_s"`
+	Method   string            `mapstructure:"method"`
+	Headers  map[string]string `mapstructure:"headers"`
+	Body     string            `mapstructure:"body"`
+	TimeoutS int               `mapstructure:"timeout_s"`
 }
 
 // BrowserConfig holds headless-browser target settings.
 type BrowserConfig struct {
-	Scroll           bool   `mapstructure:"scroll"`
-	WaitForSelector  string `mapstructure:"wait_for_selector"`
-	TimeoutS         int    `mapstructure:"timeout_s"`
+	Scroll          bool   `mapstructure:"scroll"`
+	WaitForSelector string `mapstructure:"wait_for_selector"`
+	TimeoutS        int    `mapstructure:"timeout_s"`
 }
 
 // DNSConfig holds DNS resolver target settings.

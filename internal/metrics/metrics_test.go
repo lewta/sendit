@@ -4,8 +4,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/lewta/sendit/internal/task"
 	"github.com/lewta/sendit/internal/config"
+	"github.com/lewta/sendit/internal/task"
 )
 
 // makeResult creates a task.Result for testing.

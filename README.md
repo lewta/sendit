@@ -1,5 +1,11 @@
 # sendit
 
+[![CI](https://img.shields.io/github/actions/workflow/status/lewta/sendit/ci.yml?branch=main&label=tests)](https://github.com/lewta/sendit/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/lewta/sendit)](https://github.com/lewta/sendit/releases/latest)
+[![Go version](https://img.shields.io/badge/go-1.22+-00ADD8?logo=go&logoColor=white)](https://go.dev)
+[![Go Report Card](https://goreportcard.com/badge/github.com/lewta/sendit)](https://goreportcard.com/report/github.com/lewta/sendit)
+[![License](https://img.shields.io/github/license/lewta/sendit)](LICENSE)
+
 A Go CLI tool that simulates realistic user web traffic across HTTP, headless browser, DNS, and WebSocket protocols. Designed to blend into normal traffic baselines while being polite to both the local machine and target servers.
 
 Key properties:
@@ -91,6 +97,7 @@ sendit completion <shell>
 | `--config` | `-c` | `config/example.yaml` | Path to YAML config file |
 | `--foreground` | | `false` | Skip writing the PID file (process always runs in the foreground) |
 | `--log-level` | | *(from config)* | Override log level: `debug` \| `info` \| `warn` \| `error` |
+| `--dry-run` | | `false` | Print config summary (targets, pacing, limits) and exit without sending traffic |
 
 ### `stop` / `status` flags
 
@@ -279,6 +286,28 @@ targets:
       expect_messages: 1                      # wait to receive this many messages
 ```
 
+### `output`
+
+Optional result export to a file for offline analysis.
+
+| Field | Default | Description |
+|-------|---------|-------------|
+| `enabled` | `false` | Enable result export |
+| `file` | `sendit-results.jsonl` | Output file path |
+| `format` | `jsonl` | `jsonl` (one JSON object per line) \| `csv` |
+| `append` | `false` | Append to an existing file instead of truncating on start |
+
+```yaml
+output:
+  enabled: true
+  file: "results.jsonl"
+  format: jsonl    # jsonl | csv
+  append: false
+```
+
+Each JSONL record contains: `ts`, `url`, `type`, `status`, `duration_ms`, `bytes`, `error`.
+CSV output writes a header row when `append: false`.
+
 ### `metrics`
 
 Optional Prometheus exposition.
@@ -338,6 +367,7 @@ internal/resource/              gopsutil CPU/RAM monitor with Admit() gate
 internal/driver/                HTTP · headless browser (chromedp) · DNS (miekg) · WebSocket
 internal/engine/                Worker pool · scheduler · dispatch loop
 internal/metrics/               Prometheus counters & histograms
+internal/output/                JSONL / CSV result writer (non-blocking, goroutine-backed)
 config/example.yaml             Full reference configuration (with target_defaults section)
 config/targets.txt              Example targets file (url + type per line)
 config/test.yaml                Lightweight HTTP+DNS config for local smoke-testing

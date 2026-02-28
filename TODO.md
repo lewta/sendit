@@ -80,6 +80,33 @@ Reload configuration on SIGHUP without restarting the process, preserving in-fli
 
 ---
 
+## Tier 3.5 — Docs site
+
+### H. Documentation site (Hugo)
+Build a public docs site using [Hugo](https://gohugo.io) and host it on GitHub Pages.
+
+Structure:
+- `docs/` — Hugo site root (content, layouts, static assets, hugo.toml)
+- Pages to write:
+  - **Getting started** — install, build, first run
+  - **Configuration reference** — all YAML fields with defaults and examples (mirrors README but browsable)
+  - **Pacing modes** — human / rate_limited / scheduled with diagrams
+  - **Drivers** — HTTP, browser, DNS, WebSocket behaviour and options
+  - **Metrics** — Prometheus metric names, labels, and example queries
+  - **CLI reference** — start / stop / status / validate / completion flags
+
+Deployment:
+- GitHub Actions workflow (`.github/workflows/docs.yml`) that runs `hugo --minify` and publishes to `gh-pages` branch on every push to `main`
+- Set GitHub Pages source to the `gh-pages` branch in repo settings
+- Custom domain optional — default will be `https://lewta.github.io/sendit`
+
+Notes:
+- Choose a clean Hugo theme suited to CLI/developer tools (e.g. Docsy, Geekdoc, or PaperMod)
+- Keep the README as the quick-start; the docs site is the full reference
+- Add a "docs" badge to the README linking to the site once live
+
+---
+
 ## Tier 4 — Revisit later
 
 ### G. TUI (terminal dashboard)

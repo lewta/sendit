@@ -62,7 +62,18 @@ Reload configuration on `SIGHUP` without restarting the process or dropping in-f
 
 ---
 
-## v0.5.0 — Container support
+## v0.5.0 — Security CI ✓
+
+Automated security scanning integrated into every PR and a weekly scheduled run.
+
+- **`govulncheck`** — scans all dependencies against the Go vulnerability database (vuln.go.dev); fails the build on any known CVE
+- **`gosec`** — SAST linter added to golangci-lint; checks for insecure patterns in source code (weak crypto, command injection, file permission issues, etc.)
+- **CodeQL** — GitHub's semantic analysis engine; results surface in the repository Security tab
+- **Dependabot** — weekly automated PRs for stale Go module and GitHub Actions dependencies
+
+---
+
+## v0.6.0 — Container support
 
 Package sendit as a Docker image for portability and scheduled runs in CI or on a server.
 
@@ -73,7 +84,7 @@ Package sendit as a Docker image for portability and scheduled runs in CI or on 
 
 ---
 
-## v0.6.0 — Documentation site
+## v0.7.0 — Documentation site
 
 Public reference documentation hosted on GitHub Pages.
 

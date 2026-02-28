@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/lewta/sendit/internal/task"
 	"github.com/prometheus/client_golang/prometheus"
@@ -95,8 +96,9 @@ func (m *Metrics) ServeHTTP(ctx context.Context, port int) {
 	mux.Handle("/metrics", promhttp.HandlerFor(m.registry, promhttp.HandlerOpts{}))
 
 	srv := &http.Server{
-		Addr:    fmt.Sprintf(":%d", port),
-		Handler: mux,
+		Addr:              fmt.Sprintf(":%d", port),
+		Handler:           mux,
+		ReadHeaderTimeout: 5 * time.Second,
 	}
 
 	log.Info().Str("addr", srv.Addr).Msg("prometheus metrics endpoint listening")

@@ -537,7 +537,7 @@ func initLogger(level, format string) {
 }
 
 func writePID(path string) error {
-	return os.WriteFile(path, []byte(strconv.Itoa(os.Getpid())), 0o644)
+	return os.WriteFile(path, []byte(strconv.Itoa(os.Getpid())), 0o600)
 }
 
 func readPID(path string) (int, error) {

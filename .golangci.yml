@@ -1,18 +1,20 @@
-version: "1"
+version: "2"
 
 linters:
   enable:
-    - gofmt
     - govet
     - staticcheck
-    - goimports
     - misspell
     - unconvert
     - gosec
 
-linters-settings:
-  gofmt:
-    simplify: true
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  settings:
+    gofmt:
+      simplify: true
 
 issues:
   # Don't report the same issue more than once

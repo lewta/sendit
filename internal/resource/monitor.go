@@ -64,7 +64,7 @@ func (m *Monitor) poll(ctx context.Context) {
 }
 
 func (m *Monitor) sample() {
-	cpuPcts, err := cpu.Percent(0, false)
+	cpuPcts, err := cpu.Percent(200*time.Millisecond, false)
 	cpuPct := 0.0
 	if err == nil && len(cpuPcts) > 0 {
 		cpuPct = cpuPcts[0]

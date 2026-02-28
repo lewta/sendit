@@ -34,11 +34,18 @@ func rcodeToHTTP(rcode int) int {
 }
 
 // DNSDriver performs DNS lookups using the miekg/dns library.
-type DNSDriver struct{}
+type DNSDriver struct {
+	client *dns.Client
+}
 
-// NewDNSDriver creates a DNSDriver.
+// NewDNSDriver creates a DNSDriver with a shared DNS client.
 func NewDNSDriver() *DNSDriver {
-	return &DNSDriver{}
+	return &DNSDriver{
+		client: &dns.Client{
+			Net:     "udp",
+			Timeout: 10 * time.Second,
+		},
+	}
 }
 
 // Execute performs a DNS query for t.URL using the configured resolver and record type.
@@ -66,11 +73,6 @@ func (d *DNSDriver) Execute(ctx context.Context, t task.Task) task.Result {
 	msg.SetQuestion(fqdn, qtype)
 	msg.RecursionDesired = true
 
-	client := &dns.Client{
-		Net:     "udp",
-		Timeout: 10 * time.Second,
-	}
-
 	start := time.Now()
 
 	// Use a goroutine so we can respect ctx cancellation.
@@ -82,7 +84,7 @@ func (d *DNSDriver) Execute(ctx context.Context, t task.Task) task.Result {
 	ch := make(chan dnsResult, 1)
 
 	go func() {
-		resp, rtt, err := client.Exchange(msg, resolver)
+		resp, rtt, err := d.client.Exchange(msg, resolver)
 		ch <- dnsResult{resp, rtt, err}
 	}()
 

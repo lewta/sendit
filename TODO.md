@@ -11,10 +11,8 @@ Items 1-6 and 8 have been implemented (commits 197655e, c59b3dd).
 Project renamed to `sendit`. Module path, binary, CLI, metrics prefix, PID file, and all
 import paths updated. GitHub repo: https://github.com/lewta/sendit (branch: main).
 
-### 7. Reuse `dns.Client` across queries
-**File:** `internal/driver/dns.go`
-
-`Execute` allocates a new `&dns.Client{}` on every call. Create a shared client per driver instance (or per resolver address) to avoid repeated allocations on high-frequency DNS targets.
+### ~~7. Reuse `dns.Client` across queries~~ ✓ DONE
+Client allocated once in `NewDNSDriver()` and reused across all `Execute` calls.
 
 ### ~~8. Fix unsafe type assertion on `Scheduler.limiter`~~ ✓ DONE
 Switched to `atomic.Pointer[rate.Limiter]` — nil by default, no type assertion needed.
@@ -38,15 +36,11 @@ Add a `--dry-run` flag to `sendit start` that loads and validates the config, lo
 - Print resolved pacing parameters for the configured mode
 - Useful for sanity-checking a new config before running live
 
-### 9. Use a measurement interval in `cpu.Percent`
-**File:** `internal/resource/monitor.go`
+### ~~9. Use a measurement interval in `cpu.Percent`~~ ✓ DONE
+Passing `200 * time.Millisecond` to `cpu.Percent` for stable, non-noisy readings.
 
-`cpu.Percent(0, false)` returns an instantaneous/noisy reading (delta since the last call, or since boot on the first call). Passing a short interval like `200 * time.Millisecond` gives a stable average without meaningfully delaying the poll goroutine.
-
-### 10. Clean up `Noop()` metric names
-**File:** `internal/metrics/metrics.go`
-
-`Noop()` creates unregistered collectors with `"noop_"` prefixed names. If `New()` is ever called twice (e.g., in a test that doesn't isolate the default Prometheus registry) it panics on double-registration. Switch `New()` to register on a fresh `prometheus.NewRegistry()` instead of the global default, making all metrics isolated and allowing multiple instances in tests.
+### ~~10. Isolate Prometheus registry in `metrics.New()`~~ ✓ DONE
+`New()` now registers on a fresh `prometheus.NewRegistry()`. `ServeHTTP` promoted to a method on `Metrics` and uses `promhttp.HandlerFor` with the isolated registry.
 
 ---
 

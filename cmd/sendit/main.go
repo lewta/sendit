@@ -103,7 +103,7 @@ in-flight requests to complete before exiting.`,
 			var m *metrics.Metrics
 			if cfg.Metrics.Enabled {
 				m = metrics.New()
-				go metrics.ServeHTTP(ctx, cfg.Metrics.PrometheusPort)
+				go m.ServeHTTP(ctx, cfg.Metrics.PrometheusPort)
 			} else {
 				m = metrics.Noop()
 			}

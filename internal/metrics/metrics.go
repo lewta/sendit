@@ -13,15 +13,21 @@ import (
 
 // Metrics holds Prometheus counters and histograms for the engine.
 type Metrics struct {
+	registry        *prometheus.Registry
 	requestsTotal   *prometheus.CounterVec
 	errorsTotal     *prometheus.CounterVec
 	durationSeconds *prometheus.HistogramVec
 	bytesRead       *prometheus.CounterVec
 }
 
-// New creates and registers a Metrics instance.
+// New creates and registers a Metrics instance on an isolated registry,
+// preventing double-registration panics when multiple instances are created
+// (e.g. in tests).
 func New() *Metrics {
+	reg := prometheus.NewRegistry()
+
 	m := &Metrics{
+		registry: reg,
 		requestsTotal: prometheus.NewCounterVec(prometheus.CounterOpts{
 			Name: "sendit_requests_total",
 			Help: "Total number of requests dispatched, by type and status code.",
@@ -44,7 +50,7 @@ func New() *Metrics {
 		}, []string{"type"}),
 	}
 
-	prometheus.MustRegister(
+	reg.MustRegister(
 		m.requestsTotal,
 		m.errorsTotal,
 		m.durationSeconds,
@@ -84,9 +90,9 @@ func (m *Metrics) Record(r task.Result) {
 
 // ServeHTTP starts the Prometheus metrics HTTP endpoint and shuts it down
 // gracefully when ctx is cancelled. Call in a goroutine.
-func ServeHTTP(ctx context.Context, port int) {
+func (m *Metrics) ServeHTTP(ctx context.Context, port int) {
 	mux := http.NewServeMux()
-	mux.Handle("/metrics", promhttp.Handler())
+	mux.Handle("/metrics", promhttp.HandlerFor(m.registry, promhttp.HandlerOpts{}))
 
 	srv := &http.Server{
 		Addr:    fmt.Sprintf(":%d", port),

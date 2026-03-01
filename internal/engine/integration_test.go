@@ -12,11 +12,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/coder/websocket"
 	"github.com/lewta/sendit/internal/config"
 	"github.com/lewta/sendit/internal/engine"
 	"github.com/lewta/sendit/internal/metrics"
 	"github.com/miekg/dns"
-	"github.com/coder/websocket"
 )
 
 // testCfg constructs a *config.Config suitable for fast integration tests:

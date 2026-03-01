@@ -16,7 +16,7 @@ import (
 	"github.com/lewta/sendit/internal/engine"
 	"github.com/lewta/sendit/internal/metrics"
 	"github.com/miekg/dns"
-	"nhooyr.io/websocket"
+	"github.com/coder/websocket"
 )
 
 // testCfg constructs a *config.Config suitable for fast integration tests:

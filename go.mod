@@ -4,6 +4,7 @@ go 1.24
 
 require (
 	github.com/chromedp/chromedp v0.14.2
+	github.com/coder/websocket v1.8.14
 	github.com/miekg/dns v1.1.58
 	github.com/prometheus/client_golang v1.23.2
 	github.com/robfig/cron/v3 v3.0.1
@@ -12,7 +13,6 @@ require (
 	github.com/spf13/cobra v1.8.0
 	github.com/spf13/viper v1.21.0
 	golang.org/x/time v0.5.0
-	nhooyr.io/websocket v1.8.11
 )
 
 require (

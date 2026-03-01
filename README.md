@@ -90,6 +90,7 @@ target_defaults:
 sendit start    [-c <path>] [--foreground] [--log-level debug|info|warn|error] [--dry-run]
 sendit probe    <target>   [--type http|dns] [--interval 1s] [--timeout 5s]
 sendit stop     [--pid-file <path>]
+sendit reload   [--pid-file <path>]
 sendit status   [--pid-file <path>]
 sendit validate [-c <path>]
 sendit version
@@ -101,6 +102,7 @@ sendit completion <shell>
 | `start`      | Start the engine. Writes a PID file by default so `stop`/`status` can find the process; use `--foreground` to skip writing the PID file. |
 | `probe`      | Test a single HTTP or DNS endpoint in a loop (like ping). No config file required. |
 | `stop`       | Send SIGTERM to a running instance via its PID file. |
+| `reload`     | Send SIGHUP to a running instance via its PID file to reload the config atomically. |
 | `status`     | Check whether the process in the PID file is still alive. |
 | `validate`   | Parse and validate a config file without starting the engine. Exits 0 on success, non-zero with a message on failure. |
 | `version`    | Print version, commit, and build date. |
@@ -125,7 +127,7 @@ sendit completion <shell>
 | `--resolver` | `8.8.8.8:53` | DNS resolver (dns targets only) |
 | `--record-type` | `A` | DNS record type (dns targets only) |
 
-### `stop` / `status` flags
+### `stop` / `reload` / `status` flags
 
 | Flag | Default | Description |
 |------|---------|-------------|

@@ -73,7 +73,26 @@ Automated security scanning integrated into every PR and a weekly scheduled run.
 
 ---
 
-## v0.6.0 — Container support
+## Pending patches
+
+Small improvements tracked as GitHub issues that will ship as patch releases before the next minor version.
+
+- **WebSocket driver migration** — migrate `internal/driver/websocket.go` from the deprecated `nhooyr.io/websocket` to its maintained fork `github.com/coder/websocket` ([#23](https://github.com/lewta/sendit/issues/23))
+- **`sendit reload` command** — send `SIGHUP` to a running instance via its PID file, making hot-reload a first-class CLI operation consistent with `sendit stop`
+
+---
+
+## v0.6.0 — Documentation site
+
+Public reference documentation hosted on GitHub Pages.
+
+- Built with [Hugo](https://gohugo.io), source under `docs/`
+- Pages: getting started, configuration reference, pacing modes, drivers, metrics, CLI reference
+- Deployed automatically on every push to `main` via GitHub Actions
+
+---
+
+## v0.7.0 — Container support
 
 Package sendit as a Docker image for portability and scheduled runs in CI or on a server.
 
@@ -81,16 +100,25 @@ Package sendit as a Docker image for portability and scheduled runs in CI or on 
 - `docker-compose.yml` with optional Prometheus + Grafana sidecars for out-of-the-box dashboards
 - Config mounted as a volume so the image stays generic
 - `--foreground` set by default in the entrypoint (PID files are not useful inside a container)
+- `/healthz` endpoint on the metrics port for container liveness checks
 
 ---
 
-## v0.7.0 — Documentation site
+## v0.8.0 — Observability improvements
 
-Public reference documentation hosted on GitHub Pages.
+Better visibility into per-target behaviour from Prometheus metrics.
 
-- Built with [Hugo](https://gohugo.io), source under `docs/`
-- Pages: getting started, configuration reference, pacing modes, drivers, metrics, CLI reference
-- Deployed automatically on every push to `main` via GitHub Actions
+- Add a `domain` label to `sendit_requests_total`, `sendit_errors_total`, and `sendit_request_duration_seconds` so individual targets can be distinguished in dashboards
+- Note: this is a breaking change to existing metric label sets — update any dashboards or alerts accordingly
+
+---
+
+## v0.9.0 — Probe WebSocket + distribution
+
+Complete driver coverage in the probe tool and make sendit easy to install.
+
+- **Probe WebSocket** — extend `sendit probe` to support `wss://` targets; connects, optionally sends a message, waits for a reply, and prints latency per round-trip
+- **Homebrew tap** — `brew install lewta/tap/sendit` as a distribution channel; tap repo auto-updated by GoReleaser on each release
 
 ---
 

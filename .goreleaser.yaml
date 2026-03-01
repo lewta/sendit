@@ -22,7 +22,7 @@ builds:
       - -X main.buildDate={{.Date}}
 
 archives:
-  - formats: [tar.gz]
+  - format: tar.gz
     name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
 
 checksum:

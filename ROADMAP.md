@@ -73,12 +73,12 @@ Automated security scanning integrated into every PR and a weekly scheduled run.
 
 ---
 
-## Pending patches
+## Pending patches ✓
 
 Small improvements tracked as GitHub issues that will ship as patch releases before the next minor version.
 
-- **WebSocket driver migration** — migrate `internal/driver/websocket.go` from the deprecated `nhooyr.io/websocket` to its maintained fork `github.com/coder/websocket` ([#23](https://github.com/lewta/sendit/issues/23))
-- **`sendit reload` command** — send `SIGHUP` to a running instance via its PID file, making hot-reload a first-class CLI operation consistent with `sendit stop`
+- **WebSocket driver migration** ✓ — migrate `internal/driver/websocket.go` from the deprecated `nhooyr.io/websocket` to its maintained fork `github.com/coder/websocket` ([#23](https://github.com/lewta/sendit/issues/23))
+- **`sendit reload` command** ✓ — send `SIGHUP` to a running instance via its PID file, making hot-reload a first-class CLI operation consistent with `sendit stop` ([#26](https://github.com/lewta/sendit/issues/26))
 
 ---
 

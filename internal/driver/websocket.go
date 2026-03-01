@@ -64,7 +64,7 @@ func (d *WebSocketDriver) Execute(ctx context.Context, t task.Task) task.Result 
 
 	<-holdCtx.Done()
 
-	conn.Close(websocket.StatusNormalClosure, "done") //nolint:errcheck
+	conn.Close(websocket.StatusNormalClosure, "done") //nolint:errcheck,gosec
 
 	return task.Result{
 		Task:       t,

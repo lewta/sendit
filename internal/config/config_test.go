@@ -28,7 +28,9 @@ func writeTemp(t *testing.T, content string) string {
 	if _, err := f.WriteString(content); err != nil {
 		t.Fatalf("writing temp file: %v", err)
 	}
-	f.Close()
+	if err := f.Close(); err != nil {
+		t.Fatalf("closing temp file: %v", err)
+	}
 	return f.Name()
 }
 

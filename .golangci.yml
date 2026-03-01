@@ -1,6 +1,7 @@
 version: "2"
 
 linters:
+  default: none
   enable:
     - govet
     - staticcheck
@@ -13,6 +14,10 @@ linters:
       # user-specified config, targets, and PID files.
       - linters: [gosec]
         text: "G304"
+      # G704: SSRF via taint analysis — intentional; sendit is a traffic
+      # generation tool that makes requests to user-configured URLs.
+      - linters: [gosec]
+        text: "G704"
 
 formatters:
   enable:

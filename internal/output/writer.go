@@ -33,7 +33,7 @@ func New(cfg config.OutputConfig) (*Writer, error) {
 		flag |= os.O_TRUNC
 	}
 
-	f, err := os.OpenFile(cfg.File, flag, 0o644)
+	f, err := os.OpenFile(cfg.File, flag, 0o600)
 	if err != nil {
 		return nil, fmt.Errorf("opening output file %q: %w", cfg.File, err)
 	}

@@ -53,6 +53,7 @@ func main() {
 func init() {
 	rootCmd.AddCommand(startCmd())
 	rootCmd.AddCommand(stopCmd())
+	rootCmd.AddCommand(reloadCmd())
 	rootCmd.AddCommand(statusCmd())
 	rootCmd.AddCommand(validateCmd())
 	rootCmd.AddCommand(versionCmd())
@@ -390,6 +391,43 @@ func stopCmd() *cobra.Command {
 			}
 
 			fmt.Printf("Sent SIGTERM to process %d\n", pid)
+			return nil
+		},
+	}
+
+	cmd.Flags().StringVar(&pidFile, "pid-file", "/tmp/sendit.pid", "Path to PID file")
+	return cmd
+}
+
+// --- reload ---
+
+func reloadCmd() *cobra.Command {
+	var pidFile string
+
+	cmd := &cobra.Command{
+		Use:   "reload",
+		Short: "Reload the config of a running sendit daemon",
+		Long: `Send SIGHUP to a running sendit daemon to reload its configuration.
+
+Targets, rate limits, backoff settings, and pacing parameters are reloaded
+atomically with no dropped requests. Changes to pacing mode, worker count,
+CPU/memory limits, or output settings require a full restart.`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			pid, err := readPID(pidFile)
+			if err != nil {
+				return fmt.Errorf("reading PID file %s: %w", pidFile, err)
+			}
+
+			proc, err := os.FindProcess(pid)
+			if err != nil {
+				return fmt.Errorf("finding process %d: %w", pid, err)
+			}
+
+			if err := proc.Signal(syscall.SIGHUP); err != nil {
+				return fmt.Errorf("sending SIGHUP to pid %d: %w", pid, err)
+			}
+
+			fmt.Fprintf(cmd.OutOrStdout(), "Sent reload signal to pid %d\n", pid)
 			return nil
 		},
 	}

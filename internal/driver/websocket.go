@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/coder/websocket"
 	"github.com/lewta/sendit/internal/task"
-	"nhooyr.io/websocket"
 )
 
 // WebSocketDriver connects to a WebSocket endpoint, sends messages, and waits.

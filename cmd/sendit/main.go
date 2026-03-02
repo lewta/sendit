@@ -356,7 +356,7 @@ func pinchTCP(ctx context.Context, target string) (string, time.Duration, error)
 	conn, err := (&net.Dialer{}).DialContext(ctx, "tcp", target)
 	dur := time.Since(start)
 	if err == nil {
-		conn.Close()
+		_ = conn.Close()
 		return "open", dur, nil
 	}
 	if isConnRefused(err) {
@@ -372,8 +372,8 @@ func pinchUDP(ctx context.Context, target string, timeout time.Duration) (string
 		return "error", time.Since(start), err
 	}
 	defer conn.Close()
-	conn.SetDeadline(time.Now().Add(timeout)) //nolint:errcheck
-	conn.Write([]byte{})                      //nolint:errcheck // empty datagram triggers ICMP if port closed
+	_ = conn.SetDeadline(time.Now().Add(timeout))
+	_, _ = conn.Write([]byte{}) // empty datagram triggers ICMP if port closed
 	buf := make([]byte, 1)
 	_, readErr := conn.Read(buf)
 	dur := time.Since(start)

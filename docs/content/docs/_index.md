@@ -1,7 +1,6 @@
 ---
 title: "Documentation"
-linkTitle: "Docs"
-weight: 20
+weight: 1
 description: "Reference documentation for sendit — a flexible traffic generator for HTTP, DNS, WebSocket, and browser targets."
 ---
 

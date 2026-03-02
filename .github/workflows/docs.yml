@@ -4,10 +4,13 @@ on:
   push:
     branches: [main]
     paths: ["docs/**"]
+  pull_request:
+    branches: [main]
+    paths: ["docs/**"]
   workflow_dispatch:
 
 concurrency:
-  group: pages
+  group: pages-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
@@ -16,11 +19,8 @@ permissions:
   id-token: write
 
 jobs:
-  deploy:
+  build:
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deploy.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -36,15 +36,29 @@ jobs:
           hugo-version: "0.147.1"
           extended: true
 
+      - name: Verify Hugo modules
+        run: hugo mod verify
+        working-directory: docs
+
       - name: Build
         run: hugo --minify --baseURL "https://lewta.github.io/sendit/"
         working-directory: docs
 
-      - uses: actions/configure-pages@v5
-
-      - uses: actions/upload-pages-artifact@v3
+      - name: Upload Pages artifact
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@v3
         with:
           path: docs/public
+
+  deploy:
+    needs: build
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/configure-pages@v5
 
       - id: deploy
         uses: actions/deploy-pages@v4

@@ -50,6 +50,28 @@ Probing https://example.com (http) — Ctrl-C to stop
 min/avg/max latency: 38ms / 90ms / 142ms
 ```
 
+`sendit pinch` checks TCP/UDP port connectivity in the same style — useful for verifying a service is reachable before running traffic against it:
+
+```sh
+# TCP (default)
+./sendit pinch example.com:80
+
+# UDP
+./sendit pinch 8.8.8.8:53 --type udp
+```
+
+```
+Pinching example.com:80 (tcp) — Ctrl-C to stop
+
+  open            142ms
+  open             38ms
+^C
+
+--- example.com:80 ---
+2 sent, 2 open, 0 closed/filtered
+min/avg/max latency: 38ms / 90ms / 142ms
+```
+
 ## Create a config file
 
 Copy the [example config](https://github.com/lewta/sendit/blob/main/config/example.yaml) as a starting point:

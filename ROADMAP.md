@@ -113,11 +113,18 @@ Better visibility into per-target behaviour from Prometheus metrics.
 
 ---
 
-## v0.9.0 — Probe WebSocket + distribution
+## v0.9.0 — Probe WebSocket
 
-Complete driver coverage in the probe tool and make sendit easy to install.
+Complete driver coverage in the probe tool.
 
-- **Probe WebSocket** — extend `sendit probe` to support `wss://` targets; connects, optionally sends a message, waits for a reply, and prints latency per round-trip
+- Extend `sendit probe` to support `wss://` targets; connects, optionally sends a message, waits for a reply, and prints latency per round-trip
+
+---
+
+## v0.10.0 — Distribution
+
+Make sendit easy to install without building from source.
+
 - **Homebrew tap** — `brew install lewta/tap/sendit` as a distribution channel; tap repo auto-updated by GoReleaser on each release
 
 ---

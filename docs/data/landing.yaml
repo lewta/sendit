@@ -1,0 +1,57 @@
+# Hero
+hero:
+  enable: true
+  weight: 10
+  template: hero
+
+  title: "sendit"
+  subtitle: A flexible traffic generator for **HTTP**, **browser**, **DNS**, and **WebSocket** targets. Polite by design — every request is paced, rate-limited, and resource-gated before dispatch.
+
+  ctaButton:
+    icon: rocket_launch
+    btnText: "Get Started"
+    url: "/sendit/docs/getting-started/"
+  cta2Button:
+    icon: download
+    btnText: "Releases"
+    url: "https://github.com/lewta/sendit/releases/latest"
+
+  info: "**Open Source** MIT Licensed."
+
+# Feature Grid
+featureGrid:
+  enable: true
+  weight: 20
+  template: feature grid
+
+  title: Key features
+  subtitle: sendit runs across all four major web protocols with configurable pacing and built-in courtesy limits so it never hammers targets or the local machine.
+
+  items:
+    - title: Four driver types
+      icon: hub
+      description: Send real traffic over **HTTP/HTTPS**, headless **browser** (chromedp), **DNS** (miekg/dns), and **WebSocket** — all from one config file.
+
+    - title: Three pacing modes
+      icon: schedule
+      description: "**human** (random delay), **rate_limited** (token bucket), and **scheduled** (cron windows) — traffic that looks exactly like you want it to."
+
+    - title: Polite by design
+      icon: shield
+      description: Per-domain token buckets, decorrelated jitter backoff on errors, and CPU/RAM resource gates ensure sendit never overwhelms targets or your machine.
+
+    - title: Graceful shutdown
+      icon: stop_circle
+      description: Waits for all in-flight requests to complete on SIGINT/SIGTERM before exiting. No dropped results.
+
+    - title: Hot reload
+      icon: refresh
+      description: Send SIGHUP (or run `sendit reload`) to atomically swap targets, weights, and rate limits without restarting the process.
+
+    - title: Prometheus metrics
+      icon: bar_chart
+      description: Optional Prometheus scrape endpoint exposes request counts, error rates, latency histograms, and bytes read — all labelled by driver type.
+
+# Disable the theme's default image compare section
+imageCompare:
+  enable: false

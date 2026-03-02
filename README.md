@@ -89,6 +89,7 @@ target_defaults:
 ```
 sendit start    [-c <path>] [--foreground] [--log-level debug|info|warn|error] [--dry-run]
 sendit probe    <target>   [--type http|dns] [--interval 1s] [--timeout 5s]
+sendit pinch    <host:port> [--type tcp|udp] [--interval 1s] [--timeout 5s]
 sendit stop     [--pid-file <path>]
 sendit reload   [--pid-file <path>]
 sendit status   [--pid-file <path>]
@@ -101,6 +102,7 @@ sendit completion <shell>
 |--------------|-------------|
 | `start`      | Start the engine. Writes a PID file by default so `stop`/`status` can find the process; use `--foreground` to skip writing the PID file. |
 | `probe`      | Test a single HTTP or DNS endpoint in a loop (like ping). No config file required. |
+| `pinch`      | Check whether a TCP or UDP port is open on a remote host, repeating on an interval. No config file required. |
 | `stop`       | Send SIGTERM to a running instance via its PID file. |
 | `reload`     | Send SIGHUP to a running instance via its PID file to reload the config atomically. |
 | `status`     | Check whether the process in the PID file is still alive. |
@@ -126,6 +128,14 @@ sendit completion <shell>
 | `--timeout` | `5s` | Per-request timeout |
 | `--resolver` | `8.8.8.8:53` | DNS resolver (dns targets only) |
 | `--record-type` | `A` | DNS record type (dns targets only) |
+
+### `pinch` flags
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--type` | `tcp` | Protocol type: `tcp` \| `udp` |
+| `--interval` | `1s` | Delay between checks |
+| `--timeout` | `5s` | Per-check timeout |
 
 ### `stop` / `reload` / `status` flags
 
@@ -220,6 +230,60 @@ Probing example.com (dns, A @ 1.1.1.1:53) — Ctrl-C to stop
 3 sent, 3 ok, 0 error(s)
 min/avg/max latency: 8ms / 10ms / 12ms
 ```
+
+---
+
+## Pinch
+
+`sendit pinch <host:port>` checks whether a TCP or UDP port is open on a remote host, repeating on an interval. Press Ctrl-C to stop and print a summary. No config file required.
+
+**TCP example:**
+
+```sh
+./sendit pinch example.com:80
+```
+
+```
+Pinching example.com:80 (tcp) — Ctrl-C to stop
+
+  open            142ms
+  open             38ms
+  closed            0ms  connection refused
+^C
+
+--- example.com:80 ---
+3 sent, 2 open, 1 closed/filtered
+min/avg/max latency: 38ms / 90ms / 142ms
+```
+
+**UDP example:**
+
+```sh
+./sendit pinch 8.8.8.8:53 --type udp
+```
+
+```
+Pinching 8.8.8.8:53 (udp) — Ctrl-C to stop
+
+  open              4ms
+  open|filtered     5s   (no response within timeout)
+^C
+
+--- 8.8.8.8:53 ---
+2 sent, 1 open, 1 closed/filtered
+min/avg/max latency: 4ms / 4ms / 4ms
+```
+
+**Status labels:**
+
+| Label | Protocol | Meaning |
+|---|---|---|
+| `open` | TCP | Connection accepted |
+| `closed` | TCP | Connection refused |
+| `filtered` | TCP | No response (deadline exceeded) |
+| `open` | UDP | Response data received |
+| `closed` | UDP | ICMP port unreachable received |
+| `open\|filtered` | UDP | Timeout — UDP is inherently ambiguous |
 
 ---
 
@@ -531,3 +595,5 @@ Integration tests spin up local HTTP, DNS, and WebSocket servers and exercise th
 | Result export | Set `output.enabled: true`, run briefly, inspect the output file for JSONL records |
 | Probe (HTTP) | `sendit probe https://httpbin.org/get` → prints status/latency/bytes per request |
 | Probe (DNS) | `sendit probe example.com` → prints NOERROR/latency per query |
+| Pinch (TCP) | `sendit pinch example.com:80` → prints open/closed/filtered + latency per check |
+| Pinch (UDP) | `sendit pinch 8.8.8.8:53 --type udp` → prints open/closed/open\|filtered per check |

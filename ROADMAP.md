@@ -82,7 +82,7 @@ Small improvements tracked as GitHub issues that will ship as patch releases bef
 
 ---
 
-## v0.6.0 — Documentation site
+## v0.6.0 — Documentation site ✓
 
 Public reference documentation hosted on GitHub Pages.
 

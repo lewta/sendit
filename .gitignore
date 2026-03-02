@@ -10,10 +10,9 @@
 # Claude Code local settings
 .claude/
 
-# Hugo docs build output and Node modules
+# Hugo docs build output
 docs/public/
 docs/resources/
-docs/node_modules/
 
 # Editor
 .idea/

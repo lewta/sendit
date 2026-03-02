@@ -26,14 +26,6 @@ jobs:
         with:
           fetch-depth: 0
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-
-      - name: Install PostCSS
-        run: npm ci
-        working-directory: docs
-
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod

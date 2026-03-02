@@ -9,7 +9,8 @@ description: "All sendit commands and their flags."
 
 ```
 sendit start    [-c <path>] [--foreground] [--log-level debug|info|warn|error] [--dry-run]
-sendit probe    <target>   [--type http|dns] [--interval 1s] [--timeout 5s]
+sendit probe    <target>    [--type http|dns] [--interval 1s] [--timeout 5s]
+sendit pinch    <host:port> [--type tcp|udp] [--interval 1s] [--timeout 5s]
 sendit stop     [--pid-file <path>]
 sendit reload   [--pid-file <path>]
 sendit status   [--pid-file <path>]
@@ -22,6 +23,7 @@ sendit completion <shell>
 |---|---|
 | `start` | Start the engine. Writes a PID file by default so `stop`/`status` can find the process; use `--foreground` to skip. |
 | `probe` | Test a single HTTP or DNS endpoint in a loop (like ping). No config file needed. |
+| `pinch` | Check whether a TCP or UDP port is open on a remote host, repeating on an interval. No config file needed. |
 | `stop` | Send SIGTERM to the running instance via its PID file. Waits for in-flight requests to finish. |
 | `reload` | Send SIGHUP to the running instance via its PID file to hot-reload config atomically. |
 | `status` | Report whether the process in the PID file is still alive. |
@@ -114,6 +116,62 @@ Probing example.com (dns, A @ 1.1.1.1:53) — Ctrl-C to stop
 --- example.com ---
 2 sent, 2 ok, 0 error(s)
 min/avg/max latency: 8ms / 10ms / 12ms
+```
+
+## `pinch` flags
+
+| Flag | Default | Description |
+|---|---|---|
+| `--type` | `tcp` | Protocol type: `tcp` \| `udp` |
+| `--interval` | `1s` | Delay between checks |
+| `--timeout` | `5s` | Per-check timeout |
+
+**Status labels:**
+
+| Label | Protocol | Meaning |
+|---|---|---|
+| `open` | TCP | Connection accepted |
+| `closed` | TCP | Connection refused |
+| `filtered` | TCP | No response (deadline exceeded) |
+| `open` | UDP | Response data received |
+| `closed` | UDP | ICMP port unreachable received |
+| `open\|filtered` | UDP | Timeout — UDP is inherently ambiguous |
+
+### TCP pinch example
+
+```sh
+./sendit pinch example.com:80
+```
+
+```
+Pinching example.com:80 (tcp) — Ctrl-C to stop
+
+  open            142ms
+  open             38ms
+  closed            0ms  connection refused
+^C
+
+--- example.com:80 ---
+3 sent, 2 open, 1 closed/filtered
+min/avg/max latency: 38ms / 90ms / 142ms
+```
+
+### UDP pinch example
+
+```sh
+./sendit pinch 8.8.8.8:53 --type udp
+```
+
+```
+Pinching 8.8.8.8:53 (udp) — Ctrl-C to stop
+
+  open              4ms
+  open|filtered     5s   (no response within timeout)
+^C
+
+--- 8.8.8.8:53 ---
+2 sent, 1 open, 1 closed/filtered
+min/avg/max latency: 4ms / 4ms / 4ms
 ```
 
 ## `stop` / `reload` / `status` flags

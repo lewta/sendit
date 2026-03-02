@@ -144,3 +144,29 @@ Terminal dashboard and commitment to a stable public API.
 │ RATE LIMITS     httpbin.org ████░░ 0.8 rps               │
 └───────────────────────────────────────────────────────────┘
 ```
+
+---
+
+## Research — Non-standard traffic driver
+
+Investigate adding a driver for non-standard or application-layer protocols that don't fit the existing HTTP/DNS/WebSocket/browser model.
+
+Areas to explore:
+- Protocol candidates: gRPC, raw TCP, ICMP, SMTP, FTP, custom binary protocols
+- Whether a generic `raw` driver with a user-supplied payload and framing spec is preferable to per-protocol drivers
+- How RCODEs / response codes map to the existing unified error classifier
+- Connection pooling and state management for connection-oriented protocols
+- What a config schema for non-HTTP targets looks like (no URL scheme, port-based, payload templating)
+
+---
+
+## Research — Aggressive / burst pacing mode
+
+Investigate a `burst` or `aggressive` pacing mode for scenarios where politeness constraints should be relaxed — load testing, internal infrastructure, or controlled chaos experiments.
+
+Areas to explore:
+- A `burst` mode that fires requests as fast as worker slots allow with no inter-request delay
+- Configurable concurrency ramp-up (e.g. linearly increase workers to max over a warm-up period)
+- Whether the existing resource gate (`cpu_threshold_pct`, `memory_threshold_mb`) is sufficient protection or needs a hard cap on total requests/duration
+- A `--duration` flag for `start` that auto-stops after a fixed wall-clock time, useful for timed load runs
+- How backoff and per-domain rate limits interact with burst mode (bypass, warn, or error)

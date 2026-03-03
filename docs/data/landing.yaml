@@ -52,6 +52,10 @@ featureGrid:
       icon: bar_chart
       description: Optional Prometheus scrape endpoint exposes request counts, error rates, latency histograms, and bytes read — all labelled by driver type.
 
+    - title: Probe & Pinch
+      icon: network_check
+      description: "`sendit probe` tests HTTP/DNS endpoints in a loop like ping — no config needed. `sendit pinch` checks TCP/UDP port connectivity on any host:port. Both print per-check latency and a summary on Ctrl-C."
+
 # Disable the theme's default image compare section
 imageCompare:
   enable: false

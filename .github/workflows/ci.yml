@@ -33,3 +33,16 @@ jobs:
 
       - name: Test
         run: go test -race ./...
+
+  integration:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Integration tests
+        run: go test -race -tags integration -v ./internal/engine/...

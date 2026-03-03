@@ -155,6 +155,13 @@ sendit generate --targets-file config/targets.txt > config/generated.yaml
 sendit generate --url https://example.com --crawl --depth 2 --output config/generated.yaml
 ```
 
+**Documentation deliverables** (required as part of the same release):
+
+- **CLI help** — `Use`, `Short`, and `Long` descriptions on the `generate` command and all flags, consistent with the style of `probe` and `pinch`
+- **`README.md`** — add `sendit generate` to the CLI commands usage block and command table; add a Generate section with both usage modes and example output, alongside the existing Probe and Pinch sections
+- **`docs/content/docs/cli.md`** — add `generate` to the commands block and table; add a `generate` flags section with both modes, flag reference, and annotated example output
+- **`docs/content/docs/getting-started.md`** — add a "Generate a config from a URL" subsection under the quick-start flow so new users discover the crawl mode as the fastest path to a working config
+
 ---
 
 ## v1.0.0 — TUI + stable API

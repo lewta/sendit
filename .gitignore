@@ -10,9 +10,13 @@
 # Claude Code local settings
 .claude/
 
-# Hugo docs build output
+# Hugo docs build output (docs/ subdirectory)
 docs/public/
 docs/resources/
+
+# Hugo build artifacts if run from repo root
+.hugo_build.lock
+public/
 
 # Editor
 .idea/

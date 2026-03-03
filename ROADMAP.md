@@ -129,6 +129,34 @@ Make sendit easy to install without building from source.
 
 ---
 
+## v0.11.0 — Config generator
+
+A `sendit generate` subcommand that produces a ready-to-use `config.yaml` from a targets file or a seed URL, reducing the time-to-first-traffic for new users.
+
+- **From a targets file** — parse an existing `targets_file` (url + type + optional weight, one per line) and emit a full `config.yaml` with sensible defaults for pacing, limits, backoff, and per-target driver settings
+- **From a seed URL (`--crawl`)** — for HTTP targets, optionally crawl the seed domain up to a configurable depth/page limit, discover in-domain links, and add each unique path as a weighted `http` target; respects `robots.txt` by default (`--ignore-robots` to override)
+- **Output** — writes to stdout by default; `--output <file>` writes to a file, prompting before overwriting
+- **Flags**:
+  - `--targets-file <path>` — generate from an existing targets file
+  - `--url <url>` — seed URL for crawl-based generation (implies `--crawl`)
+  - `--crawl` — enable in-domain page discovery for HTTP targets
+  - `--depth <n>` — maximum crawl depth (default: `2`)
+  - `--max-pages <n>` — maximum number of pages to discover (default: `50`)
+  - `--ignore-robots` — skip `robots.txt` enforcement during crawl
+  - `--output <file>` — write config to a file instead of stdout
+
+Example:
+
+```sh
+# From a targets file
+sendit generate --targets-file config/targets.txt > config/generated.yaml
+
+# From a seed URL with crawling
+sendit generate --url https://example.com --crawl --depth 2 --output config/generated.yaml
+```
+
+---
+
 ## v1.0.0 — TUI + stable API
 
 Terminal dashboard and commitment to a stable public API.

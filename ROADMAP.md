@@ -190,3 +190,5 @@ Areas to explore:
 - **Dependabot alerts** — confirm Dependabot security alerts are enabled (distinct from the Dependabot version-update PRs already in place); review alert thresholds and whether auto-dismiss rules are appropriate
 - **Branch protection hardening** — review current branch protection rules on `main` for gaps (e.g. required signed commits, dismiss stale reviews on push)
 - **OSSF Scorecard** — evaluate adding the OpenSSF Scorecard action to surface a public supply-chain security score
+- **Docs site — security page** — add a dedicated Security page to the docs site summarising the security policy, supported versions, and how to report a vulnerability; link from the homepage and CLI reference
+- **Docs site — `security.txt`** — add a `/.well-known/security.txt` (RFC 9116) to the GitHub Pages site (`docs/static/.well-known/security.txt`) so automated scanners and researchers can discover the disclosure contact and policy URL machine-readably

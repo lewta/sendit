@@ -135,6 +135,8 @@ A `sendit generate` subcommand that produces a ready-to-use `config.yaml` from a
 
 - **From a targets file** — parse an existing `targets_file` (url + type + optional weight, one per line) and emit a full `config.yaml` with sensible defaults for pacing, limits, backoff, and per-target driver settings
 - **From a seed URL (`--crawl`)** — for HTTP targets, optionally crawl the seed domain up to a configurable depth/page limit, discover in-domain links, and add each unique path as a weighted `http` target; respects `robots.txt` by default (`--ignore-robots` to override)
+- **From browser history (`--from-history`)** — read the local browser history database and emit all visited HTTP/HTTPS URLs as weighted `http` targets; weight derived from visit count so frequently visited pages appear more often in traffic (see Research item below)
+- **From browser bookmarks (`--from-bookmarks`)** — read the local browser bookmarks file and emit bookmarked HTTP/HTTPS URLs as equally-weighted `http` targets
 - **Output** — writes to stdout by default; `--output <file>` writes to a file, prompting before overwriting
 - **Flags**:
   - `--targets-file <path>` — generate from an existing targets file
@@ -143,6 +145,9 @@ A `sendit generate` subcommand that produces a ready-to-use `config.yaml` from a
   - `--depth <n>` — maximum crawl depth (default: `2`)
   - `--max-pages <n>` — maximum number of pages to discover (default: `50`)
   - `--ignore-robots` — skip `robots.txt` enforcement during crawl
+  - `--from-history <browser>` — harvest visited URLs from local browser history (`chrome` | `firefox` | `safari`)
+  - `--from-bookmarks <browser>` — harvest bookmarked URLs from local browser bookmarks (`chrome` | `firefox` | `safari`)
+  - `--history-limit <n>` — cap the number of URLs imported from history (default: `100`, ordered by visit count descending)
   - `--output <file>` — write config to a file instead of stdout
 
 Example:
@@ -153,6 +158,12 @@ sendit generate --targets-file config/targets.txt > config/generated.yaml
 
 # From a seed URL with crawling
 sendit generate --url https://example.com --crawl --depth 2 --output config/generated.yaml
+
+# From Chrome history (top 50 most-visited pages)
+sendit generate --from-history chrome --history-limit 50 --output config/generated.yaml
+
+# From Firefox bookmarks
+sendit generate --from-bookmarks firefox --output config/generated.yaml
 ```
 
 **Documentation deliverables** (required as part of the same release):
@@ -214,6 +225,25 @@ Areas to explore:
 - How backoff and per-domain rate limits interact with burst mode (bypass, warn, or error)
 
 ---
+
+## Research — Browser history and bookmarks harvesting
+
+Investigate the feasibility of reading local browser history and bookmarks as input sources for `sendit generate --from-history` and `--from-bookmarks` (planned for v0.11.0). Related to [#49](https://github.com/lewta/sendit/issues/49) — the same browser automation knowledge applies to both driving traffic and sourcing targets.
+
+Areas to explore:
+
+- **Chrome / Chromium history** — `History` SQLite file (`urls` table, `visit_count` column) located at:
+  - Linux: `~/.config/google-chrome/Default/History`
+  - macOS: `~/Library/Application Support/Google/Chrome/Default/History`
+  - Chrome must be closed or the file opened read-only (SQLite WAL mode may allow concurrent reads)
+- **Chrome bookmarks** — `Bookmarks` JSON file in the same `Default/` directory; parse the `roots` tree recursively to extract `url` entries
+- **Firefox history** — `places.sqlite` (`moz_places` table, `visit_count` column) at `~/.mozilla/firefox/<profile>/places.sqlite`; bookmarks share the same file via `moz_bookmarks`
+- **Firefox profile discovery** — `profiles.ini` in the Firefox config dir; the default profile must be auto-detected when no explicit path is given
+- **Safari** — history in `~/Library/Safari/History.db` (SQLite); bookmarks in `~/Library/Safari/Bookmarks.plist` (binary plist); macOS only
+- **Cross-platform path resolution** — abstract browser profile paths behind an OS+browser lookup so the same flag works on Linux and macOS without manual path configuration
+- **Filtering** — HTTP/HTTPS URLs only; strip query strings and fragments optionally; de-duplicate by normalised URL; respect `--history-limit`
+- **Weight derivation** — map `visit_count` to a target weight (e.g. log-scaled) so high-traffic pages appear more frequently in generated traffic without dominating the distribution entirely
+- **Privacy considerations** — document that history/bookmark data never leaves the local machine; the generated `config.yaml` contains only URLs, not browsing metadata
 
 ## Research — Repository security hardening
 

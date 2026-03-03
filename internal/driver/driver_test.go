@@ -157,8 +157,8 @@ func startDNSServer(t *testing.T, handler func(w dns.ResponseWriter, r *dns.Msg)
 	mux := dns.NewServeMux()
 	mux.HandleFunc(".", handler)
 	srv := &dns.Server{PacketConn: pc, Net: "udp", Handler: mux}
-	go srv.ActivateAndServe()            //nolint:errcheck
-	t.Cleanup(func() { srv.Shutdown() }) //nolint:errcheck
+	go srv.ActivateAndServe() //nolint:errcheck
+	t.Cleanup(func() { _ = srv.Shutdown() })
 	return addr
 }
 

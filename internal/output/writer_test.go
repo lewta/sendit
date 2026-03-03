@@ -74,7 +74,7 @@ func TestWriter_JSONL_ErrorField(t *testing.T) {
 
 	data, _ := os.ReadFile(f)
 	var rec record
-	json.Unmarshal([]byte(strings.TrimRight(string(data), "\n")), &rec) //nolint:errcheck
+	_ = json.Unmarshal([]byte(strings.TrimRight(string(data), "\n")), &rec)
 
 	if !strings.Contains(rec.Error, "connection refused") {
 		t.Errorf("Error = %q, want to contain 'connection refused'", rec.Error)

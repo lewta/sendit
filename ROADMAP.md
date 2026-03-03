@@ -177,3 +177,16 @@ Areas to explore:
 - Whether the existing resource gate (`cpu_threshold_pct`, `memory_threshold_mb`) is sufficient protection or needs a hard cap on total requests/duration
 - A `--duration` flag for `start` that auto-stops after a fixed wall-clock time, useful for timed load runs
 - How backoff and per-domain rate limits interact with burst mode (bypass, warn, or error)
+
+---
+
+## Research — Repository security hardening
+
+Review and enable GitHub's built-in security features to give the project a clear vulnerability disclosure process and broader automated dependency scanning.
+
+Areas to explore:
+- **Security policy** — add a `SECURITY.md` defining the supported versions and the process for reporting vulnerabilities (e.g. email or GitHub private reporting)
+- **Private vulnerability disclosure** — enable GitHub's private vulnerability reporting feature so reporters can submit CVEs without opening a public issue; evaluate whether the default advisory workflow fits the project
+- **Dependabot alerts** — confirm Dependabot security alerts are enabled (distinct from the Dependabot version-update PRs already in place); review alert thresholds and whether auto-dismiss rules are appropriate
+- **Branch protection hardening** — review current branch protection rules on `main` for gaps (e.g. required signed commits, dismiss stale reviews on push)
+- **OSSF Scorecard** — evaluate adding the OpenSSF Scorecard action to surface a public supply-chain security score

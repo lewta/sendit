@@ -1,0 +1,37 @@
+# sendit Docker example config
+# Mount this file at /etc/sendit/config.yaml in the container.
+# Adjust targets, pacing, and rate limits for your use case.
+
+pacing:
+  mode: rate_limited
+  requests_per_minute: 10
+
+limits:
+  max_workers: 4
+  cpu_threshold_pct: 70.0
+  memory_threshold_mb: 256
+
+rate_limits:
+  default_rps: 0.2
+
+backoff:
+  initial_ms: 1000
+  max_ms: 60000
+  multiplier: 2.0
+  max_attempts: 3
+
+targets:
+  - url: "https://httpbin.org/get"
+    weight: 1
+    type: http
+    http:
+      method: GET
+      timeout_s: 15
+
+metrics:
+  enabled: true
+  prometheus_port: 9090
+
+daemon:
+  log_level: info
+  log_format: json   # JSON is friendlier for container log aggregation

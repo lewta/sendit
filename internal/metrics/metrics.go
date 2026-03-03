@@ -91,9 +91,17 @@ func (m *Metrics) Record(r task.Result) {
 
 // ServeHTTP starts the Prometheus metrics HTTP endpoint and shuts it down
 // gracefully when ctx is cancelled. Call in a goroutine.
+//
+// Routes:
+//   - /metrics — Prometheus scrape endpoint
+//   - /healthz — liveness probe; always returns 200 {"status":"ok"}
 func (m *Metrics) ServeHTTP(ctx context.Context, port int) {
 	mux := http.NewServeMux()
 	mux.Handle("/metrics", promhttp.HandlerFor(m.registry, promhttp.HandlerOpts{}))
+	mux.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"status":"ok"}`))
+	})
 
 	srv := &http.Server{
 		Addr:              fmt.Sprintf(":%d", port),

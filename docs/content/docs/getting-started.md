@@ -50,6 +50,8 @@ Probing https://example.com (http) — Ctrl-C to stop
 min/avg/max latency: 38ms / 90ms / 142ms
 ```
 
+See the [CLI Reference](../cli/#probe-flags) for all `probe` flags.
+
 `sendit pinch` checks TCP/UDP port connectivity in the same style — useful for verifying a service is reachable before running traffic against it:
 
 ```sh
@@ -71,6 +73,8 @@ Pinching example.com:80 (tcp) — Ctrl-C to stop
 2 sent, 2 open, 0 closed/filtered
 min/avg/max latency: 38ms / 90ms / 142ms
 ```
+
+See the [CLI Reference](../cli/#pinch-flags) for all `pinch` flags.
 
 ## Create a config file
 

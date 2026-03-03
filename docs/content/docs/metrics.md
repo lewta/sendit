@@ -15,7 +15,19 @@ metrics:
   prometheus_port: 9090
 ```
 
-Metrics are then available at `http://localhost:9090/metrics`.
+Two endpoints are available on the configured port:
+
+| Endpoint | Description |
+|----------|-------------|
+| `GET /metrics` | Prometheus scrape endpoint |
+| `GET /healthz` | Liveness probe — always returns `200 {"status":"ok"}` |
+
+Useful for container health checks:
+
+```sh
+curl http://localhost:9090/healthz
+# {"status":"ok"}
+```
 
 ## Metric reference
 

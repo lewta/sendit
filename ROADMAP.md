@@ -92,12 +92,12 @@ Public reference documentation hosted on GitHub Pages.
 
 ---
 
-## v0.7.0 — Container support
+## v0.7.0 — Container support ✓
 
 Package sendit as a Docker image for portability and scheduled runs in CI or on a server.
 
-- Multi-stage `Dockerfile`: `golang:1.22-alpine` builder → `alpine` runtime
-- `docker-compose.yml` with optional Prometheus + Grafana sidecars for out-of-the-box dashboards
+- Multi-stage `Dockerfile`: `golang:1.24-alpine` builder → `alpine` runtime (files under `docker/`)
+- `docker-compose.yml` with optional Prometheus + Grafana sidecars via `--profile observability`
 - Config mounted as a volume so the image stays generic
 - `--foreground` set by default in the entrypoint (PID files are not useful inside a container)
 - `/healthz` endpoint on the metrics port for container liveness checks

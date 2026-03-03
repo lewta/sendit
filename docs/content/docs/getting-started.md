@@ -108,6 +108,40 @@ By default `start` writes a PID file to `/tmp/sendit.pid` so you can manage the 
 
 Use `--foreground` to skip the PID file (useful in containers or CI).
 
+## Run with Docker
+
+The `docker/` directory in the repository contains a ready-to-use setup. No binary download needed — the image builds from source.
+
+```sh
+# Copy and edit the example config
+cp docker/config.yaml docker/my-config.yaml
+
+# Build and run
+cd docker
+docker compose up --build
+```
+
+Prometheus metrics and the `/healthz` liveness endpoint are exposed on port **9090**:
+
+```sh
+curl localhost:9090/healthz
+# {"status":"ok"}
+```
+
+To also start Prometheus and Grafana:
+
+```sh
+docker compose --profile observability up --build
+```
+
+| Service | Port | URL |
+|---------|------|-----|
+| sendit | 9090 | `http://localhost:9090/metrics` |
+| Prometheus | 9091 | `http://localhost:9091` |
+| Grafana | 3000 | `http://localhost:3000` |
+
+See [docker/config.yaml](https://github.com/lewta/sendit/blob/main/docker/config.yaml) for the Docker-optimised config example.
+
 ## Dry-run mode
 
 Preview effective config — targets, weights, pacing — without sending any traffic:

@@ -287,6 +287,64 @@ min/avg/max latency: 4ms / 4ms / 4ms
 
 ---
 
+## Docker
+
+The `docker/` directory contains a ready-to-use Docker setup. The image is built from source so no binary download is needed.
+
+### Quick start
+
+```sh
+# 1. Copy and edit the example config
+cp docker/config.yaml docker/my-config.yaml
+
+# 2. Build and run (config is mounted as a volume)
+cd docker
+docker compose up --build
+```
+
+Prometheus metrics are exposed on port **9090**. A liveness probe is available at `GET /healthz` on the same port.
+
+### With Prometheus + Grafana
+
+```sh
+cd docker
+docker compose --profile observability up --build
+```
+
+This starts three containers:
+
+| Service | Port | Description |
+|---------|------|-------------|
+| `sendit` | 9090 | Main process + `/metrics` + `/healthz` |
+| `prometheus` | 9091 | Scrapes sendit every 15 s |
+| `grafana` | 3000 | Dashboard UI (anonymous access pre-enabled) |
+
+### Config
+
+Mount your config at `/etc/sendit/config.yaml`. For container deployments, set:
+
+```yaml
+metrics:
+  enabled: true
+  prometheus_port: 9090
+
+daemon:
+  log_format: json   # friendlier for log aggregators
+```
+
+The `--foreground` flag is set in the image entrypoint — PID files are not useful inside containers.
+
+### Files
+
+| File | Description |
+|------|-------------|
+| `docker/Dockerfile` | Multi-stage build (`golang:1.24-alpine` → `alpine`) |
+| `docker/docker-compose.yml` | sendit + optional Prometheus/Grafana via `--profile observability` |
+| `docker/config.yaml` | Docker-ready example config (metrics enabled, JSON logs) |
+| `docker/prometheus.yml` | Prometheus scrape config targeting `sendit:9090` |
+
+---
+
 ## Configuration Reference
 
 See [`config/example.yaml`](config/example.yaml) for a full working example. Every section has defaults so you only need to specify what you want to override.
@@ -597,3 +655,4 @@ Integration tests spin up local HTTP, DNS, and WebSocket servers and exercise th
 | Probe (DNS) | `sendit probe example.com` → prints NOERROR/latency per query |
 | Pinch (TCP) | `sendit pinch example.com:80` → prints open/closed/filtered + latency per check |
 | Pinch (UDP) | `sendit pinch 8.8.8.8:53 --type udp` → prints open/closed/open\|filtered per check |
+| Docker | `cd docker && docker compose up --build` → container starts; `curl localhost:9090/healthz` returns `{"status":"ok"}` |

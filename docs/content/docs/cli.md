@@ -180,6 +180,8 @@ min/avg/max latency: 4ms / 4ms / 4ms
 |---|---|---|
 | `--pid-file` | `/tmp/sendit.pid` | Path to PID file written by `start` |
 
+> **Windows:** SIGHUP is not available on Windows. `sendit reload` will not work — use a full restart to pick up config changes.
+
 ## `validate` flags
 
 | Flag | Short | Default | Description |

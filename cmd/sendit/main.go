@@ -576,7 +576,10 @@ func reloadCmd() *cobra.Command {
 
 Targets, rate limits, backoff settings, and pacing parameters are reloaded
 atomically with no dropped requests. Changes to pacing mode, worker count,
-CPU/memory limits, or output settings require a full restart.`,
+CPU/memory limits, or output settings require a full restart.
+
+Note: SIGHUP is not available on Windows. Use a full restart to reload
+config on Windows.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			pid, err := readPID(pidFile)
 			if err != nil {

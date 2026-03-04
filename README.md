@@ -104,7 +104,7 @@ sendit completion <shell>
 | `probe`      | Test a single HTTP or DNS endpoint in a loop (like ping). No config file required. |
 | `pinch`      | Check whether a TCP or UDP port is open on a remote host, repeating on an interval. No config file required. |
 | `stop`       | Send SIGTERM to a running instance via its PID file. |
-| `reload`     | Send SIGHUP to a running instance via its PID file to reload the config atomically. |
+| `reload`     | Send SIGHUP to a running instance via its PID file to reload the config atomically. Not available on Windows — use a full restart instead. |
 | `status`     | Check whether the process in the PID file is still alive. |
 | `validate`   | Parse and validate a config file without starting the engine. Exits 0 on success, non-zero with a message on failure. |
 | `version`    | Print version, commit, and build date. |

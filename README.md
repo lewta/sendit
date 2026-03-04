@@ -4,7 +4,7 @@
 [![Release](https://img.shields.io/github/v/release/lewta/sendit)](https://github.com/lewta/sendit/releases/latest)
 [![Go version](https://img.shields.io/badge/go-1.24+-00ADD8?logo=go&logoColor=white)](https://go.dev)
 [![Go Report Card](https://goreportcard.com/badge/github.com/lewta/sendit)](https://goreportcard.com/report/github.com/lewta/sendit)
-[![License](https://img.shields.io/github/license/lewta/sendit)](LICENSE)
+[![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
 A Go CLI tool that simulates realistic user web traffic across HTTP, headless browser, DNS, and WebSocket protocols. Designed to blend into normal traffic baselines while being polite to both the local machine and target servers.
 

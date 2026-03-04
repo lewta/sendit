@@ -103,3 +103,26 @@ func TestRecord_AllDriverTypes(t *testing.T) {
 		m.Record(r) // must not panic
 	}
 }
+
+// TestDomainOf verifies domain extraction from various URL formats.
+func TestDomainOf(t *testing.T) {
+	cases := []struct {
+		input string
+		want  string
+	}{
+		{"https://example.com", "example.com"},
+		{"https://example.com/path/to/page", "example.com"},
+		{"https://example.com:443/path", "example.com"},
+		{"http://sub.domain.example.com", "sub.domain.example.com"},
+		{"wss://stream.example.com/feed", "stream.example.com"},
+		{"example.com", "example.com"},                   // bare hostname (DNS target)
+		{"notfound.example.com", "notfound.example.com"}, // bare DNS hostname
+	}
+
+	for _, c := range cases {
+		got := domainOf(c.input)
+		if got != c.want {
+			t.Errorf("domainOf(%q) = %q, want %q", c.input, got, c.want)
+		}
+	}
+}

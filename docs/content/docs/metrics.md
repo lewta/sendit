@@ -33,14 +33,18 @@ curl http://localhost:9090/healthz
 
 | Metric | Type | Labels | Description |
 |---|---|---|---|
-| `sendit_requests_total` | Counter | `type`, `status_code` | Total requests dispatched, by driver type and status code |
-| `sendit_errors_total` | Counter | `type`, `error_class` | Total errors, by driver type and error class (`transient` or `permanent`) |
-| `sendit_request_duration_seconds` | Histogram | `type` | Request latency distribution, by driver type |
+| `sendit_requests_total` | Counter | `type`, `domain`, `status_code` | Total requests dispatched, by driver type, domain, and status code |
+| `sendit_errors_total` | Counter | `type`, `domain`, `error_class` | Total errors, by driver type, domain, and error class |
+| `sendit_request_duration_seconds` | Histogram | `type`, `domain` | Request latency distribution, by driver type and domain |
 | `sendit_bytes_read_total` | Counter | `type` | Total bytes received, by driver type |
+
+> **Breaking change (v0.8.0):** `sendit_requests_total`, `sendit_errors_total`, and `sendit_request_duration_seconds` gained a `domain` label. Update any existing dashboards or alert rules that match these metrics by label set.
 
 ### Label values
 
 **`type`** matches the `type` field in your target config: `http`, `browser`, `dns`, or `websocket`.
+
+**`domain`** is the hostname extracted from the target URL (e.g. `example.com`, `api.example.com`). For DNS targets with bare hostnames the value is the hostname itself.
 
 **`status_code`** is the HTTP status code (e.g. `200`, `429`, `503`) or the DNS-mapped equivalent (see [Drivers — DNS](../drivers/#dns)).
 

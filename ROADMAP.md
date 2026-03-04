@@ -104,7 +104,7 @@ Package sendit as a Docker image for portability and scheduled runs in CI or on 
 
 ---
 
-## v0.8.0 — Observability improvements
+## v0.8.0 — Observability improvements ✓
 
 Better visibility into per-target behaviour from Prometheus metrics.
 

@@ -554,9 +554,9 @@ Exposed metrics:
 
 | Metric | Type | Labels |
 |--------|------|--------|
-| `sendit_requests_total` | Counter | `type`, `status_code` |
-| `sendit_errors_total` | Counter | `type`, `error_class` |
-| `sendit_request_duration_seconds` | Histogram | `type` |
+| `sendit_requests_total` | Counter | `type`, `domain`, `status_code` |
+| `sendit_errors_total` | Counter | `type`, `domain`, `error_class` |
+| `sendit_request_duration_seconds` | Histogram | `type`, `domain` |
 | `sendit_bytes_read_total` | Counter | `type` |
 
 ### `daemon`

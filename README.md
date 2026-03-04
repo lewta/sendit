@@ -88,7 +88,7 @@ target_defaults:
 
 ```
 sendit start    [-c <path>] [--foreground] [--log-level debug|info|warn|error] [--dry-run]
-sendit probe    <target>   [--type http|dns] [--interval 1s] [--timeout 5s]
+sendit probe    <target>   [--type http|dns|websocket] [--interval 1s] [--timeout 5s] [--send <msg>]
 sendit pinch    <host:port> [--type tcp|udp] [--interval 1s] [--timeout 5s]
 sendit stop     [--pid-file <path>]
 sendit reload   [--pid-file <path>]
@@ -101,7 +101,7 @@ sendit completion <shell>
 | Command      | Description |
 |--------------|-------------|
 | `start`      | Start the engine. Writes a PID file by default so `stop`/`status` can find the process; use `--foreground` to skip writing the PID file. |
-| `probe`      | Test a single HTTP or DNS endpoint in a loop (like ping). No config file required. |
+| `probe`      | Test a single HTTP, DNS, or WebSocket endpoint in a loop (like ping). No config file required. |
 | `pinch`      | Check whether a TCP or UDP port is open on a remote host, repeating on an interval. No config file required. |
 | `stop`       | Send SIGTERM to a running instance via its PID file. |
 | `reload`     | Send SIGHUP to a running instance via its PID file to reload the config atomically. Not available on Windows — use a full restart instead. |
@@ -123,11 +123,12 @@ sendit completion <shell>
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--type` | *(auto-detected)* | Driver type: `http` \| `dns` |
+| `--type` | *(auto-detected)* | Driver type: `http` \| `dns` \| `websocket` |
 | `--interval` | `1s` | Delay between requests |
 | `--timeout` | `5s` | Per-request timeout |
 | `--resolver` | `8.8.8.8:53` | DNS resolver (dns targets only) |
 | `--record-type` | `A` | DNS record type (dns targets only) |
+| `--send` | `""` | Message to send after connecting (websocket only); waits for one reply and reports round-trip latency |
 
 ### `pinch` flags
 
@@ -181,7 +182,7 @@ Limits:
 
 ## Probe
 
-`sendit probe <target>` tests a single HTTP or DNS endpoint in a loop with no config file. Press Ctrl-C to stop and print a summary.
+`sendit probe <target>` tests a single HTTP, DNS, or WebSocket endpoint in a loop with no config file. Press Ctrl-C to stop and print a summary.
 
 **Type auto-detection:**
 
@@ -189,9 +190,11 @@ Limits:
 |---|---|
 | `https://example.com` | `http` |
 | `http://example.com` | `http` |
+| `wss://example.com` | `websocket` |
+| `ws://example.com` | `websocket` |
 | `example.com` | `dns` |
 
-Override with `--type http` or `--type dns`.
+Override with `--type http`, `--type dns`, or `--type websocket`.
 
 **HTTP example:**
 
@@ -229,6 +232,44 @@ Probing example.com (dns, A @ 1.1.1.1:53) — Ctrl-C to stop
 --- example.com ---
 3 sent, 3 ok, 0 error(s)
 min/avg/max latency: 8ms / 10ms / 12ms
+```
+
+**WebSocket example (connect only):**
+
+```sh
+./sendit probe wss://echo.websocket.org
+```
+
+```
+Probing wss://echo.websocket.org (websocket, connect only) — Ctrl-C to stop
+
+  101    38ms
+  101    41ms
+  101    36ms
+^C
+
+--- wss://echo.websocket.org ---
+3 sent, 3 ok, 0 error(s)
+min/avg/max latency: 36ms / 38ms / 41ms
+```
+
+**WebSocket example (send + receive round-trip):**
+
+```sh
+./sendit probe wss://echo.websocket.org --send 'ping'
+```
+
+```
+Probing wss://echo.websocket.org (websocket, send+recv) — Ctrl-C to stop
+
+  101    42ms
+  101    39ms
+  101    44ms
+^C
+
+--- wss://echo.websocket.org ---
+3 sent, 3 ok, 0 error(s)
+min/avg/max latency: 39ms / 41ms / 44ms
 ```
 
 ---

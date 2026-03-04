@@ -12,9 +12,33 @@ builds:
     goos:
       - linux
       - darwin
+      - windows
+      - freebsd
     goarch:
       - amd64
       - arm64
+      - arm
+      - "386"
+    goarm:
+      - "7"
+    ignore:
+      # darwin only ships amd64 and arm64
+      - goos: darwin
+        goarch: arm
+      - goos: darwin
+        goarch: "386"
+      # windows only ships amd64 and arm64
+      - goos: windows
+        goarch: arm
+      - goos: windows
+        goarch: "386"
+      # freebsd only ships amd64
+      - goos: freebsd
+        goarch: arm64
+      - goos: freebsd
+        goarch: arm
+      - goos: freebsd
+        goarch: "386"
     ldflags:
       - -s -w
       - -X main.version={{.Version}}
@@ -23,7 +47,10 @@ builds:
 
 archives:
   - formats: [tar.gz]
-    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}"
+    format_overrides:
+      - goos: windows
+        formats: [zip]
 
 checksum:
   name_template: "checksums.txt"

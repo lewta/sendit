@@ -12,6 +12,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/coder/websocket"
 	"github.com/lewta/sendit/internal/config"
 	"github.com/lewta/sendit/internal/driver"
 	"github.com/lewta/sendit/internal/engine"
@@ -39,7 +40,7 @@ Targets are defined in a YAML config file under 'targets' (inline) and/or
 loaded from a plain-text file via 'targets_file'. Both can be used together.
 
 Use 'sendit probe <target>' to test a single endpoint interactively without
-a config file — works like ping for HTTP and DNS targets.
+a config file — works like ping for HTTP, DNS, and WebSocket targets.
 
 Use 'sendit pinch <host:port>' to check TCP/UDP port connectivity without
 a config file.
@@ -74,21 +75,29 @@ func probeCmd() *cobra.Command {
 		timeout    time.Duration
 		resolver   string
 		recordType string
+		sendMsg    string
 	)
 
 	cmd := &cobra.Command{
 		Use:   "probe <target>",
-		Short: "Test a single endpoint in a loop (like ping for HTTP/DNS)",
-		Long: `Probe an HTTP or DNS endpoint in a loop until stopped.
+		Short: "Test a single endpoint in a loop (like ping for HTTP/DNS/WebSocket)",
+		Long: `Probe an HTTP, DNS, or WebSocket endpoint in a loop until stopped.
 
 No config file is required. The driver type is auto-detected from the target:
   https:// or http:// prefix → http
+  wss:// or ws:// prefix     → websocket
   bare hostname              → dns
+
+For WebSocket targets, each iteration connects, optionally sends a message and
+waits for one reply, then closes the connection. Use --send to trigger the
+send/receive round-trip measurement.
 
 Examples:
   sendit probe https://example.com
   sendit probe example.com
-  sendit probe example.com --type dns --record-type AAAA --resolver 1.1.1.1:53`,
+  sendit probe example.com --type dns --record-type AAAA --resolver 1.1.1.1:53
+  sendit probe wss://echo.example.com
+  sendit probe wss://echo.example.com --send '{"type":"ping"}'`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			target := args[0]
@@ -96,8 +105,8 @@ Examples:
 			if driverType == "" {
 				driverType = detectProbeType(target)
 			}
-			if driverType != "http" && driverType != "dns" {
-				return fmt.Errorf("probe supports http and dns targets; got type %q", driverType)
+			if driverType != "http" && driverType != "dns" && driverType != "websocket" {
+				return fmt.Errorf("probe supports http, dns, and websocket targets; got type %q", driverType)
 			}
 
 			t := task.Task{
@@ -129,9 +138,18 @@ Examples:
 			ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 			defer stop()
 
-			header := fmt.Sprintf("Probing %s (http)", target)
-			if driverType == "dns" {
+			var header string
+			switch driverType {
+			case "dns":
 				header = fmt.Sprintf("Probing %s (dns, %s @ %s)", target, strings.ToUpper(recordType), resolver)
+			case "websocket":
+				if sendMsg != "" {
+					header = fmt.Sprintf("Probing %s (websocket, send+recv)", target)
+				} else {
+					header = fmt.Sprintf("Probing %s (websocket, connect only)", target)
+				}
+			default:
+				header = fmt.Sprintf("Probing %s (http)", target)
 			}
 			fmt.Printf("\n%s — Ctrl-C to stop\n\n", header)
 
@@ -145,30 +163,46 @@ Examples:
 
 			run := func() {
 				execCtx, cancel := context.WithTimeout(ctx, timeout)
-				result := drv.Execute(execCtx, t)
-				cancel()
+				defer cancel()
+
+				var (
+					status int
+					dur    time.Duration
+					bytes  int64
+					err    error
+				)
+
+				if driverType == "websocket" {
+					status, dur, err = probeWS(execCtx, target, sendMsg)
+				} else {
+					result := drv.Execute(execCtx, t)
+					status, dur, bytes, err = result.StatusCode, result.Duration, result.BytesRead, result.Error
+				}
 
 				total++
-				dur := result.Duration.Round(time.Millisecond)
+				displayDur := dur.Round(time.Millisecond)
 
-				if result.Error != nil {
-					fmt.Printf("  ERR  %v\n", result.Error)
+				if err != nil {
+					fmt.Printf("  ERR  %v\n", err)
 					return
 				}
 
 				success++
-				sumDur += result.Duration
-				if success == 1 || result.Duration < minDur {
-					minDur = result.Duration
+				sumDur += dur
+				if success == 1 || dur < minDur {
+					minDur = dur
 				}
-				if result.Duration > maxDur {
-					maxDur = result.Duration
+				if dur > maxDur {
+					maxDur = dur
 				}
 
-				if driverType == "dns" {
-					fmt.Printf("  %-8s  %6s\n", probeRcodeLabel(result.StatusCode), dur)
-				} else {
-					fmt.Printf("  %3d  %6s  %s\n", result.StatusCode, dur, probeFormatBytes(result.BytesRead))
+				switch driverType {
+				case "dns":
+					fmt.Printf("  %-8s  %6s\n", probeRcodeLabel(status), displayDur)
+				case "websocket":
+					fmt.Printf("  %3d  %6s\n", status, displayDur)
+				default:
+					fmt.Printf("  %3d  %6s  %s\n", status, displayDur, probeFormatBytes(bytes))
 				}
 			}
 
@@ -188,20 +222,48 @@ Examples:
 		},
 	}
 
-	cmd.Flags().StringVar(&driverType, "type", "", "Driver type: http|dns (auto-detected from target if omitted)")
+	cmd.Flags().StringVar(&driverType, "type", "", "Driver type: http|dns|websocket (auto-detected from target if omitted)")
 	cmd.Flags().DurationVar(&interval, "interval", time.Second, "Delay between requests")
 	cmd.Flags().DurationVar(&timeout, "timeout", 5*time.Second, "Per-request timeout")
 	cmd.Flags().StringVar(&resolver, "resolver", "8.8.8.8:53", "DNS resolver address (dns targets only)")
 	cmd.Flags().StringVar(&recordType, "record-type", "A", "DNS record type (dns targets only)")
+	cmd.Flags().StringVar(&sendMsg, "send", "", "Message to send after connecting (websocket only); waits for one reply and reports round-trip latency")
 
 	return cmd
 }
 
 func detectProbeType(target string) string {
-	if strings.HasPrefix(target, "http://") || strings.HasPrefix(target, "https://") {
+	switch {
+	case strings.HasPrefix(target, "http://") || strings.HasPrefix(target, "https://"):
 		return "http"
+	case strings.HasPrefix(target, "ws://") || strings.HasPrefix(target, "wss://"):
+		return "websocket"
+	default:
+		return "dns"
 	}
-	return "dns"
+}
+
+// probeWS dials a WebSocket endpoint, optionally sends sendMsg and reads one
+// reply, then closes gracefully. Returns status 101 on success.
+func probeWS(ctx context.Context, target, sendMsg string) (int, time.Duration, error) {
+	start := time.Now()
+	conn, _, err := websocket.Dial(ctx, target, nil)
+	if err != nil {
+		return 0, time.Since(start), fmt.Errorf("dial: %w", err)
+	}
+	defer conn.CloseNow() //nolint:errcheck
+
+	if sendMsg != "" {
+		if err := conn.Write(ctx, websocket.MessageText, []byte(sendMsg)); err != nil {
+			return 0, time.Since(start), fmt.Errorf("send: %w", err)
+		}
+		if _, _, err := conn.Read(ctx); err != nil {
+			return 0, time.Since(start), fmt.Errorf("recv: %w", err)
+		}
+	}
+
+	conn.Close(websocket.StatusNormalClosure, "done") //nolint:errcheck,gosec
+	return 101, time.Since(start), nil
 }
 
 func probeRcodeLabel(status int) string {

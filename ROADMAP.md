@@ -113,7 +113,7 @@ Better visibility into per-target behaviour from Prometheus metrics.
 
 ---
 
-## v0.9.0 — Probe WebSocket
+## v0.9.0 — Probe WebSocket ✓
 
 Complete driver coverage in the probe tool.
 

@@ -34,9 +34,15 @@ Download the latest binary for your platform from the [releases page](https://gi
 
 # DNS (bare hostname)
 ./sendit probe example.com
+
+# WebSocket (wss:// or ws://) — connect only
+./sendit probe wss://echo.websocket.org
+
+# WebSocket — send a message and measure round-trip latency
+./sendit probe wss://echo.websocket.org --send 'ping'
 ```
 
-Each request prints status, latency, and bytes (HTTP) or RCODE (DNS). Press Ctrl-C for a summary:
+Each request prints status, latency, and bytes (HTTP) or RCODE (DNS) or status code (WebSocket). Press Ctrl-C for a summary:
 
 ```
 Probing https://example.com (http) — Ctrl-C to stop

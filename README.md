@@ -2,7 +2,7 @@
 
 [![CI](https://img.shields.io/github/actions/workflow/status/lewta/sendit/ci.yml?branch=main&label=tests)](https://github.com/lewta/sendit/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/lewta/sendit)](https://github.com/lewta/sendit/releases/latest)
-[![Go version](https://img.shields.io/badge/go-1.22+-00ADD8?logo=go&logoColor=white)](https://go.dev)
+[![Go version](https://img.shields.io/badge/go-1.24+-00ADD8?logo=go&logoColor=white)](https://go.dev)
 [![Go Report Card](https://goreportcard.com/badge/github.com/lewta/sendit)](https://goreportcard.com/report/github.com/lewta/sendit)
 [![License](https://img.shields.io/github/license/lewta/sendit)](LICENSE)
 
@@ -21,7 +21,7 @@ Key properties:
 
 ### Prerequisites
 
-- Go 1.22+
+- Go 1.24+
 - Chrome/Chromium (only required for `type: browser` targets)
 
 ### Build
@@ -603,6 +603,7 @@ internal/output/                JSONL / CSV result writer (non-blocking, gorouti
 config/example.yaml             Full reference configuration (with target_defaults section)
 config/targets.txt              Example targets file (url + type per line)
 config/test.yaml                Lightweight HTTP+DNS config for local smoke-testing
+docker/                         Container deployment: Dockerfile, docker-compose, example config
 ```
 
 ### Browser driver

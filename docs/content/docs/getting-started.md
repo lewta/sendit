@@ -7,7 +7,7 @@ description: "Install sendit, validate a config, and run your first traffic."
 
 ## Prerequisites
 
-- **Go 1.22+** — required to build from source
+- **Go 1.24+** — required to build from source
 - **Chrome or Chromium** — only required for `type: browser` targets
 - The `sendit` binary runs on Linux, macOS, and Windows
 

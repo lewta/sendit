@@ -142,10 +142,17 @@ Optional Prometheus exposition endpoint.
 ```yaml
 metrics:
   enabled: true
-  prometheus_port: 9090   # GET http://localhost:9090/metrics
+  prometheus_port: 9090
 ```
 
-See [Metrics](../metrics/) for the full metric table.
+When enabled, two endpoints are served on `prometheus_port`:
+
+| Endpoint | Description |
+|---|---|
+| `GET /metrics` | Prometheus scrape endpoint |
+| `GET /healthz` | Liveness probe — always returns `200 {"status":"ok"}` |
+
+See [Metrics](../metrics/) for the full metric reference and label descriptions.
 
 ## `daemon`
 

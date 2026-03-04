@@ -28,7 +28,7 @@ Press Ctrl-C to stop and print a summary. See the [CLI Reference](cli/) for all 
 
 | Section | What you'll find |
 |---|---|
-| [Getting Started](getting-started/) | Install, build, validate a config, and run your first traffic |
+| [Getting Started](getting-started/) | Install, build, validate a config, run your first traffic, and deploy with Docker |
 | [Configuration](configuration/) | Every config key, its type, default, and description |
 | [Pacing Modes](pacing/) | `human`, `rate_limited`, and `scheduled` — how request timing works |
 | [Drivers](drivers/) | `http`, `browser`, `dns`, `websocket` — options and examples for each |

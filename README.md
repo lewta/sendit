@@ -17,20 +17,57 @@ Key properties:
 
 ---
 
-## Quick Start
+## Install
 
-### Prerequisites
+### Homebrew (macOS / Linux)
 
-- Go 1.24+
-- Chrome/Chromium (only required for `type: browser` targets)
+```sh
+brew install lewta/tap/sendit
+```
 
-### Build
+Shell completions for bash, zsh, and fish are installed automatically.
+
+### Linux packages
+
+Download the `.deb` or `.rpm` for your architecture from the [latest release](https://github.com/lewta/sendit/releases/latest):
+
+```sh
+# Debian / Ubuntu
+sudo dpkg -i sendit_*_linux_amd64.deb
+
+# Fedora / RHEL / CentOS
+sudo rpm -i sendit_*_linux_amd64.rpm
+```
+
+Shell completions are bundled and installed automatically.
+
+### Windows (Scoop)
+
+```sh
+scoop bucket add lewta https://github.com/lewta/scoop-bucket
+scoop install lewta/sendit
+```
+
+### Binary download
+
+Download a pre-built binary for your platform from the [releases page](https://github.com/lewta/sendit/releases/latest), extract it, and place `sendit` somewhere in your `$PATH`.
+
+### Build from source
 
 ```sh
 git clone https://github.com/lewta/sendit
 cd sendit
 go build -o sendit ./cmd/sendit
 ```
+
+---
+
+## Quick Start
+
+### Prerequisites
+
+- Go 1.24+ (build from source only)
+- Chrome/Chromium (only required for `type: browser` targets)
 
 ### Test an endpoint without a config file
 

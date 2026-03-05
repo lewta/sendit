@@ -3,6 +3,10 @@ version: 2
 before:
   hooks:
     - go mod tidy
+    - mkdir -p completions
+    - go run ./cmd/sendit completion bash > completions/sendit.bash
+    - go run ./cmd/sendit completion zsh > completions/sendit.zsh
+    - go run ./cmd/sendit completion fish > completions/sendit.fish
 
 builds:
   - main: ./cmd/sendit
@@ -51,6 +55,51 @@ archives:
     format_overrides:
       - goos: windows
         formats: [zip]
+    files:
+      - completions/*
+
+brews:
+  - name: sendit
+    repository:
+      owner: lewta
+      name: homebrew-tap
+      token: "{{ .Env.GH_PAT }}"
+    homepage: "https://github.com/lewta/sendit"
+    description: "Traffic generation tool for HTTP, DNS, WebSocket, and headless-browser targets."
+    license: "MIT"
+    install: |
+      bin.install "sendit"
+      bash_completion.install "completions/sendit.bash" => "sendit"
+      zsh_completion.install "completions/sendit.zsh" => "_sendit"
+      fish_completion.install "completions/sendit.fish"
+    test: |
+      system "#{bin}/sendit", "version"
+
+nfpms:
+  - package_name: sendit
+    homepage: https://github.com/lewta/sendit
+    maintainer: lewta <77890109+lewta@users.noreply.github.com>
+    description: Traffic generation tool for HTTP, DNS, WebSocket, and headless-browser targets.
+    license: MIT
+    formats:
+      - deb
+      - rpm
+    contents:
+      - src: completions/sendit.bash
+        dst: /usr/share/bash-completion/completions/sendit
+      - src: completions/sendit.zsh
+        dst: /usr/share/zsh/vendor-completions/_sendit
+      - src: completions/sendit.fish
+        dst: /usr/share/fish/vendor_completions.d/sendit.fish
+
+scoops:
+  - repository:
+      owner: lewta
+      name: scoop-bucket
+      token: "{{ .Env.GH_PAT }}"
+    homepage: https://github.com/lewta/sendit
+    description: Traffic generation tool for HTTP, DNS, WebSocket, and headless-browser targets.
+    license: MIT
 
 checksum:
   name_template: "checksums.txt"

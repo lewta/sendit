@@ -123,9 +123,12 @@ Complete driver coverage in the probe tool.
 
 ## v0.10.0 — Distribution
 
-Make sendit easy to install without building from source.
+Make sendit easy to install without building from source across all supported platforms.
 
-- **Homebrew tap** — `brew install lewta/tap/sendit` as a distribution channel; tap repo auto-updated by GoReleaser on each release
+- **Homebrew tap** — `brew install lewta/tap/sendit`; new `lewta/homebrew-tap` repo auto-updated by GoReleaser on each release via the `brews:` config section; formula bundles shell completions for bash, zsh, and fish
+- **Linux packages** — `.deb` and `.rpm` artifacts added to each release via GoReleaser `nfpms:`; covers apt users (Debian, Ubuntu) and yum/dnf users (Fedora, RHEL, CentOS); targets linux/amd64 and linux/arm64; bundles shell completions and a man page
+- **Scoop bucket** — `scoop install lewta/sendit`; new `lewta/scoop-bucket` repo auto-updated by GoReleaser via the `scoops:` config section; provides Windows package manager parity with Homebrew
+- **Shell completion install docs** — update `docs/content/docs/cli.md` with per-method install instructions: Homebrew (automatic via formula), `.deb`/`.rpm` (bundled), and binary download (manual `source` commands for bash/zsh/fish)
 
 ---
 

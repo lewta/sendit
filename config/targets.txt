@@ -7,6 +7,10 @@
 #   weight  Optional positive integer (default: target_defaults.weight).
 #
 # Blank lines and lines beginning with '#' are ignored.
+#
+# Non-standard ports go directly in the URL:
+#   http://internal.example.com:8080/health  http       1
+#   wss://stream.example.com:9443/feed       websocket  1
 
 https://httpbin.org/get         http   5
 https://httpbin.org/status/200  http   3

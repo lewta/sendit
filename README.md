@@ -523,6 +523,27 @@ target_defaults:
 
 List of endpoints to request. Each target has a `weight` controlling selection frequency relative to the others. Selection uses the Vose alias method (O(1) per pick).
 
+Non-standard ports are specified directly in the URL — no additional config needed:
+
+```yaml
+targets:
+  - url: "http://internal-api.example.com:8080/health"
+    weight: 1
+    type: http
+  - url: "wss://stream.example.com:9443/feed"
+    weight: 1
+    type: websocket
+```
+
+For DNS, non-standard resolver ports use the existing `host:port` format in `dns.resolver`:
+
+```yaml
+  - url: "example.com"
+    type: dns
+    dns:
+      resolver: "192.168.1.1:5353"
+```
+
 ```yaml
 targets:
   - url: "https://example.com"
@@ -697,4 +718,5 @@ Integration tests spin up local HTTP, DNS, and WebSocket servers and exercise th
 | Probe (DNS) | `sendit probe example.com` → prints NOERROR/latency per query |
 | Pinch (TCP) | `sendit pinch example.com:80` → prints open/closed/filtered + latency per check |
 | Pinch (UDP) | `sendit pinch 8.8.8.8:53 --type udp` → prints open/closed/open\|filtered per check |
+| Non-standard port | Set `url: "http://localhost:8080"` in config → `sendit start` sends traffic to port 8080; or `sendit probe http://localhost:8080` |
 | Docker | `cd docker && docker compose up --build` → container starts; `curl localhost:9090/healthz` returns `{"status":"ok"}` |

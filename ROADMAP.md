@@ -121,7 +121,7 @@ Complete driver coverage in the probe tool.
 
 ---
 
-## v0.10.0 — Distribution
+## v0.10.0 — Distribution ✓
 
 Make sendit easy to install without building from source across all supported platforms.
 

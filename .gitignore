@@ -1,6 +1,9 @@
 # Binary
 /sendit
 
+# Generated shell completions (produced by GoReleaser before hooks)
+/completions/
+
 # PID file
 /tmp/sendit.pid
 

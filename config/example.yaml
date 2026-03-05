@@ -55,6 +55,19 @@ target_defaults:
     expect_messages: 0
 
 targets:
+  # Non-standard ports are specified directly in the URL:
+  # - url: "http://internal-service.example.com:8080/health"
+  #   weight: 1
+  #   type: http
+  # - url: "wss://stream.example.com:9443/feed"
+  #   weight: 1
+  #   type: websocket
+  # For DNS, non-standard resolver ports use host:port in dns.resolver:
+  # - url: "example.com"
+  #   type: dns
+  #   dns:
+  #     resolver: "192.168.1.1:5353"
+
   - url: "https://httpbin.org/get"
     weight: 10
     type: http

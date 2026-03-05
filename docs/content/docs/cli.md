@@ -87,8 +87,12 @@ Limits:
 
 ### HTTP probe example
 
+Non-standard ports work by including the port in the URL:
+
 ```sh
 ./sendit probe https://example.com
+./sendit probe http://localhost:8080/health
+./sendit probe https://staging.example.com:8443/api
 ```
 
 ```

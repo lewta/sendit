@@ -34,6 +34,15 @@ targets:
 
 > **Note:** HTTP header map keys are lowercased by the YAML parser (e.g. `User-Agent` is stored as `user-agent`). This is standard YAML behaviour.
 
+**Non-standard ports:** include the port directly in the URL — Go's `net/http` client handles it natively:
+
+```yaml
+- url: "http://internal-api.example.com:8080/health"
+  type: http
+- url: "https://staging.example.com:8443/api"
+  type: http
+```
+
 ## `browser`
 
 Loads a page in a headless Chromium instance via [chromedp](https://github.com/chromedp/chromedp). Each task spawns its own `ExecAllocator` — no shared browser state — which prevents memory accumulation across long runs.
@@ -92,6 +101,14 @@ targets:
 | `resolver` | `8.8.8.8:53` | DNS server `host:port` |
 | `record_type` | `A` | DNS record type to query |
 
+The `resolver` field is always `host:port`, so non-standard DNS ports are supported directly:
+
+```yaml
+dns:
+  resolver: "192.168.1.1:5353"   # custom resolver on non-standard port
+  record_type: A
+```
+
 ## `websocket`
 
 Opens a WebSocket connection using [coder/websocket](https://github.com/coder/websocket), optionally sends messages, and holds the connection open for a configurable duration.
@@ -112,3 +129,10 @@ targets:
 | `duration_s` | `30` | How long to hold the connection open (seconds) |
 | `send_messages` | `[]` | List of text messages to send after connecting |
 | `expect_messages` | `0` | Minimum messages to receive before considering success |
+
+**Non-standard ports:** include the port in the URL:
+
+```yaml
+- url: "wss://stream.example.com:9443/feed"
+  type: websocket
+```

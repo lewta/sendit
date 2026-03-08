@@ -44,6 +44,7 @@ jobs:
           args: release --clean --skip=homebrew,scoop
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SKIP_GH_RELEASE: "false"
 
       - name: Release (manual)
         if: github.event_name == 'workflow_dispatch'
@@ -54,3 +55,4 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GORELEASER_CURRENT_TAG: ${{ github.event.inputs.tag }}
+          SKIP_GH_RELEASE: "false"

@@ -1,6 +1,6 @@
 module github.com/lewta/sendit
 
-go 1.24
+go 1.25.0
 
 require (
 	github.com/chromedp/chromedp v0.14.2
@@ -12,7 +12,7 @@ require (
 	github.com/shirou/gopsutil/v3 v3.24.5
 	github.com/spf13/cobra v1.8.0
 	github.com/spf13/viper v1.21.0
-	golang.org/x/time v0.5.0
+	golang.org/x/time v0.15.0
 )
 
 require (

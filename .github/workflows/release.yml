@@ -41,7 +41,7 @@ jobs:
         uses: goreleaser/goreleaser-action@v7
         with:
           version: "~> v2"
-          args: release --clean --skip=brew,scoop
+          args: release --clean --skip=homebrew,scoop
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -50,16 +50,7 @@ jobs:
         uses: goreleaser/goreleaser-action@v7
         with:
           version: "~> v2"
-          args: release --clean --skip=brew,scoop
+          args: release --clean --skip=homebrew,scoop
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GORELEASER_CURRENT_TAG: ${{ github.event.inputs.tag }}
-
-      # dist/ is uploaded so the tap-update workflow can use the pre-built
-      # binaries to generate a formula/manifest with the correct SHA256 hashes.
-      - name: Upload dist for tap update
-        uses: actions/upload-artifact@v4
-        with:
-          name: goreleaser-dist
-          path: dist/
-          retention-days: 1

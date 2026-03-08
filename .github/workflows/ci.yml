@@ -46,3 +46,47 @@ jobs:
 
       - name: Integration tests
         run: go test -race -tags integration -v ./internal/engine/...
+
+  goreleaser-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: goreleaser/goreleaser-action@v7
+        with:
+          version: "~> v2"
+          args: check
+        env:
+          SKIP_GH_RELEASE: "false"
+          GH_PAT: "placeholder"
+
+  goreleaser-snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - uses: dorny/paths-filter@v3
+        id: changes
+        with:
+          filters: |
+            goreleaser:
+              - '.goreleaser.yaml'
+              - '.github/workflows/release*.yml'
+
+      - uses: actions/setup-go@v6
+        if: steps.changes.outputs.goreleaser == 'true'
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - uses: goreleaser/goreleaser-action@v7
+        if: steps.changes.outputs.goreleaser == 'true'
+        with:
+          version: "~> v2"
+          args: release --snapshot --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SKIP_GH_RELEASE: "false"
+          GH_PAT: "placeholder"

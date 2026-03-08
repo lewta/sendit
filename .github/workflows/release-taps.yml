@@ -1,0 +1,73 @@
+name: Update taps
+
+# Triggered automatically after the Release workflow completes successfully.
+# This job runs with a short-lived GitHub App token scoped only to
+# lewta/homebrew-tap and lewta/scoop-bucket — the build job above never sees
+# those credentials.
+on:
+  workflow_run:
+    workflows: ["Release"]
+    types: [completed]
+
+permissions:
+  contents: read
+  actions: read # needed to download artifacts from the triggering workflow run
+
+jobs:
+  update-taps:
+    runs-on: ubuntu-latest
+    if: github.event.workflow_run.conclusion == 'success'
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      # Restore the pre-built binaries so GoReleaser can archive them and
+      # compute the SHA256 hashes that go into the formula/manifest.
+      - name: Download dist from Release workflow
+        uses: actions/download-artifact@v4
+        with:
+          name: goreleaser-dist
+          path: dist/
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Get release tag
+        id: tag
+        run: echo "value=$(git describe --tags --abbrev=0)" >> "$GITHUB_OUTPUT"
+
+      # Mint a short-lived token (expires in 1 h) scoped to only the two repos
+      # that need to be updated. Requires a GitHub App installed on the lewta
+      # account with Contents: Read and write on homebrew-tap and scoop-bucket.
+      - name: Generate GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          repositories: homebrew-tap,scoop-bucket
+
+      # Skips everything already done by the Release workflow:
+      #   build     — binaries are in dist/ (restored above)
+      #   validate  — already validated
+      #   publish   — GitHub release already exists
+      #   nfpm      — .deb/.rpm already uploaded
+      #   source    — source archive already uploaded
+      #   announce  — don't announce twice
+      #   sign      — already signed (if applicable)
+      # What runs: before hooks (completions), archive, checksum, brew, scoop.
+      - name: Push Homebrew formula and Scoop manifest
+        uses: goreleaser/goreleaser-action@v7
+        with:
+          version: "~> v2"
+          args: release --skip=build,validate,publish,nfpm,source,announce,sign
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_PAT: ${{ steps.app-token.outputs.token }}
+          GORELEASER_CURRENT_TAG: ${{ steps.tag.outputs.value }}

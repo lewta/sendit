@@ -233,13 +233,23 @@ min/avg/max latency: 4ms / 4ms / 4ms
 
 ## Shell completion
 
-```sh
-# bash (add to ~/.bashrc)
-source <(./sendit completion bash)
+### Homebrew
 
-# zsh (add to ~/.zshrc)
-source <(./sendit completion zsh)
+Completions are installed automatically as part of the formula — no extra steps needed.
+
+### Linux packages (`.deb` / `.rpm`)
+
+Completions are bundled in the package and installed to the system completion directories — no extra steps needed.
+
+### Binary download
+
+```sh
+# bash — add to ~/.bashrc
+source <(sendit completion bash)
+
+# zsh — add to ~/.zshrc
+source <(sendit completion zsh)
 
 # fish
-./sendit completion fish | source
+sendit completion fish | source
 ```

@@ -7,11 +7,47 @@ description: "Install sendit, validate a config, and run your first traffic."
 
 ## Prerequisites
 
-- **Go 1.24+** — required to build from source
 - **Chrome or Chromium** — only required for `type: browser` targets
 - The `sendit` binary runs on Linux, macOS, and Windows
 
-## Build from source
+## Install
+
+### Homebrew (macOS and Linux)
+
+```sh
+brew install lewta/tap/sendit
+```
+
+Shell completions for bash, zsh, and fish are installed automatically.
+
+### Scoop (Windows)
+
+```powershell
+scoop bucket add lewta https://github.com/lewta/scoop-bucket
+scoop install sendit
+```
+
+### Linux packages
+
+Download the `.deb` or `.rpm` package for your architecture from the [releases page](https://github.com/lewta/sendit/releases/latest):
+
+```sh
+# Debian / Ubuntu
+sudo dpkg -i sendit_<version>_linux_amd64.deb
+
+# Fedora / RHEL / CentOS
+sudo rpm -i sendit_<version>_linux_amd64.rpm
+```
+
+Shell completions are installed to the system completion directories automatically.
+
+### Binary download
+
+Download the pre-built archive for your platform from the [releases page](https://github.com/lewta/sendit/releases/latest), extract it, and place the binary in your `$PATH`.
+
+### Build from source
+
+Requires **Go 1.24+**.
 
 ```sh
 git clone https://github.com/lewta/sendit
@@ -19,10 +55,6 @@ cd sendit
 go build -o sendit ./cmd/sendit
 ./sendit version
 ```
-
-## Pre-built binaries
-
-Download the latest binary for your platform from the [releases page](https://github.com/lewta/sendit/releases/latest).
 
 ## Test an endpoint without a config file
 

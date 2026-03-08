@@ -100,6 +100,14 @@ scoops:
     description: Traffic generation tool for HTTP, DNS, WebSocket, and headless-browser targets.
     license: MIT
 
+# SKIP_GH_RELEASE=true disables only the GitHub release publisher, while still
+# allowing homebrew_casks and scoop to push their formula/manifest. Used by
+# release-taps.yml to avoid re-creating a release that already exists. The
+# download URLs in the formula/manifest are computed from the tag and are
+# valid because release.yml already created the release.
+release:
+  disable: '{{ envOrDefault "SKIP_GH_RELEASE" "false" }}'
+
 checksum:
   name_template: "checksums.txt"
 

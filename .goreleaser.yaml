@@ -106,7 +106,7 @@ scoops:
 # download URLs in the formula/manifest are computed from the tag and are
 # valid because release.yml already created the release.
 release:
-  disable: '{{ envOrDefault "SKIP_GH_RELEASE" "false" }}'
+  disable: '{{ if eq .Env.SKIP_GH_RELEASE "true" }}true{{ else }}false{{ end }}'
 
 checksum:
   name_template: "checksums.txt"

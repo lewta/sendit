@@ -106,6 +106,13 @@ jobs:
               end
             end
 
+            # TODO(v0.10.4): remove caveats once darwin binaries are notarized.
+            caveats <<~EOS
+              macOS Gatekeeper may block sendit because the binary is not yet
+              notarized. If you see an "Apple could not verify" warning, run:
+                sudo xattr -d com.apple.quarantine #{HOMEBREW_PREFIX}/bin/sendit
+            EOS
+
             # No zap stanza required
           end
           CASK

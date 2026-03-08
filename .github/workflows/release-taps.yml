@@ -1,6 +1,8 @@
 name: Update taps
 
 # Triggered automatically after the Release workflow completes successfully.
+# Can also be triggered manually to push a formula/manifest for an existing
+# release without re-tagging (e.g. after fixing the workflow itself).
 # This job runs with a short-lived GitHub App token scoped only to
 # lewta/homebrew-tap and lewta/scoop-bucket — the build job above never sees
 # those credentials.
@@ -8,6 +10,11 @@ on:
   workflow_run:
     workflows: ["Release"]
     types: [completed]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to push formula/manifest for (e.g. v0.10.0)"
+        required: true
 
 permissions:
   contents: read
@@ -15,12 +22,12 @@ permissions:
 jobs:
   update-taps:
     runs-on: ubuntu-latest
-    if: github.event.workflow_run.conclusion == 'success'
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     steps:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0
-          ref: ${{ github.event.workflow_run.head_sha }}
+          ref: ${{ github.event.workflow_run.head_sha || format('refs/tags/{0}', inputs.tag) }}
 
       - uses: actions/setup-go@v6
         with:
@@ -44,11 +51,10 @@ jobs:
 
       # Rebuilds binaries and archives from scratch (CGO_ENABLED=0 + -trimpath
       # makes Go builds deterministic, so SHA256 matches what was uploaded).
-      # SKIP_GH_RELEASE=true uses the release.skip template in .goreleaser.yaml
+      # SKIP_GH_RELEASE=true uses the release.disable template in .goreleaser.yaml
       # to skip only the GitHub release publisher, while still allowing
       # homebrew_casks and scoop to push their formula/manifest to the tap and
-      # bucket repos. Without this, --skip=publish would suppress all
-      # publishers including the tap/bucket push.
+      # bucket repos.
       - name: Push Homebrew formula and Scoop manifest
         uses: goreleaser/goreleaser-action@v7
         with:

@@ -132,6 +132,16 @@ Make sendit easy to install without building from source across all supported pl
 
 ---
 
+## v0.10.4 — macOS code signing and notarization
+
+Sign and notarize the darwin binaries so macOS Gatekeeper accepts them without any user intervention. Fixes [#95](https://github.com/lewta/sendit/issues/95).
+
+- **GoReleaser `notarize` block** — use `anchore/quill` (cross-platform; runs on the existing `ubuntu-latest` runner, no macOS runner needed) to sign darwin/amd64 and darwin/arm64 binaries with a Developer ID Application certificate and submit them to Apple's notarization service via the App Store Connect API before archiving
+- **GitHub secrets** — `MACOS_SIGN_P12` (base64 `.p12`), `MACOS_SIGN_PASSWORD`, `NOTARIZE_KEY` (base64 `.p8`), `NOTARIZE_KEY_ID`, `NOTARIZE_ISSUER_ID`; all sourced from the lewta Apple Developer account
+- **Remove caveats workaround** — once notarization is in place, remove the temporary `caveats` stanza added to the Homebrew cask in v0.10.3
+
+---
+
 ## v0.11.0 — Config generator
 
 A `sendit generate` subcommand that produces a ready-to-use `config.yaml` from a targets file or a seed URL, reducing the time-to-first-traffic for new users.

@@ -49,6 +49,13 @@ jobs:
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
           repositories: homebrew-tap,scoop-bucket
 
+      # The tag commit may predate fixes to .goreleaser.yaml. Overlay the
+      # current config from main so we always use the latest pipeline config
+      # while keeping all source files at the tag commit (CGO_ENABLED=0 +
+      # -trimpath makes Go builds deterministic, so SHA256 still matches).
+      - name: Use current GoReleaser config from main
+        run: git show origin/main:.goreleaser.yaml > .goreleaser.yaml
+
       # Rebuilds binaries and archives from scratch (CGO_ENABLED=0 + -trimpath
       # makes Go builds deterministic, so SHA256 matches what was uploaded).
       # SKIP_GH_RELEASE=true uses the release.disable template in .goreleaser.yaml

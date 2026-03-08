@@ -13,6 +13,8 @@ builds:
     binary: sendit
     env:
       - CGO_ENABLED=0
+    flags:
+      - -trimpath
     goos:
       - linux
       - darwin

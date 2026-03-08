@@ -100,13 +100,13 @@ scoops:
     description: Traffic generation tool for HTTP, DNS, WebSocket, and headless-browser targets.
     license: MIT
 
-# SKIP_GH_RELEASE=true disables only the GitHub release publisher, while still
-# allowing homebrew_casks and scoop to push their formula/manifest. Used by
-# release-taps.yml to avoid re-creating a release that already exists. The
-# download URLs in the formula/manifest are computed from the tag and are
-# valid because release.yml already created the release.
+# SKIP_GH_RELEASE=true skips artifact uploads and keeps the existing release
+# unchanged. Used by release-taps.yml: GoReleaser reads the existing release
+# to compute download URLs for the homebrew cask and scoop manifest, then
+# pushes those to the tap/bucket repos — without touching the release itself.
 release:
-  disable: '{{ if eq .Env.SKIP_GH_RELEASE "true" }}true{{ else }}false{{ end }}'
+  skip_upload: '{{ if eq .Env.SKIP_GH_RELEASE "true" }}true{{ else }}false{{ end }}'
+  mode: keep-existing
 
 checksum:
   name_template: "checksums.txt"

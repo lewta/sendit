@@ -17,7 +17,7 @@ on:
         required: true
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   update-taps:
@@ -58,10 +58,10 @@ jobs:
 
       # Rebuilds binaries and archives from scratch (CGO_ENABLED=0 + -trimpath
       # makes Go builds deterministic, so SHA256 matches what was uploaded).
-      # SKIP_GH_RELEASE=true uses the release.disable template in .goreleaser.yaml
-      # to skip only the GitHub release publisher, while still allowing
-      # homebrew_casks and scoop to push their formula/manifest to the tap and
-      # bucket repos.
+      # SKIP_GH_RELEASE=true sets release.skip_upload=true + mode=keep-existing
+      # in .goreleaser.yaml: GoReleaser reads the existing release for URL
+      # computation and PATCHes its metadata (requires contents: write), but
+      # does NOT re-upload any artifacts.
       - name: Push Homebrew formula and Scoop manifest
         uses: goreleaser/goreleaser-action@v7
         with:

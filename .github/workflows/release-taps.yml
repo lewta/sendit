@@ -44,20 +44,18 @@ jobs:
 
       # Rebuilds binaries and archives from scratch (CGO_ENABLED=0 + -trimpath
       # makes Go builds deterministic, so SHA256 matches what was uploaded).
-      # Skips everything already done by the Release workflow:
-      #   validate  — already validated
-      #   publish   — GitHub release already exists
-      #   nfpm      — .deb/.rpm already uploaded
-      #   announce  — don't announce twice
-      #   sign      — already signed (if applicable)
-      # What runs: before hooks (completions), build, archive, checksum,
-      #            homebrew_casks (formula → tap), scoop (manifest → bucket).
+      # SKIP_GH_RELEASE=true uses the release.skip template in .goreleaser.yaml
+      # to skip only the GitHub release publisher, while still allowing
+      # homebrew_casks and scoop to push their formula/manifest to the tap and
+      # bucket repos. Without this, --skip=publish would suppress all
+      # publishers including the tap/bucket push.
       - name: Push Homebrew formula and Scoop manifest
         uses: goreleaser/goreleaser-action@v7
         with:
           version: "~> v2"
-          args: release --skip=validate,publish,nfpm,announce,sign
+          args: release --skip=validate,nfpm,announce,sign
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_PAT: ${{ steps.app-token.outputs.token }}
           GORELEASER_CURRENT_TAG: ${{ steps.tag.outputs.value }}
+          SKIP_GH_RELEASE: "true"

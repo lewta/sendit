@@ -125,7 +125,11 @@ func (m *Metrics) ServeHTTP(ctx context.Context, port int) {
 
 	go func() {
 		<-ctx.Done()
-		if err := srv.Shutdown(context.Background()); err != nil {
+		// ctx is already cancelled here; use a fresh context so the graceful
+		// shutdown is not immediately aborted.
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second) //nolint:gosec // G118: intentional — parent ctx is done, shutdown needs its own deadline
+		defer cancel()
+		if err := srv.Shutdown(shutdownCtx); err != nil {
 			log.Error().Err(err).Msg("metrics server shutdown error")
 		}
 	}()

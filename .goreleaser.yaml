@@ -4,9 +4,9 @@ before:
   hooks:
     - go mod tidy
     - mkdir -p completions
-    - go run ./cmd/sendit completion bash > completions/sendit.bash
-    - go run ./cmd/sendit completion zsh > completions/sendit.zsh
-    - go run ./cmd/sendit completion fish > completions/sendit.fish
+    - sh -c 'go run ./cmd/sendit completion bash > completions/sendit.bash'
+    - sh -c 'go run ./cmd/sendit completion zsh > completions/sendit.zsh'
+    - sh -c 'go run ./cmd/sendit completion fish > completions/sendit.fish'
 
 builds:
   - main: ./cmd/sendit

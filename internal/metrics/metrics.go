@@ -123,11 +123,11 @@ func (m *Metrics) ServeHTTP(ctx context.Context, port int) {
 
 	log.Info().Str("addr", srv.Addr).Msg("prometheus metrics endpoint listening")
 
-	go func() {
+	go func() { //nolint:gosec // G118: intentional — parent ctx is done, shutdown needs its own deadline
 		<-ctx.Done()
 		// ctx is already cancelled here; use a fresh context so the graceful
 		// shutdown is not immediately aborted.
-		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second) //nolint:gosec // G118: intentional — parent ctx is done, shutdown needs its own deadline
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		if err := srv.Shutdown(shutdownCtx); err != nil {
 			log.Error().Err(err).Msg("metrics server shutdown error")

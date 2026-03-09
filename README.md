@@ -4,6 +4,7 @@
 [![Release](https://img.shields.io/github/v/release/lewta/sendit)](https://github.com/lewta/sendit/releases/latest)
 [![Go version](https://img.shields.io/badge/go-1.24+-00ADD8?logo=go&logoColor=white)](https://go.dev)
 [![Go Report Card](https://goreportcard.com/badge/github.com/lewta/sendit)](https://goreportcard.com/report/github.com/lewta/sendit)
+[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/lewta/sendit/badge)](https://securityscorecards.dev/viewer/?uri=github.com/lewta/sendit)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
 A Go CLI tool that simulates realistic user web traffic across HTTP, headless browser, DNS, and WebSocket protocols. Designed to blend into normal traffic baselines while being polite to both the local machine and target servers.
@@ -757,3 +758,9 @@ Integration tests spin up local HTTP, DNS, and WebSocket servers and exercise th
 | Pinch (UDP) | `sendit pinch 8.8.8.8:53 --type udp` → prints open/closed/open\|filtered per check |
 | Non-standard port | Set `url: "http://localhost:8080"` in config → `sendit start` sends traffic to port 8080; or `sendit probe http://localhost:8080` |
 | Docker | `cd docker && docker compose up --build` → container starts; `curl localhost:9090/healthz` returns `{"status":"ok"}` |
+
+---
+
+## Security
+
+To report a vulnerability, use [GitHub private vulnerability reporting](https://github.com/lewta/sendit/security/advisories/new). See [SECURITY.md](SECURITY.md) for the full policy.

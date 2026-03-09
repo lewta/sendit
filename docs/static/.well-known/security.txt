@@ -1,0 +1,5 @@
+Contact: https://github.com/lewta/sendit/security/advisories/new
+Expires: 2027-03-09T00:00:00.000Z
+Preferred-Languages: en
+Canonical: https://lewta.github.io/sendit/.well-known/security.txt
+Policy: https://github.com/lewta/sendit/blob/main/SECURITY.md

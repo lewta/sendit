@@ -132,7 +132,21 @@ Make sendit easy to install without building from source across all supported pl
 
 ---
 
-## v0.10.4 — macOS code signing and notarization
+## v0.10.4 — Repository security hardening
+
+Establish a clear vulnerability disclosure process and harden CI/CD supply-chain security.
+
+- **`SECURITY.md`** — security policy file defining supported versions, the reporting process (GitHub private advisory), response timelines (48 h acknowledgement, 7-day resolution target), and coordinated disclosure policy
+- **Private vulnerability reporting** — enable GitHub's private vulnerability reporting so reporters can submit CVEs without opening a public issue
+- **Dependabot security updates** — enable automated security-fix PRs (distinct from the version-update PRs already in place)
+- **Branch ruleset hardening** — set `dismiss_stale_reviews_on_push: true` so post-approval pushes require re-review
+- **OSSF Scorecard** — add `scorecard.yml` GitHub Actions workflow; runs weekly and on every push to `main`; publishes results to the GitHub Security tab as SARIF
+- **Docs — Security page** — add `docs/content/docs/security.md` summarising the policy, supported versions, and how to report
+- **Docs — `security.txt`** — add `docs/static/.well-known/security.txt` (RFC 9116) so automated scanners and researchers can discover the disclosure contact and policy URL
+
+---
+
+## v0.10.5 — macOS code signing and notarization
 
 Sign and notarize the darwin binaries so macOS Gatekeeper accepts them without any user intervention. Fixes [#95](https://github.com/lewta/sendit/issues/95).
 
@@ -271,7 +285,7 @@ Areas to explore:
 - **Output format** — PCAP (`.pcap`) for maximum tool compatibility; PCAPNG (`.pcapng`) if metadata per-packet is needed
 - **Integration point** — a `--capture <file>` flag on `sendit start` or a post-run `sendit export --pcap` subcommand
 
-## Research — Repository security hardening
+## Research — Repository security hardening ✓ (shipped in v0.10.4)
 
 Review and enable GitHub's built-in security features to give the project a clear vulnerability disclosure process and broader automated dependency scanning.
 

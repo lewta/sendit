@@ -132,7 +132,7 @@ Make sendit easy to install without building from source across all supported pl
 
 ---
 
-## v0.10.4 — Repository security hardening
+## v0.10.4 — Repository security hardening ✓
 
 Establish a clear vulnerability disclosure process and harden CI/CD supply-chain security.
 

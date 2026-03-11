@@ -44,12 +44,28 @@ jobs:
         run: hugo --minify --baseURL "https://lewta.github.io/sendit/"
         working-directory: docs
 
+      # upload-pages-artifact hard-codes --exclude='.*' which silently drops
+      # .well-known/. Build the tar manually so dotfiles are included, then
+      # upload with the artifact name deploy-pages expects ("github-pages").
+      - name: Create Pages artifact
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        run: |
+          tar \
+            --dereference --hard-dereference \
+            --directory docs/public \
+            -cvf "$RUNNER_TEMP/artifact.tar" \
+            --exclude=.git \
+            --exclude=.github \
+            .
+
       - name: Upload Pages artifact
         if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
-        uses: actions/upload-pages-artifact@v4
+        uses: actions/upload-artifact@v4
         with:
-          path: docs/public
-          include-hidden-files: true
+          name: github-pages
+          path: ${{ runner.temp }}/artifact.tar
+          if-no-files-found: error
+          retention-days: 1
 
   deploy:
     needs: build

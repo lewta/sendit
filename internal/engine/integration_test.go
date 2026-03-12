@@ -4,9 +4,11 @@ package engine_test
 
 import (
 	"context"
+	"encoding/binary"
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -294,6 +296,76 @@ func TestIntegration_DNS_Happy(t *testing.T) {
 
 	if n := counter.Load(); n < 1 {
 		t.Errorf("expected >= 1 DNS query, got %d", n)
+	}
+}
+
+// TestIntegration_PCAP_WriterWired verifies that setting Output.PCAPFile causes
+// the engine to open a PCAP file and write at least one packet per dispatched
+// request. It catches regressions where pcapWriter is constructed but not
+// wired into dispatch (e.g. missing pcapWriter.Send in engine.dispatch).
+func TestIntegration_PCAP_WriterWired(t *testing.T) {
+	var counter atomic.Int64
+	var once sync.Once
+	done := make(chan struct{})
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if counter.Add(1) >= 3 {
+			once.Do(func() { close(done) })
+		}
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("ok"))
+	}))
+	defer srv.Close()
+
+	f, err := os.CreateTemp("", "sendit-pcap-engine-*.pcap")
+	if err != nil {
+		t.Fatal(err)
+	}
+	pcapPath := f.Name()
+	_ = f.Close()
+	defer os.Remove(pcapPath)
+
+	cfg := testCfg([]config.TargetConfig{
+		{URL: srv.URL, Type: "http", Weight: 1},
+	})
+	cfg.Output.PCAPFile = pcapPath
+
+	eng, err := engine.New(cfg, metrics.Noop())
+	if err != nil {
+		t.Fatalf("engine.New: %v", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	runDone := make(chan struct{})
+	go func() {
+		defer close(runDone)
+		eng.Run(ctx)
+	}()
+
+	select {
+	case <-done:
+		cancel()
+	case <-ctx.Done():
+		t.Errorf("timed out waiting for 3 requests; got %d", counter.Load())
+	}
+	<-runDone // wait for Close() to flush and finalise the PCAP file
+
+	data, err := os.ReadFile(pcapPath)
+	if err != nil {
+		t.Fatalf("reading pcap file: %v", err)
+	}
+	if len(data) < 24 {
+		t.Fatalf("pcap file too short (%d bytes): global header missing", len(data))
+	}
+	magic := binary.LittleEndian.Uint32(data[0:4])
+	if magic != 0xa1b2c3d4 {
+		t.Errorf("bad pcap magic: %#x, want 0xa1b2c3d4", magic)
+	}
+	// At least one packet record: 24-byte global header + 16-byte record header + payload.
+	if len(data) < 24+16+1 {
+		t.Errorf("pcap file has no packet records (len=%d); pcapWriter.Send may not be wired in dispatch", len(data))
 	}
 }
 

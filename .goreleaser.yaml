@@ -53,7 +53,7 @@ builds:
 
 notarize:
   macos:
-    - enabled: true
+    - enabled: '{{ not .IsSnapshot }}'
       sign:
         certificate: "{{.Env.MACOS_SIGN_P12}}"
         password: "{{.Env.MACOS_SIGN_PASSWORD}}"

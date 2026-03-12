@@ -117,6 +117,63 @@ func TestReloadCmd_SendsSIGHUP(t *testing.T) {
 	}
 }
 
+// --- startCmd flags ---
+
+// TestStartCmd_CaptureFlag verifies that the --capture flag is registered on
+// startCmd. If it is accidentally removed, sendit start --capture <file> will
+// silently reject the flag and the PCAP file will never be written.
+func TestStartCmd_CaptureFlag(t *testing.T) {
+	cmd := startCmd()
+	f := cmd.Flags().Lookup("capture")
+	if f == nil {
+		t.Fatal("--capture flag not registered on startCmd; users will see 'unknown flag: --capture'")
+	}
+	if f.DefValue != "" {
+		t.Errorf("--capture default = %q, want empty string", f.DefValue)
+	}
+}
+
+// --- exportCmd registration and flags ---
+
+// TestRootCmd_ExportCommandRegistered verifies that exportCmd is added to
+// rootCmd in init(). If the AddCommand call is accidentally removed, users
+// will see 'unknown command "export"'.
+func TestRootCmd_ExportCommandRegistered(t *testing.T) {
+	for _, sub := range rootCmd.Commands() {
+		if sub.Name() == "export" {
+			return
+		}
+	}
+	t.Fatal("export command not registered in rootCmd; users will see 'unknown command \"export\"'")
+}
+
+// TestExportCmd_PCAPFlag verifies --pcap is registered on exportCmd.
+func TestExportCmd_PCAPFlag(t *testing.T) {
+	cmd := exportCmd()
+	if f := cmd.Flags().Lookup("pcap"); f == nil {
+		t.Fatal("--pcap flag not registered on exportCmd")
+	}
+}
+
+// TestExportCmd_OutputFlag verifies --output is registered on exportCmd.
+func TestExportCmd_OutputFlag(t *testing.T) {
+	cmd := exportCmd()
+	if f := cmd.Flags().Lookup("output"); f == nil {
+		t.Fatal("--output flag not registered on exportCmd")
+	}
+}
+
+// TestExportCmd_PCAPRequired verifies that running export without --pcap
+// returns a descriptive error rather than a panic or silent no-op.
+func TestExportCmd_PCAPRequired(t *testing.T) {
+	cmd := exportCmd()
+	cmd.SetArgs([]string{})
+	err := cmd.Execute()
+	if err == nil {
+		t.Fatal("expected error when --pcap is omitted, got nil")
+	}
+}
+
 // --- statusCmd ---
 
 func TestStatusCmd_MissingPIDFile(t *testing.T) {

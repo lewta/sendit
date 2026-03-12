@@ -146,7 +146,7 @@ Establish a clear vulnerability disclosure process and harden CI/CD supply-chain
 
 ---
 
-## v0.10.5 — macOS code signing and notarization
+## v0.10.5 — macOS code signing and notarization ✓
 
 Sign and notarize the darwin binaries so macOS Gatekeeper accepts them without any user intervention. Fixes [#95](https://github.com/lewta/sendit/issues/95).
 

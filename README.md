@@ -125,6 +125,7 @@ target_defaults:
 ## CLI Commands
 
 ```
+sendit generate [--targets-file <path>] [--url <url>] [--from-history chrome|firefox|safari] [--from-bookmarks chrome|firefox] [--output <file>]
 sendit start    [-c <path>] [--foreground] [--log-level debug|info|warn|error] [--dry-run] [--capture <file>]
 sendit probe    <target>   [--type http|dns|websocket] [--interval 1s] [--timeout 5s] [--send <msg>]
 sendit pinch    <host:port> [--type tcp|udp] [--interval 1s] [--timeout 5s]
@@ -139,6 +140,7 @@ sendit completion <shell>
 
 | Command      | Description |
 |--------------|-------------|
+| `generate`   | Generate a ready-to-use `config.yaml` from a targets file, a seed URL with in-domain crawling, or your local browser history/bookmarks. |
 | `start`      | Start the engine. Writes a PID file by default so `stop`/`status` can find the process; use `--foreground` to skip writing the PID file. |
 | `probe`      | Test a single HTTP, DNS, or WebSocket endpoint in a loop (like ping). No config file required. |
 | `pinch`      | Check whether a TCP or UDP port is open on a remote host, repeating on an interval. No config file required. |
@@ -225,6 +227,72 @@ Pacing:
 Limits:
   workers: 4 (browser: 1) | cpu: 60% | memory: 512 MB
 ```
+
+---
+
+## Generate
+
+`sendit generate` produces a ready-to-use `config.yaml` from one or more input sources. Use it to get from zero to sending traffic in seconds without hand-editing YAML.
+
+### From a targets file
+
+```sh
+sendit generate --targets-file config/targets.txt > config/generated.yaml
+sendit validate --config config/generated.yaml
+sendit start    --config config/generated.yaml
+```
+
+The targets file format is `<url> <type> [weight]` per line — the same format as `targets_file:` in the YAML config. Comments (`#`) and blank lines are ignored.
+
+### From a seed URL with crawling
+
+```sh
+# Crawl example.com up to depth 2 and discover up to 50 in-domain pages
+sendit generate --url https://example.com --depth 2 --max-pages 50 --output config/generated.yaml
+```
+
+The crawler fetches the seed URL, parses `<a href>` links, and follows in-domain links breadth-first. `robots.txt` is respected by default; pass `--ignore-robots` to skip it.
+
+### From browser history
+
+```sh
+# Top 100 most-visited Chrome URLs (weight ∝ visit count, capped at 10)
+sendit generate --from-history chrome --history-limit 100 --output config/generated.yaml
+
+# Firefox or Safari
+sendit generate --from-history firefox --output config/generated.yaml
+sendit generate --from-history safari  --output config/generated.yaml  # macOS only
+```
+
+Visit count is mapped to a target weight (capped at 10) so frequently visited pages appear proportionally more often in the generated traffic without dominating it.
+
+### From browser bookmarks
+
+```sh
+sendit generate --from-bookmarks chrome  --output config/generated.yaml
+sendit generate --from-bookmarks firefox --output config/generated.yaml
+```
+
+All bookmarked HTTP/HTTPS URLs are emitted as equal-weight targets. Sources can be combined:
+
+```sh
+sendit generate --url https://example.com --from-history chrome --history-limit 50 --output config/gen.yaml
+```
+
+### `generate` flags
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--targets-file` | `""` | Generate from an existing targets file (`url type [weight]` per line) |
+| `--url` | `""` | Seed URL for crawl-based generation (implies `--crawl`) |
+| `--crawl` | `false` | Enable in-domain page discovery for HTTP targets (used with `--url`) |
+| `--depth` | `2` | Maximum crawl depth |
+| `--max-pages` | `50` | Maximum number of pages to discover |
+| `--ignore-robots` | `false` | Skip `robots.txt` enforcement during crawl |
+| `--from-history` | `""` | Harvest visited URLs from browser history: `chrome` \| `firefox` \| `safari` |
+| `--from-bookmarks` | `""` | Harvest bookmarked URLs: `chrome` \| `firefox` (Safari bookmarks not yet supported) |
+| `--history-limit` | `100` | Maximum URLs to import from history (ordered by visit count descending) |
+| `--output` | *(stdout)* | Write config to a file instead of stdout; prompts before overwriting |
 
 ---
 

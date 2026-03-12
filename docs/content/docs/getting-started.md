@@ -114,7 +114,39 @@ min/avg/max latency: 38ms / 90ms / 142ms
 
 See the [CLI Reference](../cli/#pinch-flags) for all `pinch` flags.
 
-## Create a config file
+## Generate a config from a URL
+
+The fastest path to a working config is `sendit generate`. Point it at a seed URL and it crawls the domain, discovers pages, and writes a complete `config.yaml`:
+
+```sh
+sendit generate --url https://example.com --depth 2 --output config/generated.yaml
+# Wrote 17 target(s) to "config/generated.yaml"
+
+sendit validate --config config/generated.yaml
+# config valid
+
+sendit start --config config/generated.yaml --log-level debug
+```
+
+You can also generate from an existing targets file, your browser history, or your bookmarks:
+
+```sh
+# From a targets file (url type [weight] per line)
+sendit generate --targets-file config/targets.txt --output config/generated.yaml
+
+# From Chrome history — top 50 most-visited pages
+sendit generate --from-history chrome --history-limit 50 --output config/generated.yaml
+
+# From Firefox bookmarks
+sendit generate --from-bookmarks firefox --output config/generated.yaml
+
+# Combine: crawl + Chrome history
+sendit generate --url https://example.com --from-history chrome --output config/generated.yaml
+```
+
+See the [CLI Reference](../cli/#generate-flags) for all `generate` flags.
+
+## Create a config file manually
 
 Copy the [example config](https://github.com/lewta/sendit/blob/main/config/example.yaml) as a starting point:
 

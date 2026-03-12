@@ -46,6 +46,10 @@ a config file — works like ping for HTTP, DNS, and WebSocket targets.
 Use 'sendit pinch <host:port>' to check TCP/UDP port connectivity without
 a config file.
 
+Use 'sendit generate' to generate a ready-to-use config.yaml from a
+targets file, a seed URL with in-domain crawling, or your local browser
+history or bookmarks — no manual config editing required.
+
 Use 'sendit export --pcap <results.jsonl>' to convert a results file to
 PCAP format for analysis in Wireshark or similar tools.
 
@@ -69,6 +73,7 @@ func init() {
 	rootCmd.AddCommand(probeCmd())
 	rootCmd.AddCommand(pinchCmd())
 	rootCmd.AddCommand(exportCmd())
+	rootCmd.AddCommand(generateCmd())
 }
 
 // --- probe ---

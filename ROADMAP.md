@@ -156,7 +156,7 @@ Sign and notarize the darwin binaries so macOS Gatekeeper accepts them without a
 
 ---
 
-## v0.11.0 — Config generator
+## v0.11.0 — Config generator ✓
 
 A `sendit generate` subcommand that produces a ready-to-use `config.yaml` from a targets file or a seed URL, reducing the time-to-first-traffic for new users.
 

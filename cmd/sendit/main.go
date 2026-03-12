@@ -17,6 +17,7 @@ import (
 	"github.com/lewta/sendit/internal/driver"
 	"github.com/lewta/sendit/internal/engine"
 	"github.com/lewta/sendit/internal/metrics"
+	"github.com/lewta/sendit/internal/pcap"
 	"github.com/lewta/sendit/internal/task"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -45,6 +46,9 @@ a config file — works like ping for HTTP, DNS, and WebSocket targets.
 Use 'sendit pinch <host:port>' to check TCP/UDP port connectivity without
 a config file.
 
+Use 'sendit export --pcap <results.jsonl>' to convert a results file to
+PCAP format for analysis in Wireshark or similar tools.
+
 Use 'sendit validate' to check a config before running.`,
 }
 
@@ -64,6 +68,7 @@ func init() {
 	rootCmd.AddCommand(versionCmd())
 	rootCmd.AddCommand(probeCmd())
 	rootCmd.AddCommand(pinchCmd())
+	rootCmd.AddCommand(exportCmd())
 }
 
 // --- probe ---
@@ -482,10 +487,11 @@ func versionCmd() *cobra.Command {
 
 func startCmd() *cobra.Command {
 	var (
-		cfgPath    string
-		foreground bool
-		logLevel   string
-		dryRun     bool
+		cfgPath     string
+		foreground  bool
+		logLevel    string
+		dryRun      bool
+		capturePath string
 	)
 
 	cmd := &cobra.Command{
@@ -521,6 +527,10 @@ to pacing mode or resource limits (workers, cpu, memory) require a restart.`,
 			cfg, err := config.Load(cfgPath)
 			if err != nil {
 				return err
+			}
+
+			if capturePath != "" {
+				cfg.Output.PCAPFile = capturePath
 			}
 
 			if dryRun {
@@ -590,6 +600,45 @@ to pacing mode or resource limits (workers, cpu, memory) require a restart.`,
 	cmd.Flags().BoolVar(&foreground, "foreground", false, "Skip writing the PID file (process always runs in foreground)")
 	cmd.Flags().StringVar(&logLevel, "log-level", "", "Override log level (debug|info|warn|error)")
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Print config summary and exit without sending any traffic")
+	cmd.Flags().StringVar(&capturePath, "capture", "", "Write a synthetic PCAP file while running (e.g. capture.pcap); finalised on clean shutdown")
+
+	return cmd
+}
+
+// --- export ---
+
+func exportCmd() *cobra.Command {
+	var (
+		pcapIn  string
+		pcapOut string
+	)
+
+	cmd := &cobra.Command{
+		Use:   "export",
+		Short: "Export a results file to an alternative format",
+		Long: `Convert a sendit result file to another format.
+
+Currently supports converting a JSONL results file (written by the output
+writer) to a synthetic PCAP file for analysis in Wireshark or tshark.
+
+The PCAP uses LINKTYPE_USER0 (147) — no IP/TCP framing. Each packet payload
+is a text record containing the URL, type, status code, latency, bytes, and
+any error from the original request. No root or CAP_NET_RAW privilege is
+required.
+
+Examples:
+  sendit export --pcap results.jsonl
+  sendit export --pcap results.jsonl --output capture.pcap`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if pcapIn == "" {
+				return fmt.Errorf("--pcap <results.jsonl> is required")
+			}
+			return pcap.Export(pcapIn, pcapOut)
+		},
+	}
+
+	cmd.Flags().StringVar(&pcapIn, "pcap", "", "JSONL results file to convert to PCAP")
+	cmd.Flags().StringVar(&pcapOut, "output", "", "Output PCAP file path (default: input file with .pcap extension)")
 
 	return cmd
 }

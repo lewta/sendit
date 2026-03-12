@@ -8,9 +8,10 @@ description: "All sendit commands and their flags."
 ## Commands
 
 ```
-sendit start    [-c <path>] [--foreground] [--log-level debug|info|warn|error] [--dry-run]
+sendit start    [-c <path>] [--foreground] [--log-level debug|info|warn|error] [--dry-run] [--capture <file>]
 sendit probe    <target>    [--type http|dns|websocket] [--interval 1s] [--timeout 5s] [--send <msg>]
 sendit pinch    <host:port> [--type tcp|udp] [--interval 1s] [--timeout 5s]
+sendit export   --pcap <results.jsonl> [--output <results.pcap>]
 sendit stop     [--pid-file <path>]
 sendit reload   [--pid-file <path>]
 sendit status   [--pid-file <path>]
@@ -24,6 +25,7 @@ sendit completion <shell>
 | `start` | Start the engine. Writes a PID file by default so `stop`/`status` can find the process; use `--foreground` to skip. |
 | `probe` | Test a single HTTP, DNS, or WebSocket endpoint in a loop (like ping). No config file needed. |
 | `pinch` | Check whether a TCP or UDP port is open on a remote host, repeating on an interval. No config file needed. |
+| `export` | Convert a JSONL results file to PCAP format for analysis in Wireshark or tshark. |
 | `stop` | Send SIGTERM to the running instance via its PID file. Waits for in-flight requests to finish. |
 | `reload` | Send SIGHUP to the running instance via its PID file to hot-reload config atomically. |
 | `status` | Report whether the process in the PID file is still alive. |
@@ -39,6 +41,7 @@ sendit completion <shell>
 | `--foreground` | | `false` | Skip writing the PID file |
 | `--log-level` | | *(from config)* | Override log level: `debug` \| `info` \| `warn` \| `error` |
 | `--dry-run` | | `false` | Print config summary and exit without sending traffic |
+| `--capture` | | `""` | Write a synthetic PCAP file while running; file is finalised on clean shutdown |
 
 ### Dry-run output example
 
@@ -216,6 +219,31 @@ Pinching 8.8.8.8:53 (udp) — Ctrl-C to stop
 2 sent, 1 open, 1 closed/filtered
 min/avg/max latency: 4ms / 4ms / 4ms
 ```
+
+## `export` flags
+
+| Flag | Default | Description |
+|---|---|---|
+| `--pcap` | *(required)* | JSONL results file to convert to PCAP |
+| `--output` | *(input with `.pcap` extension)* | Output PCAP file path |
+
+### PCAP export example
+
+```sh
+sendit export --pcap results.jsonl
+# Exported 312 packets → results.pcap
+
+sendit export --pcap results.jsonl --output /tmp/session.pcap
+# Exported 312 packets → /tmp/session.pcap
+```
+
+The generated PCAP uses **LINKTYPE_USER0 (147)** — no IP/TCP framing. Each packet payload is a text record:
+
+```
+ts=2024-01-01T12:00:00Z url=https://example.com type=http status=200 duration_ms=142 bytes=1256 error=
+```
+
+Open in Wireshark; packets appear as raw data under the `USER0` dissector. Use the raw packet bytes view or **Follow → TCP Stream** to read individual records.
 
 ## `stop` / `reload` / `status` flags
 

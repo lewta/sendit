@@ -108,6 +108,7 @@ targets:
 #   file: "sendit-results.jsonl"  # path to output file
 #   format: jsonl                  # jsonl | csv
 #   append: false                  # true = append to existing file
+#   pcap_file: "capture.pcap"     # write a synthetic PCAP alongside the output file
 
 metrics:
   enabled: false

@@ -10,6 +10,7 @@ import (
 	"github.com/lewta/sendit/internal/driver"
 	"github.com/lewta/sendit/internal/metrics"
 	"github.com/lewta/sendit/internal/output"
+	"github.com/lewta/sendit/internal/pcap"
 	"github.com/lewta/sendit/internal/ratelimit"
 	"github.com/lewta/sendit/internal/resource"
 	"github.com/lewta/sendit/internal/task"
@@ -18,16 +19,17 @@ import (
 
 // Engine orchestrates the dispatch loop.
 type Engine struct {
-	cfg       atomic.Pointer[config.Config]
-	pool      *Pool
-	scheduler *Scheduler
-	selector  atomic.Pointer[task.Selector]
-	rl        atomic.Pointer[ratelimit.Registry]
-	backoff   atomic.Pointer[ratelimit.BackoffRegistry]
-	monitor   *resource.Monitor
-	metrics   *metrics.Metrics
-	writer    *output.Writer
-	drivers   map[string]driver.Driver
+	cfg        atomic.Pointer[config.Config]
+	pool       *Pool
+	scheduler  *Scheduler
+	selector   atomic.Pointer[task.Selector]
+	rl         atomic.Pointer[ratelimit.Registry]
+	backoff    atomic.Pointer[ratelimit.BackoffRegistry]
+	monitor    *resource.Monitor
+	metrics    *metrics.Metrics
+	writer     *output.Writer
+	pcapWriter *pcap.Writer
+	drivers    map[string]driver.Driver
 }
 
 // New creates an Engine wired with all dependencies.
@@ -73,6 +75,14 @@ func New(cfg *config.Config, m *metrics.Metrics) (*Engine, error) {
 		e.writer = w
 	}
 
+	if cfg.Output.PCAPFile != "" {
+		pw, err := pcap.New(cfg.Output.PCAPFile)
+		if err != nil {
+			return nil, fmt.Errorf("creating pcap writer: %w", err)
+		}
+		e.pcapWriter = pw
+	}
+
 	return e, nil
 }
 
@@ -81,6 +91,9 @@ func New(cfg *config.Config, m *metrics.Metrics) (*Engine, error) {
 func (e *Engine) Run(ctx context.Context) {
 	if e.writer != nil {
 		defer e.writer.Close()
+	}
+	if e.pcapWriter != nil {
+		defer e.pcapWriter.Close()
 	}
 
 	e.monitor.Start(ctx)
@@ -158,6 +171,9 @@ func (e *Engine) dispatch(ctx context.Context, t task.Task) {
 
 	if e.writer != nil {
 		e.writer.Send(result)
+	}
+	if e.pcapWriter != nil {
+		e.pcapWriter.Send(result)
 	}
 
 	if result.Error != nil {

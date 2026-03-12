@@ -8,6 +8,7 @@ description: "All sendit commands and their flags."
 ## Commands
 
 ```
+sendit generate [--targets-file <path>] [--url <url>] [--from-history chrome|firefox|safari] [--from-bookmarks chrome|firefox] [--output <file>]
 sendit start    [-c <path>] [--foreground] [--log-level debug|info|warn|error] [--dry-run] [--capture <file>]
 sendit probe    <target>    [--type http|dns|websocket] [--interval 1s] [--timeout 5s] [--send <msg>]
 sendit pinch    <host:port> [--type tcp|udp] [--interval 1s] [--timeout 5s]
@@ -22,6 +23,7 @@ sendit completion <shell>
 
 | Command | Description |
 |---|---|
+| `generate` | Generate a ready-to-use `config.yaml` from a targets file, a seed URL with in-domain crawling, or your local browser history/bookmarks. |
 | `start` | Start the engine. Writes a PID file by default so `stop`/`status` can find the process; use `--foreground` to skip. |
 | `probe` | Test a single HTTP, DNS, or WebSocket endpoint in a loop (like ping). No config file needed. |
 | `pinch` | Check whether a TCP or UDP port is open on a remote host, repeating on an interval. No config file needed. |
@@ -32,6 +34,55 @@ sendit completion <shell>
 | `validate` | Parse and validate a config file. Exits 0 on success, non-zero with a message on error. |
 | `version` | Print version, commit hash, and build date. |
 | `completion` | Generate shell autocompletion scripts for bash, zsh, fish, or powershell. |
+
+## `generate` flags
+
+| Flag | Default | Description |
+|---|---|---|
+| `--targets-file` | `""` | Generate from an existing targets file (`url type [weight]` per line) |
+| `--url` | `""` | Seed URL for crawl-based generation (implies `--crawl`) |
+| `--crawl` | `false` | Enable in-domain page discovery (used with `--url`) |
+| `--depth` | `2` | Maximum crawl depth |
+| `--max-pages` | `50` | Maximum number of pages to discover |
+| `--ignore-robots` | `false` | Skip `robots.txt` enforcement during crawl |
+| `--from-history` | `""` | Harvest visited URLs from browser history: `chrome` \| `firefox` \| `safari` |
+| `--from-bookmarks` | `""` | Harvest bookmarked URLs: `chrome` \| `firefox` (Safari bookmarks not yet supported) |
+| `--history-limit` | `100` | Maximum URLs to import from history, ordered by visit count |
+| `--output` | *(stdout)* | Write config to a file instead of stdout; prompts before overwriting |
+
+### Generate from a targets file
+
+```sh
+sendit generate --targets-file config/targets.txt
+sendit generate --targets-file config/targets.txt --output config/generated.yaml
+```
+
+### Generate from a seed URL
+
+```sh
+# Crawl example.com, follow in-domain links up to depth 2, discover up to 50 pages
+sendit generate --url https://example.com --depth 2 --output config/generated.yaml
+
+# Skip robots.txt enforcement
+sendit generate --url https://example.com --ignore-robots --output config/generated.yaml
+```
+
+### Generate from browser history / bookmarks
+
+```sh
+# Top 50 most-visited Chrome URLs
+sendit generate --from-history chrome --history-limit 50 --output config/generated.yaml
+
+# Firefox bookmarks
+sendit generate --from-bookmarks firefox --output config/generated.yaml
+
+# Combine sources (duplicates removed automatically)
+sendit generate --url https://example.com --from-history chrome --output config/gen.yaml
+```
+
+Browser history weights are derived from visit count (capped at 10) so frequently visited pages appear proportionally more often without dominating the traffic distribution. The generated YAML includes the full pacing / limits / backoff skeleton with sensible defaults — edit those sections to tune behaviour before running.
+
+> **Browser support**: Chrome/Chromium and Firefox are supported on Linux and macOS. Safari history is macOS-only. Safari bookmarks (binary plist format) are not yet supported — use `--from-history safari` instead.
 
 ## `start` flags
 

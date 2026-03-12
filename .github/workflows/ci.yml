@@ -59,6 +59,11 @@ jobs:
         env:
           SKIP_GH_RELEASE: "false"
           GH_PAT: "placeholder"
+          MACOS_SIGN_P12: "placeholder"
+          MACOS_SIGN_PASSWORD: "placeholder"
+          NOTARIZE_KEY: "placeholder"
+          NOTARIZE_KEY_ID: "placeholder"
+          NOTARIZE_ISSUER_ID: "placeholder"
 
   goreleaser-snapshot:
     runs-on: ubuntu-latest
@@ -90,3 +95,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SKIP_GH_RELEASE: "false"
           GH_PAT: "placeholder"
+          MACOS_SIGN_P12: "placeholder"
+          MACOS_SIGN_PASSWORD: "placeholder"
+          NOTARIZE_KEY: "placeholder"
+          NOTARIZE_KEY_ID: "placeholder"
+          NOTARIZE_ISSUER_ID: "placeholder"

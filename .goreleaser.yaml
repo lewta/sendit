@@ -51,6 +51,18 @@ builds:
       - -X main.commit={{.Commit}}
       - -X main.buildDate={{.CommitDate}}
 
+notarize:
+  macos:
+    - enabled: true
+      sign:
+        certificate: "{{.Env.MACOS_SIGN_P12}}"
+        password: "{{.Env.MACOS_SIGN_PASSWORD}}"
+      notarize:
+        issuer_id: "{{.Env.NOTARIZE_ISSUER_ID}}"
+        key_id: "{{.Env.NOTARIZE_KEY_ID}}"
+        key: "{{.Env.NOTARIZE_KEY}}"
+        wait_for_completion: true
+
 archives:
   - formats: [tar.gz]
     name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}"

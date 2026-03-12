@@ -384,7 +384,7 @@ func historyDBInfo(browser string) (string, string, error) {
 		return path, q, nil
 	case "safari":
 		if runtime.GOOS != "darwin" {
-			return "", "", fmt.Errorf("Safari is only available on macOS")
+			return "", "", fmt.Errorf("safari is only available on macOS")
 		}
 		home, _ := os.UserHomeDir()
 		path := filepath.Join(home, "Library", "Safari", "History.db")
@@ -448,7 +448,7 @@ func targetsFromBookmarks(browser string) ([]config.TargetConfig, error) {
 		}
 		return firefoxBookmarks(path)
 	case "safari":
-		return nil, fmt.Errorf("Safari bookmarks (Bookmarks.plist binary format) are not yet supported; use --from-history safari instead")
+		return nil, fmt.Errorf("safari bookmarks (Bookmarks.plist binary format) are not yet supported; use --from-history safari instead")
 	default:
 		return nil, fmt.Errorf("unknown browser %q: must be chrome, firefox, or safari", browser)
 	}
@@ -543,7 +543,7 @@ func chromePath(filename string) (string, error) {
 	case "darwin":
 		base = filepath.Join(home, "Library", "Application Support", "Google", "Chrome", "Default")
 	default:
-		return "", fmt.Errorf("Chrome history/bookmarks are not supported on %s", runtime.GOOS)
+		return "", fmt.Errorf("chrome history/bookmarks are not supported on %s", runtime.GOOS)
 	}
 	return filepath.Join(base, filename), nil
 }
@@ -561,7 +561,7 @@ func firefoxPath(filename string) (string, error) {
 	case "darwin":
 		configDir = filepath.Join(home, "Library", "Application Support", "Firefox", "Profiles")
 	default:
-		return "", fmt.Errorf("Firefox history/bookmarks are not supported on %s", runtime.GOOS)
+		return "", fmt.Errorf("firefox history/bookmarks are not supported on %s", runtime.GOOS)
 	}
 	profile, err := firefoxDefaultProfile(configDir)
 	if err != nil {
@@ -627,13 +627,13 @@ func firefoxFallbackProfile(configDir string) (string, error) {
 // emitGeneratedConfig writes the generated config YAML to stdout or a file.
 // If outPath names an existing file the user is prompted before overwriting.
 func emitGeneratedConfig(cmd *cobra.Command, targets []config.TargetConfig, outPath string) error {
-	var w io.Writer = cmd.OutOrStdout()
+	w := cmd.OutOrStdout()
 
 	if outPath != "" {
 		if _, err := os.Stat(outPath); err == nil {
 			fmt.Fprintf(cmd.ErrOrStderr(), "File %q already exists. Overwrite? [y/N] ", outPath)
 			var answer string
-			fmt.Fscan(cmd.InOrStdin(), &answer) //nolint:errcheck
+			fmt.Fscan(cmd.InOrStdin(), &answer) //nolint:errcheck,gosec
 			if !strings.EqualFold(strings.TrimSpace(answer), "y") {
 				return fmt.Errorf("aborted")
 			}

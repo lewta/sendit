@@ -111,10 +111,11 @@ type WebSocketConfig struct {
 
 // OutputConfig controls writing request results to a file.
 type OutputConfig struct {
-	Enabled bool   `mapstructure:"enabled"`
-	File    string `mapstructure:"file"`
-	Format  string `mapstructure:"format"` // jsonl | csv
-	Append  bool   `mapstructure:"append"`
+	Enabled  bool   `mapstructure:"enabled"`
+	File     string `mapstructure:"file"`
+	Format   string `mapstructure:"format"` // jsonl | csv
+	Append   bool   `mapstructure:"append"`
+	PCAPFile string `mapstructure:"pcap_file"` // write synthetic PCAP alongside normal output
 }
 
 // MetricsConfig controls Prometheus metrics exposition.

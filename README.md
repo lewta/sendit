@@ -125,9 +125,10 @@ target_defaults:
 ## CLI Commands
 
 ```
-sendit start    [-c <path>] [--foreground] [--log-level debug|info|warn|error] [--dry-run]
+sendit start    [-c <path>] [--foreground] [--log-level debug|info|warn|error] [--dry-run] [--capture <file>]
 sendit probe    <target>   [--type http|dns|websocket] [--interval 1s] [--timeout 5s] [--send <msg>]
 sendit pinch    <host:port> [--type tcp|udp] [--interval 1s] [--timeout 5s]
+sendit export   --pcap <results.jsonl> [--output <results.pcap>]
 sendit stop     [--pid-file <path>]
 sendit reload   [--pid-file <path>]
 sendit status   [--pid-file <path>]
@@ -141,6 +142,7 @@ sendit completion <shell>
 | `start`      | Start the engine. Writes a PID file by default so `stop`/`status` can find the process; use `--foreground` to skip writing the PID file. |
 | `probe`      | Test a single HTTP, DNS, or WebSocket endpoint in a loop (like ping). No config file required. |
 | `pinch`      | Check whether a TCP or UDP port is open on a remote host, repeating on an interval. No config file required. |
+| `export`     | Convert a JSONL results file to PCAP format for analysis in Wireshark or tshark. |
 | `stop`       | Send SIGTERM to a running instance via its PID file. |
 | `reload`     | Send SIGHUP to a running instance via its PID file to reload the config atomically. Not available on Windows — use a full restart instead. |
 | `status`     | Check whether the process in the PID file is still alive. |
@@ -156,6 +158,7 @@ sendit completion <shell>
 | `--foreground` | | `false` | Skip writing the PID file (process always runs in the foreground) |
 | `--log-level` | | *(from config)* | Override log level: `debug` \| `info` \| `warn` \| `error` |
 | `--dry-run` | | `false` | Print config summary (targets, pacing, limits) and exit without sending traffic |
+| `--capture` | | `""` | Write a synthetic PCAP file while running; file is finalised on clean shutdown |
 
 ### `probe` flags
 
@@ -175,6 +178,13 @@ sendit completion <shell>
 | `--type` | `tcp` | Protocol type: `tcp` \| `udp` |
 | `--interval` | `1s` | Delay between checks |
 | `--timeout` | `5s` | Per-check timeout |
+
+### `export` flags
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--pcap` | *(required)* | JSONL results file to convert to PCAP |
+| `--output` | *(input with `.pcap` extension)* | Output PCAP file path |
 
 ### `stop` / `reload` / `status` flags
 
@@ -363,6 +373,38 @@ min/avg/max latency: 4ms / 4ms / 4ms
 | `open` | UDP | Response data received |
 | `closed` | UDP | ICMP port unreachable received |
 | `open\|filtered` | UDP | Timeout — UDP is inherently ambiguous |
+
+---
+
+## Capture
+
+`sendit start --capture <file>` writes a synthetic PCAP alongside normal traffic. The file is finalised on clean shutdown (SIGINT/SIGTERM). No root, `CAP_NET_RAW`, or libpcap is required.
+
+```sh
+./sendit start --config config/example.yaml --capture session.pcap
+# ... Ctrl-C to stop ...
+# open session.pcap in Wireshark
+```
+
+`sendit export --pcap <results.jsonl>` converts a previously written JSONL results file to PCAP. Useful when you forgot to pass `--capture`, or when you want to post-process results from a long-running session.
+
+```sh
+./sendit start --config config/example.yaml
+# output:
+#   enabled: true
+#   file: results.jsonl
+
+sendit export --pcap results.jsonl
+# Exported 312 packets → results.pcap
+```
+
+The PCAP uses **LINKTYPE_USER0 (147)** — there is no IP/TCP framing. Each packet payload is a text record:
+
+```
+ts=2024-01-01T12:00:00Z url=https://example.com type=http status=200 duration_ms=142 bytes=1256 error=
+```
+
+Open in Wireshark and use **Analyze → Follow → TCP Stream** (or the raw packet bytes view) to inspect individual request records.
 
 ---
 
@@ -700,6 +742,7 @@ internal/driver/                HTTP · headless browser (chromedp) · DNS (miek
 internal/engine/                Worker pool · scheduler · dispatch loop
 internal/metrics/               Prometheus counters & histograms
 internal/output/                JSONL / CSV result writer (non-blocking, goroutine-backed)
+internal/pcap/                  Synthetic PCAP writer and JSONL→PCAP exporter (pure Go, no CGO)
 config/example.yaml             Full reference configuration (with target_defaults section)
 config/targets.txt              Example targets file (url + type per line)
 config/test.yaml                Lightweight HTTP+DNS config for local smoke-testing
@@ -752,6 +795,8 @@ Integration tests spin up local HTTP, DNS, and WebSocket servers and exercise th
 | Graceful shutdown | Send SIGTERM during active requests → process logs "engine stopped" after in-flight tasks finish |
 | Dry-run | `sendit start --config config/example.yaml --dry-run` → prints target table, pacing, and limits then exits 0 |
 | Result export | Set `output.enabled: true`, run briefly, inspect the output file for JSONL records |
+| PCAP capture | `sendit start --config config/example.yaml --capture session.pcap` → stop after a few requests → open `session.pcap` in Wireshark; packets should appear with LINKTYPE_USER0 (147) |
+| PCAP export | Run with `output.enabled: true`, then `sendit export --pcap results.jsonl` → `results.pcap` created; verify with `file results.pcap` or Wireshark |
 | Probe (HTTP) | `sendit probe https://httpbin.org/get` → prints status/latency/bytes per request |
 | Probe (DNS) | `sendit probe example.com` → prints NOERROR/latency per query |
 | Pinch (TCP) | `sendit pinch example.com:80` → prints open/closed/filtered + latency per check |

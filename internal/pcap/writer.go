@@ -173,14 +173,14 @@ func writePacket(bw *bufio.Writer, r task.Result, now time.Time) {
 }
 
 func writePktRaw(bw *bufio.Writer, ts time.Time, payload []byte) {
-	inclLen := uint32(len(payload))
+	inclLen := uint32(len(payload)) //nolint:gosec // PCAP snaplen cap below keeps this in range
 	origLen := inclLen
 	if inclLen > snapLen {
 		inclLen = snapLen
 	}
 	hdr := make([]byte, 16)
-	binary.LittleEndian.PutUint32(hdr[0:], uint32(ts.Unix()))
-	binary.LittleEndian.PutUint32(hdr[4:], uint32(ts.Nanosecond()/1000)) // microseconds
+	binary.LittleEndian.PutUint32(hdr[0:], uint32(ts.Unix()))            //nolint:gosec // PCAP format requires 32-bit timestamp; Y2038 is a known PCAP limitation
+	binary.LittleEndian.PutUint32(hdr[4:], uint32(ts.Nanosecond()/1000)) //nolint:gosec // Nanosecond()/1000 ∈ [0, 999999], safe for uint32
 	binary.LittleEndian.PutUint32(hdr[8:], inclLen)
 	binary.LittleEndian.PutUint32(hdr[12:], origLen)
 	_, _ = bw.Write(hdr)

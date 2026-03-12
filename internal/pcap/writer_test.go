@@ -19,7 +19,7 @@ func TestWriter_GlobalHeader(t *testing.T) {
 		t.Fatal(err)
 	}
 	path := f.Name()
-	f.Close()
+	_ = f.Close()
 	defer os.Remove(path)
 
 	w, err := pcap.New(path)
@@ -52,7 +52,7 @@ func TestWriter_Packet(t *testing.T) {
 		t.Fatal(err)
 	}
 	path := f.Name()
-	f.Close()
+	_ = f.Close()
 	defer os.Remove(path)
 
 	w, err := pcap.New(path)
@@ -100,7 +100,7 @@ func TestWriter_BufferFull(t *testing.T) {
 		t.Fatal(err)
 	}
 	path := f.Name()
-	f.Close()
+	_ = f.Close()
 	defer os.Remove(path)
 
 	w, err := pcap.New(path)
@@ -133,7 +133,7 @@ func TestExport(t *testing.T) {
 	enc := json.NewEncoder(in)
 	_ = enc.Encode(rec{TS: time.Now().UTC().Format(time.RFC3339), URL: "https://example.com", Type: "http", Status: 200, DurationMs: 10, Bytes: 512})
 	_ = enc.Encode(rec{TS: time.Now().UTC().Format(time.RFC3339), URL: "example.com", Type: "dns", Status: 200, DurationMs: 3, Bytes: 0})
-	in.Close()
+	_ = in.Close()
 
 	outPath := inPath[:strings.LastIndex(inPath, ".")] + ".pcap"
 	defer os.Remove(outPath)

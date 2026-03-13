@@ -202,7 +202,22 @@ sendit generate --from-bookmarks firefox --output config/generated.yaml
 
 ---
 
-## v0.11.1 — AUR package
+## v0.11.1 — Arch Linux package ✓
+
+Make `sendit` installable as a native Arch Linux package so Arch and Arch-based users (e.g. Omarchy) can install it from the releases page without building from source.
+
+- **GoReleaser `nfpms: archlinux`** — add `archlinux` to the `nfpms: formats` list; GoReleaser produces a `.pkg.tar.zst` artifact on every release
+- **Shell completions** — zsh completion installed to `/usr/share/zsh/site-functions/_sendit` (Arch convention; deb/rpm continue to use `/usr/share/zsh/vendor-completions/`)
+- **Docs** — update `README.md` and `docs/content/docs/getting-started.md` with the `pacman -U` install command for Arch / Omarchy users
+
+```sh
+# Arch Linux / Omarchy (and other Arch-based distros)
+sudo pacman -U sendit_<version>_linux_amd64.pkg.tar.zst
+```
+
+---
+
+## v0.11.2 — AUR package
 
 Make `sendit` installable via Arch User Repository helpers so Arch Linux and Arch-based users (e.g. Omarchy) can install with a single command:
 
@@ -221,7 +236,7 @@ yay -S sendit    # or: paru -S sendit
 
 - Add `aurs:` block to `.goreleaser.yaml` pointing at `ssh://aur@aur.archlinux.org/sendit.git`; GoReleaser generates and pushes a `PKGBUILD` on every release that downloads the source tarball and verifies its SHA-256 against `checksums.txt` — no binary distribution needed
 - Add `AUR_SSH_KEY: "placeholder"` to the env blocks in `goreleaser-check` and `goreleaser-snapshot` CI jobs so template evaluation passes on PRs without the real secret
-- Update `README.md` and `docs/content/docs/getting-started.md` to document `yay`/`paru` install alongside the `.pkg.tar.zst` download option added in v0.11.0
+- Update `README.md` and `docs/content/docs/getting-started.md` to document `yay`/`paru` install alongside the `.pkg.tar.zst` download option added in v0.11.1
 
 ---
 

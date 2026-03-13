@@ -269,12 +269,12 @@ Attach SLSA provenance attestations to every release artifact so consumers can v
 
 ---
 
-## v0.12.3 — OSSF Scorecard: Branch-Protection
+## v0.12.3 — OSSF Scorecard: Branch-Protection ✓
 
-Raise the `Branch-Protection` check from 6/10 by adding required status checks and removing the admin bypass from the branch ruleset.
+Raise the `Branch-Protection` check by adding required status checks to the `baseline-branch-rule` ruleset.
 
-- **Remove admin bypass** — update the `baseline-branch-rule` ruleset to remove the `RepositoryRole/Admin` bypass actor so the rules apply to all pushers including admins
-- **Required status checks** — add the `test` and `lint` CI jobs as required checks in the ruleset so PRs cannot be merged until both pass; the Scorecard check currently warns that no status checks are required
+- **Required status checks** — added `lint` and `test` CI jobs as required checks so PRs cannot be merged until both pass
+- **Admin bypass preserved** — the `RepositoryRole/Admin` bypass actor is intentionally retained while the project is single-maintainer; can be removed when a second maintainer is added
 
 ---
 

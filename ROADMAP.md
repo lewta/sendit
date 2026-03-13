@@ -240,12 +240,13 @@ yay -S sendit    # or: paru -S sendit
 
 ---
 
-## v0.12.0 — OSSF Scorecard: Token-Permissions
+## v0.12.0 — OSSF Scorecard: Token-Permissions ✓
 
 Harden GitHub Actions workflow token permissions to follow the principle of least privilege. Fixes the `Token-Permissions` check (currently 0/10).
 
-- **`ci.yml`** — add `permissions: read-all` at the top level; the workflow has no write needs
-- **`release.yml`** — remove top-level `contents: write` and scope it to only the release job that needs it; all other jobs run with read permissions
+- **`ci.yml`** — added `permissions: read-all` at the top level; the workflow has no write needs
+- **`release.yml`** — replaced top-level `contents: write` with `permissions: read-all` and scoped `contents: write` to the `release` job only
+- **`docs.yml`** — moved `pages: write` and `id-token: write` from the top level to the `deploy` job only; `build` job only needs `contents: read`
 
 ---
 

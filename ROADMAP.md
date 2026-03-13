@@ -260,13 +260,13 @@ Pin all GitHub Actions dependencies to their full commit SHA and all Docker base
 
 ---
 
-## v0.12.2 — OSSF Scorecard: Signed-Releases
+## v0.12.2 — OSSF Scorecard: Signed-Releases ✓
 
 Attach SLSA provenance attestations to every release artifact so consumers can verify the build was produced by this repository's CI without tampering. Fixes the `Signed-Releases` check (currently 0/10).
 
-- **`slsa-framework/slsa-github-generator`** — add a provenance generation job to `release.yml`; generates a signed SLSA Level 2 provenance document and uploads it as a release asset alongside the binaries
-- **`release.yml` permissions** — add `id-token: write` at the job level (required for OIDC signing); no other permission changes
-- **Docs** — update `docs/content/docs/security.md` with a note on verifying provenance using `slsa-verifier`
+- **`actions/attest-build-provenance`** — added as the final step of the `release` job; generates GitHub-native SLSA provenance for all archives (`.tar.gz`, `.zip`), packages (`.deb`, `.rpm`, `.pkg.tar.zst`), and `checksums.txt`; attestations are stored in GitHub's attestation store and verifiable with `gh attestation verify`
+- **`release.yml` permissions** — added `id-token: write` and `attestations: write` to the `release` job
+- **Docs** — added "Build provenance" section to `docs/content/docs/security.md` with verification instructions
 
 ---
 

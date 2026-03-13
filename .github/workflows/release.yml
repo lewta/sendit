@@ -21,12 +21,12 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
         with:
           fetch-depth: 0
           ref: ${{ github.event.inputs.ref || github.ref }}
 
-      - uses: actions/setup-go@v6
+      - uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417  # v6
         with:
           go-version-file: go.mod
           cache: true
@@ -39,7 +39,7 @@ jobs:
 
       - name: Release (tag push)
         if: github.event_name == 'push'
-        uses: goreleaser/goreleaser-action@v7
+        uses: goreleaser/goreleaser-action@ec59f474b9834571250b370d4735c50f8e2d1e29  # v7
         with:
           version: "~> v2"
           args: release --clean --skip=homebrew,scoop
@@ -54,7 +54,7 @@ jobs:
 
       - name: Release (manual)
         if: github.event_name == 'workflow_dispatch'
-        uses: goreleaser/goreleaser-action@v7
+        uses: goreleaser/goreleaser-action@ec59f474b9834571250b370d4735c50f8e2d1e29  # v7
         with:
           version: "~> v2"
           args: release --clean --skip=homebrew,scoop

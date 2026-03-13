@@ -250,13 +250,13 @@ Harden GitHub Actions workflow token permissions to follow the principle of leas
 
 ---
 
-## v0.12.1 — OSSF Scorecard: Pinned-Dependencies
+## v0.12.1 — OSSF Scorecard: Pinned-Dependencies ✓
 
 Pin all GitHub Actions dependencies to their full commit SHA and all Docker base images to their digest. Fixes the `Pinned-Dependencies` check (currently 0/10).
 
-- **GitHub Actions** — replace all `uses: action/name@vX.Y.Z` references across every workflow file with `uses: action/name@<sha>  # vX.Y.Z`; covers all 27 GitHub-owned and 9 third-party actions flagged by Scorecard
-- **Docker images** — pin `golang:1.24-alpine` and `alpine:3.21` in `docker/Dockerfile` to their `@sha256:…` digests
-- **Dependabot** — confirm `Dependabot` is configured to keep pinned action SHAs up to date automatically so pins do not go stale
+- **GitHub Actions** — replaced all `uses: action/name@vX.Y.Z` references across all five workflow files with `uses: action/name@<sha>  # vX.Y.Z`; also aligned `docs.yml` from checkout@v4/setup-go@v5 to v6
+- **Docker images** — pinned `golang:1.24-alpine` and `alpine:3.21` in `docker/Dockerfile` to their `@sha256:…` digests
+- **Dependabot** — already configured for `github-actions` weekly updates; will keep pinned SHAs current automatically
 
 ---
 

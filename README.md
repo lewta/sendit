@@ -30,7 +30,7 @@ Shell completions for bash, zsh, and fish are installed automatically.
 
 ### Linux packages
 
-Download the `.deb` or `.rpm` for your architecture from the [latest release](https://github.com/lewta/sendit/releases/latest):
+Download the package for your distro from the [latest release](https://github.com/lewta/sendit/releases/latest):
 
 ```sh
 # Debian / Ubuntu
@@ -38,6 +38,9 @@ sudo dpkg -i sendit_*_linux_amd64.deb
 
 # Fedora / RHEL / CentOS
 sudo rpm -i sendit_*_linux_amd64.rpm
+
+# Arch Linux / Omarchy (and other Arch-based distros)
+sudo pacman -U sendit_*_linux_amd64.pkg.tar.zst
 ```
 
 Shell completions are bundled and installed automatically.

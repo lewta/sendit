@@ -29,7 +29,7 @@ scoop install sendit
 
 ### Linux packages
 
-Download the `.deb` or `.rpm` package for your architecture from the [releases page](https://github.com/lewta/sendit/releases/latest):
+Download the package for your distro from the [releases page](https://github.com/lewta/sendit/releases/latest):
 
 ```sh
 # Debian / Ubuntu
@@ -37,6 +37,9 @@ sudo dpkg -i sendit_<version>_linux_amd64.deb
 
 # Fedora / RHEL / CentOS
 sudo rpm -i sendit_<version>_linux_amd64.rpm
+
+# Arch Linux / Omarchy (and other Arch-based distros)
+sudo pacman -U sendit_<version>_linux_amd64.pkg.tar.zst
 ```
 
 Shell completions are installed to the system completion directories automatically.

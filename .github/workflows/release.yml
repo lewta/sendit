@@ -20,6 +20,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      id-token: write
+      attestations: write
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
         with:
@@ -67,3 +69,14 @@ jobs:
           NOTARIZE_KEY: ${{ secrets.NOTARIZE_KEY }}
           NOTARIZE_KEY_ID: ${{ secrets.NOTARIZE_KEY_ID }}
           NOTARIZE_ISSUER_ID: ${{ secrets.NOTARIZE_ISSUER_ID }}
+
+      - name: Attest release artifacts
+        uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be  # v2
+        with:
+          subject-path: |
+            dist/sendit_*.tar.gz
+            dist/sendit_*.zip
+            dist/sendit_*.deb
+            dist/sendit_*.rpm
+            dist/sendit_*.pkg.tar.zst
+            dist/checksums.txt

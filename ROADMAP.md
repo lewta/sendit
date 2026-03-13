@@ -202,6 +202,29 @@ sendit generate --from-bookmarks firefox --output config/generated.yaml
 
 ---
 
+## v0.11.1 — AUR package
+
+Make `sendit` installable via Arch User Repository helpers so Arch Linux and Arch-based users (e.g. Omarchy) can install with a single command:
+
+```sh
+yay -S sendit    # or: paru -S sendit
+```
+
+**Prerequisites (manual setup before implementation):**
+
+- Register `sendit` as an AUR package at [aur.archlinux.org](https://aur.archlinux.org)
+- Generate a dedicated SSH key pair: `ssh-keygen -t ed25519 -C "sendit-aur"`
+- Add the **public** key to your AUR account profile
+- Add the **private** key as the `AUR_SSH_KEY` GitHub Actions secret
+
+**Implementation:**
+
+- Add `aurs:` block to `.goreleaser.yaml` pointing at `ssh://aur@aur.archlinux.org/sendit.git`; GoReleaser generates and pushes a `PKGBUILD` on every release that downloads the source tarball and verifies its SHA-256 against `checksums.txt` — no binary distribution needed
+- Add `AUR_SSH_KEY: "placeholder"` to the env blocks in `goreleaser-check` and `goreleaser-snapshot` CI jobs so template evaluation passes on PRs without the real secret
+- Update `README.md` and `docs/content/docs/getting-started.md` to document `yay`/`paru` install alongside the `.pkg.tar.zst` download option added in v0.11.0
+
+---
+
 ## v0.12.0 — OSSF Scorecard: Token-Permissions
 
 Harden GitHub Actions workflow token permissions to follow the principle of least privilege. Fixes the `Token-Permissions` check (currently 0/10).

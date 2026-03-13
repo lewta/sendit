@@ -279,6 +279,25 @@ Raise the `Branch-Protection` check by adding required status checks to the `bas
 
 ---
 
+## v0.12.5 — OSSF Scorecard: Fuzzing
+
+Integrate fuzz testing to catch parser and input-handling bugs that unit tests miss. Fixes the `Fuzzing` check (currently 0/10).
+
+The Scorecard check accepts native Go fuzz functions (`func FuzzXxx(f *testing.F)`), which require no external service — just `go test -fuzz`.
+
+Targets worth fuzzing:
+
+- **`internal/config`** — `FuzzLoad`: feed arbitrary YAML bytes through the config loader; catches panics and unexpected parse errors on malformed input
+- **`internal/task`** — `FuzzSelector`: fuzz the Vose alias selector with arbitrary weight slices; validates O(1) pick invariants under edge-case inputs (empty slice, zero weights, single element)
+- **`internal/ratelimit`** — `FuzzClassifyError`: fuzz the error-string classifier with arbitrary error messages; ensures no panic and that every input maps to a valid status code
+- **`internal/pcap`** — `FuzzWriteRecord`: fuzz the PCAP record writer with arbitrary result fields (URL, status, duration, bytes); catches any encoding panic
+
+**Implementation:**
+
+- Add `_fuzz_test.go` files in each target package containing one or more `FuzzXxx` functions with a small seed corpus (`f.Add(...)` calls covering representative inputs and known edge cases)
+- Add a `fuzz` job to `ci.yml` that runs `go test -fuzz=. -fuzztime=30s` for each fuzz target on every PR — short enough to be fast, long enough to catch obvious regressions
+- Seed corpora committed alongside tests so findings are reproducible
+
 ## v0.12.4 — OSSF Scorecard: CII Best Practices
 
 Register the project on the OpenSSF Best Practices platform and link the badge. Fixes the `CII-Best-Practices` check (currently 0/10).

@@ -135,6 +135,21 @@ checksum:
 
 changelog:
   sort: asc
+  groups:
+    - title: "New features"
+      regexp: '^feat'
+      order: 0
+    - title: "Bug fixes"
+      regexp: '^fix'
+      order: 1
+    - title: "Security"
+      regexp: '^(feat|fix|ci)\(security\)|^feat\(release\).*sign|^feat\(release\).*attest|govulncheck|gosec|scorecard|SLSA'
+      order: 2
+    - title: "CI / build / dependencies"
+      regexp: '^(ci|build)'
+      order: 3
+    - title: "Other"
+      order: 999
   filters:
     exclude:
       - "^docs:"

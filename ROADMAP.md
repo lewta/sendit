@@ -301,6 +301,47 @@ Register the project on the OpenSSF Best Practices platform and link the badge. 
 
 ---
 
+## v0.13.0 — Changelog and release notes
+
+Establish a proper changelog and add authored release notes to every GitHub release — past and future.
+
+- **`CHANGELOG.md`** — add a human-authored changelog following the [Keep a Changelog](https://keepachangelog.com) format; one entry per release from v0.1.0 to present, summarising what changed and why
+- **Retroactive release notes** — edit every existing GitHub release (v0.1.0–v0.12.5) to add a concise description of what shipped; currently most releases have only auto-generated asset lists
+- **GoReleaser changelog** — configure the `changelog:` block in `.goreleaser.yaml` to group commit messages by type (feat, fix, ci, docs) and auto-populate the body of future GitHub releases; authored notes can be prepended manually before tagging
+
+---
+
+## v0.13.1 — Test coverage
+
+Surface test coverage metrics so regressions are visible in CI and PRs.
+
+- **Codecov integration** — upload coverage reports from `go test -coverprofile` in the `test` CI job to [codecov.io](https://codecov.io); add the Codecov badge to `README.md`
+- **Coverage gate** — configure a Codecov PR check that fails if coverage drops more than a set threshold (e.g. 2%) relative to the base branch
+
+---
+
+## v0.13.2 — Benchmark suite
+
+Add Go benchmarks for the hot paths in the dispatch loop so performance regressions are caught before they reach `main`.
+
+- **`internal/task`** — `BenchmarkSelectorPick`: benchmark `Selector.Pick` across 1, 10, and 100 targets to verify O(1) behaviour holds in practice
+- **`internal/ratelimit`** — `BenchmarkClassifyStatusCode`, `BenchmarkRegistryWait`: benchmark the hot error-classification and rate-limit paths
+- **`internal/engine`** — `BenchmarkDispatch`: benchmark a full dispatch cycle end-to-end using a no-op driver stub
+- **CI** — run `go test -bench=. -benchmem ./...` on every PR and store results as a workflow artifact; a follow-up can wire this into [benchstat](https://pkg.go.dev/golang.org/x/perf/cmd/benchstat) for regression detection
+
+---
+
+## v0.13.3 — Dependency audit
+
+Review and tighten the dependency tree before committing to a stable v1.0.0 API.
+
+- **`go mod tidy`** — verify the module graph is clean; remove any unused indirect dependencies that have accumulated
+- **Licence audit** — run [golicense](https://github.com/mitchellh/golicense) or similar to produce a summary of dependency licences; confirm all are permissive (MIT, BSD, Apache 2.0) and compatible with the project's MIT licence
+- **Alternatives review** — evaluate whether any dependency can be replaced with a standard-library equivalent now that Go 1.24 covers more ground (e.g. `golang.org/x/net` subpackages, structured logging)
+- **Document findings** — add a `docs/content/docs/dependencies.md` page listing all direct dependencies, their purpose, and their licence
+
+---
+
 ## v1.0.0 — TUI + stable API
 
 Terminal dashboard and commitment to a stable public API. By this point the OSSF Scorecard improvements (v0.12.x) will be in place; the `Contributors` check is expected to improve naturally as the project gains visibility following the TUI release.

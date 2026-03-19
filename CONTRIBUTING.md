@@ -67,6 +67,51 @@ build: replace deprecated goreleaser archives.format field
 
 ---
 
+## Contribution requirements
+
+All pull requests must meet the following requirements before they will be reviewed:
+
+- **Tests** — new functionality must include tests (see [Testing policy](#testing-policy) below); bug fixes should include a regression test where practical
+- **Green CI** — all CI checks must pass (`lint`, `test`, `fuzz`, `govulncheck`, `CodeQL`)
+- **Formatted code** — Go files must be formatted with `gofmt -s -w .` before committing
+- **Lint-clean** — `golangci-lint run ./...` must produce no new warnings
+- **Documentation** — user-facing changes (new flags, config fields, behaviours) must be reflected in the relevant `docs/content/docs/` page and, where appropriate, in the CLI `--help` text
+
+---
+
+## Testing policy
+
+sendit requires tests for all major new functionality. This applies to every PR that adds or changes a feature, driver, pacing mode, or public API surface.
+
+**What is required:**
+
+- New packages and non-trivial functions must have unit tests covering the happy path and significant error paths
+- Changes to the dispatch pipeline or driver behaviour must include or update integration tests in `internal/engine/`
+- New input-handling or parser code (config loading, flag parsing, file formats) should include a fuzz function in a `*_fuzz_test.go` file following the pattern in `internal/config/config_fuzz_test.go`
+
+**What is not required:**
+
+- Tests for trivial wrappers, generated code, or one-line functions where the test would only mirror the implementation
+- End-to-end tests that require external services (e.g. live DNS resolvers, real HTTPS endpoints) — use stubs or the existing integration test harness instead
+
+**Running the full test matrix locally before opening a PR:**
+
+```sh
+# Unit tests with race detector
+go test -race ./...
+
+# Integration tests
+go test -tags integration -race -v ./internal/engine/...
+
+# Fuzz targets (30 s each — same duration as CI)
+go test -fuzz=FuzzLoad          -fuzztime=30s ./internal/config/
+go test -fuzz=FuzzSelector      -fuzztime=30s ./internal/task/
+go test -fuzz=FuzzClassifyError -fuzztime=30s ./internal/ratelimit/
+go test -fuzz=FuzzWriteRecord   -fuzztime=30s ./internal/pcap/
+```
+
+---
+
 ## Running tests and the linter
 
 ```sh

@@ -299,13 +299,12 @@ Targets worth fuzzing:
 - Add a `fuzz` job to `ci.yml` that runs `go test -fuzz=. -fuzztime=30s` for each fuzz target on every PR — short enough to be fast, long enough to catch obvious regressions
 - Seed corpora committed alongside tests so findings are reproducible
 
-## v0.12.4 — OSSF Scorecard: CII Best Practices
+## v0.12.4 — OSSF Scorecard: CII Best Practices ✓
 
 Register the project on the OpenSSF Best Practices platform and link the badge. Fixes the `CII-Best-Practices` check (currently 0/10).
 
-- **Register** — submit the project at [bestpractices.coreinfrastructure.org](https://bestpractices.coreinfrastructure.org) and work through the passing-level criteria
-- **Badge** — add the Best Practices badge to `README.md` alongside the existing OSSF Scorecard badge
-- **Gap analysis** — the passing criteria overlap significantly with what is already in place (CI, tests, SECURITY.md, license, documented versioning); document any gaps discovered during registration
+- **Register** — project registered at [bestpractices.coreinfrastructure.org/projects/12213](https://bestpractices.coreinfrastructure.org/projects/12213)
+- **Badge** — OpenSSF Best Practices badge added to `README.md` alongside the existing OSSF Scorecard badge
 
 ---
 

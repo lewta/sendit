@@ -270,12 +270,13 @@ Attach SLSA provenance attestations to every release artifact so consumers can v
 
 ---
 
-## v0.12.3 — OSSF Scorecard: Branch-Protection ✓
+## v0.12.3 — OSSF Scorecard: Branch-Protection + dependency updates ✓
 
-Raise the `Branch-Protection` check by adding required status checks to the `baseline-branch-rule` ruleset.
+Raise the `Branch-Protection` check by adding required status checks to the `baseline-branch-rule` ruleset, and bump all stale GitHub Actions and Go module dependencies.
 
 - **Required status checks** — added `lint` and `test` CI jobs as required checks so PRs cannot be merged until both pass
 - **Admin bypass preserved** — the `RepositoryRole/Admin` bypass actor is intentionally retained while the project is single-maintainer; can be removed when a second maintainer is added
+- **Dependency updates** — bumped `golang.org/x/net` to 0.52.0; updated `actions/upload-artifact` to v7, `actions/create-github-app-token` to v3, `ossf/scorecard-action` to 2.4.3, `github/codeql-action` to v4, and `actions/attest-build-provenance` to v4 (all SHA-pinned)
 
 ---
 

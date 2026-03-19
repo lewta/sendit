@@ -359,6 +359,19 @@ Review and tighten the dependency tree before committing to a stable v1.0.0 API.
 
 ---
 
+## v0.13.4 — Table of contents for key documents
+
+Add a table of contents to the four main project documents so readers can navigate long files without scrolling.
+
+- **`README.md`** — TOC covering: Installation, Quick start, Configuration, CLI commands, Drivers, Pacing modes, Metrics, Docker, Contributing
+- **`ROADMAP.md`** — TOC listing every versioned milestone so the current state of the project is visible at a glance
+- **`CONTRIBUTING.md`** — TOC covering the contribution workflow sections (e.g. getting started, submitting PRs, coding conventions, running tests)
+- **`CODE_OF_CONDUCT.md`** — TOC covering the main sections (Our Pledge, Standards, Enforcement)
+
+Use GitHub-compatible anchor links (`[Section](#section)` format) so the TOC works both on GitHub and in any Markdown renderer.
+
+---
+
 ## v1.0.0 — TUI + stable API
 
 Terminal dashboard and commitment to a stable public API. By this point the OSSF Scorecard improvements (v0.12.x) will be in place; the `Contributors` check is expected to improve naturally as the project gains visibility following the TUI release.

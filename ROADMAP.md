@@ -280,24 +280,17 @@ Raise the `Branch-Protection` check by adding required status checks to the `bas
 
 ---
 
-## v0.12.5 — OSSF Scorecard: Fuzzing
+## v0.12.5 — OSSF Scorecard: Fuzzing ✓
 
 Integrate fuzz testing to catch parser and input-handling bugs that unit tests miss. Fixes the `Fuzzing` check (currently 0/10).
 
 The Scorecard check accepts native Go fuzz functions (`func FuzzXxx(f *testing.F)`), which require no external service — just `go test -fuzz`.
 
-Targets worth fuzzing:
-
-- **`internal/config`** — `FuzzLoad`: feed arbitrary YAML bytes through the config loader; catches panics and unexpected parse errors on malformed input
-- **`internal/task`** — `FuzzSelector`: fuzz the Vose alias selector with arbitrary weight slices; validates O(1) pick invariants under edge-case inputs (empty slice, zero weights, single element)
-- **`internal/ratelimit`** — `FuzzClassifyError`: fuzz the error-string classifier with arbitrary error messages; ensures no panic and that every input maps to a valid status code
-- **`internal/pcap`** — `FuzzWriteRecord`: fuzz the PCAP record writer with arbitrary result fields (URL, status, duration, bytes); catches any encoding panic
-
-**Implementation:**
-
-- Add `_fuzz_test.go` files in each target package containing one or more `FuzzXxx` functions with a small seed corpus (`f.Add(...)` calls covering representative inputs and known edge cases)
-- Add a `fuzz` job to `ci.yml` that runs `go test -fuzz=. -fuzztime=30s` for each fuzz target on every PR — short enough to be fast, long enough to catch obvious regressions
-- Seed corpora committed alongside tests so findings are reproducible
+- **`internal/config`** — `FuzzLoad`: feeds arbitrary YAML bytes through the config loader via a temp file; catches panics and unexpected parse errors on malformed input
+- **`internal/task`** — `FuzzSelector`: fuzzes the Vose alias selector with arbitrary-length weight slices; validates O(1) pick invariants under edge-case inputs (empty slice, zero weights, single element, skewed distributions)
+- **`internal/ratelimit`** — `FuzzClassifyError` + `FuzzClassifyStatusCode`: fuzz both classifiers across all possible inputs; validates every result maps to a defined `ErrorClass`
+- **`internal/pcap`** — `FuzzWriteRecord`: fuzzes the PCAP record writer with arbitrary result fields (URL, type, status, duration, bytes) including oversized payloads that exercise the `snapLen` truncation path
+- **`fuzz` CI job** — runs each target with `-fuzztime=30s` on every PR
 
 ## v0.12.4 — OSSF Scorecard: CII Best Practices
 

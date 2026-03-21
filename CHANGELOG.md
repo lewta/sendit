@@ -12,6 +12,15 @@ under the affected version with a reference to the CVE or advisory.
 
 ## [Unreleased]
 
+### Added
+- Benchmark suite covering the hot paths in the dispatch pipeline:
+  - `BenchmarkSelectorPick` (1/10/100 targets) — confirms O(1) Vose alias behaviour
+  - `BenchmarkClassifyStatusCode` / `BenchmarkClassifyError` — ~6–8 ns/op, zero allocs
+  - `BenchmarkRegistryWait` — token-bucket acquire at unlimited rate (~100 ns/op)
+  - `BenchmarkDispatch` — full dispatch cycle with a no-op driver (~1 µs/op)
+- `bench` CI job runs `go test -bench=. -benchmem` on every PR and stores
+  results as a `bench-results` workflow artifact
+
 ---
 
 ## [0.13.1] - 2026-03-21

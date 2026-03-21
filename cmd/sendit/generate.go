@@ -19,6 +19,7 @@ import (
 	"github.com/lewta/sendit/internal/config"
 	"github.com/spf13/cobra"
 	"golang.org/x/net/html"
+	"howett.net/plist"
 	_ "modernc.org/sqlite" // registers the "sqlite" driver for database/sql
 )
 
@@ -448,7 +449,12 @@ func targetsFromBookmarks(browser string) ([]config.TargetConfig, error) {
 		}
 		return firefoxBookmarks(path)
 	case "safari":
-		return nil, fmt.Errorf("safari bookmarks (Bookmarks.plist binary format) are not yet supported; use --from-history safari instead")
+		if runtime.GOOS != "darwin" {
+			return nil, fmt.Errorf("safari is only available on macOS")
+		}
+		home, _ := os.UserHomeDir()
+		path := filepath.Join(home, "Library", "Safari", "Bookmarks.plist")
+		return safariBookmarks(path)
 	default:
 		return nil, fmt.Errorf("unknown browser %q: must be chrome, firefox, or safari", browser)
 	}
@@ -526,6 +532,48 @@ func firefoxBookmarks(dbPath string) ([]config.TargetConfig, error) {
 		targets = append(targets, defaultTarget(u, "http", 1))
 	}
 	return targets, rows.Err()
+}
+
+// safariBookmarkNode mirrors the nested structure inside Safari's Bookmarks.plist.
+// The plist stores both leaf URLs (WebBookmarkTypeLeaf) and folders
+// (WebBookmarkTypeList) under the same node type.
+type safariBookmarkNode struct {
+	Type      string               `plist:"WebBookmarkType"`
+	URLString string               `plist:"URLString"`
+	Children  []safariBookmarkNode `plist:"Children"`
+}
+
+// safariBookmarks reads Safari's Bookmarks.plist (binary or XML plist) and
+// returns all HTTP/HTTPS bookmark URLs as equally-weighted http targets.
+func safariBookmarks(path string) ([]config.TargetConfig, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, fmt.Errorf("reading %q (is Safari installed and has been opened at least once?): %w", path, err)
+	}
+	defer f.Close() //nolint:errcheck
+
+	var root safariBookmarkNode
+	if err := plist.NewDecoder(f).Decode(&root); err != nil {
+		return nil, fmt.Errorf("parsing Safari bookmarks: %w", err)
+	}
+	return walkSafariNodes(root.Children), nil
+}
+
+// walkSafariNodes recursively extracts HTTP/HTTPS URL entries from a Safari
+// bookmark tree, descending into folders (WebBookmarkTypeList nodes).
+func walkSafariNodes(nodes []safariBookmarkNode) []config.TargetConfig {
+	var targets []config.TargetConfig
+	for _, n := range nodes {
+		switch n.Type {
+		case "WebBookmarkTypeLeaf":
+			if strings.HasPrefix(n.URLString, "http://") || strings.HasPrefix(n.URLString, "https://") {
+				targets = append(targets, defaultTarget(n.URLString, "http", 1))
+			}
+		default:
+			targets = append(targets, walkSafariNodes(n.Children)...)
+		}
+	}
+	return targets
 }
 
 // --- browser path helpers ---

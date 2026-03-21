@@ -46,7 +46,7 @@ sendit completion <shell>
 | `--max-pages` | `50` | Maximum number of pages to discover |
 | `--ignore-robots` | `false` | Skip `robots.txt` enforcement during crawl |
 | `--from-history` | `""` | Harvest visited URLs from browser history: `chrome` \| `firefox` \| `safari` |
-| `--from-bookmarks` | `""` | Harvest bookmarked URLs: `chrome` \| `firefox` (Safari bookmarks not yet supported) |
+| `--from-bookmarks` | `""` | Harvest bookmarked URLs: `chrome` \| `firefox` \| `safari` |
 | `--history-limit` | `100` | Maximum URLs to import from history, ordered by visit count |
 | `--output` | *(stdout)* | Write config to a file instead of stdout; prompts before overwriting |
 
@@ -76,13 +76,16 @@ sendit generate --from-history chrome --history-limit 50 --output config/generat
 # Firefox bookmarks
 sendit generate --from-bookmarks firefox --output config/generated.yaml
 
+# Safari bookmarks (macOS only)
+sendit generate --from-bookmarks safari --output config/generated.yaml
+
 # Combine sources (duplicates removed automatically)
 sendit generate --url https://example.com --from-history chrome --output config/gen.yaml
 ```
 
 Browser history weights are derived from visit count (capped at 10) so frequently visited pages appear proportionally more often without dominating the traffic distribution. The generated YAML includes the full pacing / limits / backoff skeleton with sensible defaults — edit those sections to tune behaviour before running.
 
-> **Browser support**: Chrome/Chromium and Firefox are supported on Linux and macOS. Safari history is macOS-only. Safari bookmarks (binary plist format) are not yet supported — use `--from-history safari` instead.
+> **Browser support**: Chrome/Chromium and Firefox are supported on Linux and macOS. Safari history and bookmarks are macOS-only. Safari bookmarks are read from `~/Library/Safari/Bookmarks.plist` (binary and XML plist formats supported).
 
 ## `start` flags
 

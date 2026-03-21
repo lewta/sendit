@@ -32,15 +32,18 @@ Features planned for future releases of sendit. Contributions are welcome — op
 - [v0.13.2 — Benchmark suite ✓](#v0132--benchmark-suite-)
 - [v0.13.3 — Dependency audit ✓](#v0133--dependency-audit-)
 - [v0.13.4 — Table of contents ✓](#v0134--table-of-contents-for-key-documents-)
+- [v0.14.0 — Safari bookmarks + browser history tests ✓](#v0140--safari-bookmarks--browser-history-tests-)
 
 **Planned**
 - [v0.11.2 — AUR package](#v0112--aur-package)
+- [v0.14.1 — Burst pacing mode](#v0141--burst-pacing-mode)
+- [v0.14.2 — Browser type expansion](#v0142--browser-type-expansion)
 - [v1.0.0 — TUI + stable API](#v100--tui--stable-api)
 
 **Research**
 - [Non-standard traffic driver](#research--non-standard-traffic-driver)
-- [Aggressive / burst pacing mode](#research--aggressive--burst-pacing-mode)
-- [Browser history and bookmarks harvesting](#research--browser-history-and-bookmarks-harvesting)
+- [Aggressive / burst pacing mode ✓ (promoted to v0.14.1)](#research--aggressive--burst-pacing-mode)
+- [Browser history and bookmarks harvesting ✓ (shipped in v0.11.0 / v0.14.0)](#research--browser-history-and-bookmarks-harvesting)
 - [Live packet capture](#research--live-packet-capture-future)
 
 ---
@@ -281,6 +284,30 @@ yay -S sendit    # or: paru -S sendit
 
 ---
 
+## v0.14.1 — Burst pacing mode
+
+Add a `burst` pacing mode for scenarios where politeness constraints should be relaxed — load testing, internal infrastructure, or controlled chaos experiments.
+
+- **`mode: burst`** — fires requests as fast as worker slots allow with no inter-request delay; existing `max_workers` cap still applies as a hard concurrency ceiling
+- **Configurable ramp-up** — optional `ramp_up_s` field in the `pacing` block; linearly increases workers from 1 to `max_workers` over the specified duration so the target is not hit with full concurrency immediately
+- **`--duration` flag on `sendit start`** — auto-stops after a fixed wall-clock time; useful for timed load runs without needing SIGTERM; example: `sendit start --config cfg.yaml --duration 5m`
+- **Backoff and rate-limit interaction** — burst mode bypasses per-domain rate-limit waits but still respects the resource gate (`cpu_threshold_pct`, `memory_threshold_mb`); backoff still engages on repeated errors to avoid hammering a failing target
+- **Docs** — new pacing mode documented in `docs/content/docs/pacing.md`; `--duration` flag documented in `docs/content/docs/cli.md`
+
+---
+
+## v0.14.2 — Browser type expansion
+
+Extend the `browser` driver to support additional browser types beyond Chrome/Chromium. Decision on approach (Playwright-go vs chromedp-only) requires evaluation before implementation; see [#49](https://github.com/lewta/sendit/issues/49) for the research questions.
+
+Evaluation criteria:
+- **Playwright-go** (`github.com/playwright-community/playwright-go`) — supports Chromium, Firefox, and WebKit from one API; downloads browser binaries at runtime; assess binary size impact, startup overhead, and compatibility with the per-task allocator model
+- **chromedp-only** — keep the existing driver; add Firefox via its experimental CDP endpoint if chromedp can connect to it; avoids a new dependency but limits browser coverage
+- **Config surface** — if expanded, add an `engine: chromium|firefox|webkit` field under the `browser:` target block; `chromium` remains the default for backwards compatibility
+- **CI/testing** — assess headless browser availability on `ubuntu-latest` for any non-Chromium engine
+
+---
+
 ## v0.12.0 — OSSF Scorecard: Token-Permissions ✓
 
 Harden GitHub Actions workflow token permissions to follow the principle of least privilege. Fixes the `Token-Permissions` check (currently 0/10).
@@ -397,6 +424,29 @@ Review and tighten the dependency tree before committing to a stable v1.0.0 API.
 
 ---
 
+## v0.14.0 — Safari bookmarks + browser history tests ✓
+
+Complete the browser input sources introduced in v0.11.0: add Safari bookmarks
+support and add fixture-based unit tests for all SQLite and plist reading paths.
+
+- **Safari bookmarks** — `sendit generate --from-bookmarks safari` now reads
+  `~/Library/Safari/Bookmarks.plist` using `howett.net/plist` (MIT); handles
+  both binary and XML plist formats; recursively extracts HTTP/HTTPS URLs from
+  nested bookmark folders; non-http schemes (e.g. `reading-list://`) are silently
+  skipped; macOS-only (errors clearly on Linux)
+- **Fixture-based tests** — added unit tests for all SQLite-backed paths using
+  in-process databases created with `modernc.org/sqlite`:
+  - Chrome history: `historyFromSQLite` with a `urls` table fixture; verifies
+    URL filtering, visit-count weight capping (max 10), and `--history-limit`
+  - Firefox bookmarks: `firefoxBookmarks` with a `moz_places + moz_bookmarks`
+    fixture; verifies `JOIN` query and non-http exclusion
+  - Safari bookmarks: `safariBookmarks` with an XML plist fixture; verifies
+    recursive folder descent, URL filtering, and weight assignment
+- **Research item closed** — "Browser history and bookmarks harvesting" research
+  is complete; core feature shipped in v0.11.0, Safari bookmarks completed here
+
+---
+
 ## v0.13.4 — Table of contents for key documents ✓
 
 Add a table of contents to the four main project documents so readers can navigate long files without scrolling.
@@ -458,9 +508,11 @@ Areas to explore:
 
 ---
 
-## Research — Aggressive / burst pacing mode
+## Research — Aggressive / burst pacing mode ✓ (promoted to v0.14.1)
 
-Investigate a `burst` or `aggressive` pacing mode for scenarios where politeness constraints should be relaxed — load testing, internal infrastructure, or controlled chaos experiments.
+Investigation complete; promoted to a versioned milestone. See [v0.14.1](#v0141--burst-pacing-mode) below.
+
+Original research notes: investigate a `burst` or `aggressive` pacing mode for scenarios where politeness constraints should be relaxed — load testing, internal infrastructure, or controlled chaos experiments.
 
 Areas to explore:
 - A `burst` mode that fires requests as fast as worker slots allow with no inter-request delay
@@ -471,9 +523,9 @@ Areas to explore:
 
 ---
 
-## Research — Browser history and bookmarks harvesting
+## Research — Browser history and bookmarks harvesting ✓ (shipped in v0.11.0 / v0.14.0)
 
-Investigate the feasibility of reading local browser history and bookmarks as input sources for `sendit generate --from-history` and `--from-bookmarks` (planned for v0.11.0). Related to [#49](https://github.com/lewta/sendit/issues/49) — the same browser automation knowledge applies to both driving traffic and sourcing targets.
+Investigation complete. Core feature shipped in v0.11.0; Safari bookmarks and fixture-based tests completed in v0.14.0. Related to [#49](https://github.com/lewta/sendit/issues/49) — the same browser automation knowledge applies to both driving traffic and sourcing targets.
 
 Areas to explore:
 

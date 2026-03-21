@@ -301,20 +301,16 @@ Register the project on the OpenSSF Best Practices platform and link the badge. 
 
 ---
 
-## v0.12.6 — OpenSSF Best Practices: gap audit
+## v0.12.6 — OpenSSF Best Practices: gap audit ✓
 
-Work through the [passing-level criteria](https://bestpractices.coreinfrastructure.org/en/criteria/0) on the Best Practices platform to bring the badge from its initial state to **passing**. Registration (v0.12.4) opens the checklist; this milestone closes it.
+Worked through all [passing-level criteria](https://www.bestpractices.dev/en/criteria/0) on the Best Practices platform to bring the badge from its initial state to **passing** (99%).
 
-The passing criteria are grouped into six areas — audit each in turn and implement any missing pieces:
-
-- **Basics** — project website, description, licence, and how to contribute; verify all are in place and linked correctly from the platform entry
-- **Change control** — confirm the public VCS, version numbering policy, and release process are documented; link to `ROADMAP.md` and GitHub Releases
-- **Reporting** — verify `SECURITY.md` covers vulnerability reporting; confirm private advisory reporting is enabled (done in v0.10.4)
-- **Quality** — working build system, automated test suite invoked by CI, and at least one passing CI run required on PRs; document the `go test` and `golangci-lint` setup in the platform entry
-- **Security** — confirm use of `govulncheck`, `gosec`, and CodeQL; verify no known unaddressed vulnerabilities; document secure defaults in the configuration reference
-- **Analysis** — static analysis (golangci-lint / CodeQL) already in place; confirm the platform entry reflects this correctly
-
-Document any genuine gaps found during the audit and implement the minimum changes needed to reach passing. Update the platform entry as each criterion is met.
+- **Basics** — all 13 criteria answered Met; evidence URLs linked for description, licence, CONTRIBUTING.md, and docs site
+- **Change control** — all 9 criteria answered Met; release notes and CVE policy evidenced via CHANGELOG.md and GitHub Releases
+- **Reporting** — all 8 criteria answered Met; SECURITY.md, private advisory, and 14-day response policy evidenced
+- **Quality** — 12 of 13 criteria answered Met; `test_most` left as unknown pending Codecov (v0.13.1); test policy evidenced via CONTRIBUTING.md
+- **Security** — all criteria answered Met or N/A; crypto delegated to stdlib TLS, SLSA provenance evidences delivery integrity, govulncheck + Dependabot evidence vulnerability management
+- **Analysis** — all 8 criteria answered Met or N/A; golangci-lint/CodeQL for static analysis, fuzz tests + race detector for dynamic analysis
 
 ---
 

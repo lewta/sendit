@@ -12,6 +12,10 @@ under the affected version with a reference to the CVE or advisory.
 
 ## [Unreleased]
 
+---
+
+## [0.13.2] - 2026-03-21
+
 ### Added
 - Benchmark suite covering the hot paths in the dispatch pipeline:
   - `BenchmarkSelectorPick` (1/10/100 targets) — confirms O(1) Vose alias behaviour
@@ -20,6 +24,13 @@ under the affected version with a reference to the CVE or advisory.
   - `BenchmarkDispatch` — full dispatch cycle with a no-op driver (~1 µs/op)
 - `bench` CI job runs `go test -bench=. -benchmem` on every PR and stores
   results as a `bench-results` workflow artifact
+
+### Changed
+- Upgraded `actions/upload-artifact` from v4 to v7.0.0 in `bench` CI job
+- Replaced `golang/govulncheck-action` with direct `go install + govulncheck ./...`
+  to eliminate an internal node20 dependency
+- Documented upcoming CodeQL file-coverage-on-PRs behaviour change (April 2026)
+  in `security.yml`; accepted as default since Codecov covers per-file PR coverage
 
 ---
 
@@ -405,7 +416,8 @@ under the affected version with a reference to the CVE or advisory.
 
 ---
 
-[Unreleased]: https://github.com/lewta/sendit/compare/v0.13.1...HEAD
+[Unreleased]: https://github.com/lewta/sendit/compare/v0.13.2...HEAD
+[0.13.2]: https://github.com/lewta/sendit/compare/v0.13.1...v0.13.2
 [0.13.1]: https://github.com/lewta/sendit/compare/v0.12.7...v0.13.1
 [0.12.7]: https://github.com/lewta/sendit/compare/v0.12.6...v0.12.7
 [0.12.6]: https://github.com/lewta/sendit/compare/v0.12.5...v0.12.6

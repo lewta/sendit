@@ -6,7 +6,9 @@ on:
   pull_request:
     branches: [main]
 
-permissions: read-all
+permissions:
+  contents: read
+  id-token: write  # required for Codecov OIDC tokenless upload
 
 jobs:
   lint:
@@ -34,7 +36,12 @@ jobs:
           cache: true
 
       - name: Test
-        run: go test -race ./...
+        run: go test -race -coverprofile=coverage.out -covermode=atomic ./...
+
+      - uses: codecov/codecov-action@1af58845a975a7985b0beb0cbe6fbbb71a41dbad  # v5.5.3
+        with:
+          files: coverage.out
+          fail_ci_if_error: true
 
   integration:
     runs-on: ubuntu-latest

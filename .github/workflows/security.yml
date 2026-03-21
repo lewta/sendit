@@ -47,4 +47,8 @@ jobs:
 
       - uses: github/codeql-action/autobuild@38697555549f1db7851b81482ff19f1fa5c4fedc  # v4
 
+      # Starting April 2026, CodeQL skips file coverage on PRs for performance.
+      # File coverage is still computed on push-to-main analyses.
+      # Accepted as default — Codecov covers per-file coverage on PRs.
+      # To opt out: set CODEQL_ACTION_FILE_COVERAGE_ON_PRS=true in env.
       - uses: github/codeql-action/analyze@38697555549f1db7851b81482ff19f1fa5c4fedc  # v4

@@ -308,7 +308,7 @@ Worked through all [passing-level criteria](https://www.bestpractices.dev/en/cri
 - **Basics** — all 13 criteria answered Met; evidence URLs linked for description, licence, CONTRIBUTING.md, and docs site
 - **Change control** — all 9 criteria answered Met; release notes and CVE policy evidenced via CHANGELOG.md and GitHub Releases
 - **Reporting** — all 8 criteria answered Met; SECURITY.md, private advisory, and 14-day response policy evidenced
-- **Quality** — 12 of 13 criteria answered Met; `test_most` left as unknown pending Codecov (v0.13.1); test policy evidenced via CONTRIBUTING.md
+- **Quality** — all 13 criteria answered Met; `test_most` evidenced via Codecov (v0.13.1); test policy evidenced via CONTRIBUTING.md
 - **Security** — all criteria answered Met or N/A; crypto delegated to stdlib TLS, SLSA provenance evidences delivery integrity, govulncheck + Dependabot evidence vulnerability management
 - **Analysis** — all 8 criteria answered Met or N/A; golangci-lint/CodeQL for static analysis, fuzz tests + race detector for dynamic analysis
 
@@ -324,12 +324,12 @@ Establish a proper changelog and add authored release notes to every GitHub rele
 
 ---
 
-## v0.13.1 — Test coverage
+## v0.13.1 — Test coverage ✓
 
 Surface test coverage metrics so regressions are visible in CI and PRs.
 
-- **Codecov integration** — upload coverage reports from `go test -coverprofile` in the `test` CI job to [codecov.io](https://codecov.io); add the Codecov badge to `README.md`
-- **Coverage gate** — configure a Codecov PR check that fails if coverage drops more than a set threshold (e.g. 2%) relative to the base branch
+- **Codecov integration** — `go test -coverprofile=coverage.txt -covermode=atomic` in the `test` CI job uploads to [codecov.io](https://codecov.io/gh/lewta/sendit) via `codecov/codecov-action@v5.5.3` (SHA-pinned); Codecov badge added to `README.md`
+- **Coverage gate** — `codecov.yml` configures a project gate (≤2% drop vs base branch) and a patch gate (≥50% coverage on new code per PR)
 
 ---
 

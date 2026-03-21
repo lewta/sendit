@@ -12,9 +12,14 @@ under the affected version with a reference to the CVE or advisory.
 
 ## [Unreleased]
 
+---
+
+## [0.13.1] - 2026-03-21
+
 ### Added
-- Codecov integration: `go test` now runs with `-coverprofile` in CI and uploads
-  to [codecov.io](https://codecov.io/gh/lewta/sendit); Codecov badge added to README
+- Codecov integration: `go test` now runs with `-coverprofile=coverage.txt
+  -covermode=atomic` in CI and uploads to [codecov.io](https://codecov.io/gh/lewta/sendit)
+  via `codecov/codecov-action@v5.5.3` (SHA-pinned); Codecov badge added to README
 - `codecov.yml` — coverage gate: project coverage must not drop more than 2%
   relative to base branch; new code in each PR must be at least 50% covered
 
@@ -391,7 +396,8 @@ under the affected version with a reference to the CVE or advisory.
 
 ---
 
-[Unreleased]: https://github.com/lewta/sendit/compare/v0.12.7...HEAD
+[Unreleased]: https://github.com/lewta/sendit/compare/v0.13.1...HEAD
+[0.13.1]: https://github.com/lewta/sendit/compare/v0.12.7...v0.13.1
 [0.12.7]: https://github.com/lewta/sendit/compare/v0.12.6...v0.12.7
 [0.12.6]: https://github.com/lewta/sendit/compare/v0.12.5...v0.12.6
 [0.12.5]: https://github.com/lewta/sendit/compare/v0.12.4...v0.12.5

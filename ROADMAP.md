@@ -318,13 +318,13 @@ Document any genuine gaps found during the audit and implement the minimum chang
 
 ---
 
-## v0.13.0 — Changelog and release notes
+## v0.13.0 — Changelog and release notes ✓
 
 Establish a proper changelog and add authored release notes to every GitHub release — past and future.
 
-- **`CHANGELOG.md`** — add a human-authored changelog following the [Keep a Changelog](https://keepachangelog.com) format; one entry per release from v0.1.0 to present, summarising what changed and why
-- **Retroactive release notes** — edit every existing GitHub release (v0.1.0–v0.12.5) to add a concise description of what shipped; currently most releases have only auto-generated asset lists
-- **GoReleaser changelog** — configure the `changelog:` block in `.goreleaser.yaml` to group commit messages by type (feat, fix, ci, docs) and auto-populate the body of future GitHub releases; authored notes can be prepended manually before tagging
+- **`CHANGELOG.md`** — human-authored changelog in [Keep a Changelog](https://keepachangelog.com) format covering all releases from v0.1.0 to v0.12.5; CVE note policy documented in the header
+- **Retroactive release notes** — all 33 GitHub releases (v0.1.0–v0.12.5) updated with authored descriptions via `gh release edit`
+- **GoReleaser changelog groups** — `changelog:` block in `.goreleaser.yaml` now groups future release notes by type: New features, Bug fixes, Security, CI/build/dependencies
 
 ---
 

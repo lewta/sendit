@@ -13,6 +13,20 @@ under the affected version with a reference to the CVE or advisory.
 ## [Unreleased]
 
 ### Added
+- Safari bookmarks support in `sendit generate --from-bookmarks safari`: reads
+  `~/Library/Safari/Bookmarks.plist` (binary and XML plist formats) using
+  `howett.net/plist`; extracts all HTTP/HTTPS bookmark URLs recursively from
+  nested folders
+- Fixture-based unit tests for browser history and bookmark reading: Chrome-style
+  SQLite history, Firefox `places.sqlite` history and bookmarks, and Safari plist
+  bookmarks; each test creates a minimal in-process database with known data and
+  verifies URL extraction, weight capping, and limit enforcement
+
+---
+
+## [0.13.4] - 2026-03-21
+
+### Added
 - Table of contents added to `README.md`, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`,
   and `ROADMAP.md` using GitHub-compatible anchor links
 

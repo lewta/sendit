@@ -2,14 +2,17 @@ package main
 
 import (
 	"bytes"
+	"database/sql"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
 	"github.com/lewta/sendit/internal/config"
+	_ "modernc.org/sqlite"
 )
 
 // --- cobra registration ---
@@ -89,12 +92,15 @@ func TestGenerateCmd_InvalidBookmarksBrowser(t *testing.T) {
 	}
 }
 
-func TestGenerateCmd_SafariBookmarksUnsupported(t *testing.T) {
+func TestGenerateCmd_SafariBookmarksNonDarwin(t *testing.T) {
+	if runtime.GOOS == "darwin" {
+		t.Skip("skipping non-darwin guard test on macOS")
+	}
 	cmd := generateCmd()
 	cmd.SetArgs([]string{"--from-bookmarks", "safari"})
 	cmd.SetOut(&bytes.Buffer{})
 	if err := cmd.Execute(); err == nil {
-		t.Fatal("expected error for Safari bookmarks (binary plist), got nil")
+		t.Fatal("expected error for Safari bookmarks on non-macOS, got nil")
 	}
 }
 
@@ -406,5 +412,272 @@ func TestFormatTarget_DNS(t *testing.T) {
 		if !strings.Contains(got, want) {
 			t.Errorf("formatTarget (dns) missing %q; got:\n%s", want, got)
 		}
+	}
+}
+
+// --- browser history SQLite fixtures ---
+
+// makeHistoryDB creates a minimal SQLite database at path with a Chrome-style
+// urls table and the given rows, then closes the connection.
+func makeHistoryDB(t *testing.T, path string, rows []struct {
+	url    string
+	visits int
+}) {
+	t.Helper()
+	db, err := sql.Open("sqlite", path)
+	if err != nil {
+		t.Fatalf("open history db: %v", err)
+	}
+	defer db.Close() //nolint:errcheck
+	if _, err := db.Exec(`CREATE TABLE urls (url TEXT, visit_count INTEGER)`); err != nil {
+		t.Fatalf("create urls table: %v", err)
+	}
+	for _, r := range rows {
+		if _, err := db.Exec(`INSERT INTO urls VALUES (?, ?)`, r.url, r.visits); err != nil {
+			t.Fatalf("insert row: %v", err)
+		}
+	}
+}
+
+func TestHistoryFromSQLite_Chrome(t *testing.T) {
+	dir := t.TempDir()
+	dbPath := filepath.Join(dir, "History")
+
+	makeHistoryDB(t, dbPath, []struct {
+		url    string
+		visits int
+	}{
+		{"https://example.com", 10},
+		{"https://go.dev/doc", 5},
+		{"ftp://oldproto.net", 3}, // non-http, must be excluded
+	})
+
+	const q = `SELECT url, visit_count FROM urls WHERE url LIKE 'http%' ORDER BY visit_count DESC LIMIT ?`
+	targets, err := historyFromSQLite(dbPath, q, 100)
+	if err != nil {
+		t.Fatalf("historyFromSQLite: %v", err)
+	}
+	if len(targets) != 2 {
+		t.Fatalf("expected 2 http targets, got %d", len(targets))
+	}
+	if targets[0].URL != "https://example.com" {
+		t.Errorf("expected example.com first, got %q", targets[0].URL)
+	}
+	if targets[0].Weight != 10 {
+		t.Errorf("expected weight 10 (capped), got %d", targets[0].Weight)
+	}
+	if targets[1].URL != "https://go.dev/doc" {
+		t.Errorf("expected go.dev second, got %q", targets[1].URL)
+	}
+}
+
+func TestHistoryFromSQLite_LimitRespected(t *testing.T) {
+	dir := t.TempDir()
+	dbPath := filepath.Join(dir, "History")
+
+	rows := make([]struct {
+		url    string
+		visits int
+	}, 20)
+	for i := range rows {
+		rows[i] = struct {
+			url    string
+			visits int
+		}{
+			url:    "https://example.com/page" + strings.Repeat("x", i),
+			visits: i + 1,
+		}
+	}
+	makeHistoryDB(t, dbPath, rows)
+
+	const q = `SELECT url, visit_count FROM urls WHERE url LIKE 'http%' ORDER BY visit_count DESC LIMIT ?`
+	targets, err := historyFromSQLite(dbPath, q, 5)
+	if err != nil {
+		t.Fatalf("historyFromSQLite: %v", err)
+	}
+	if len(targets) != 5 {
+		t.Errorf("expected 5 targets (limit), got %d", len(targets))
+	}
+}
+
+func TestHistoryFromSQLite_WeightCappedAt10(t *testing.T) {
+	dir := t.TempDir()
+	dbPath := filepath.Join(dir, "History")
+
+	makeHistoryDB(t, dbPath, []struct {
+		url    string
+		visits int
+	}{
+		{"https://example.com", 999},
+	})
+
+	const q = `SELECT url, visit_count FROM urls WHERE url LIKE 'http%' ORDER BY visit_count DESC LIMIT ?`
+	targets, err := historyFromSQLite(dbPath, q, 100)
+	if err != nil {
+		t.Fatalf("historyFromSQLite: %v", err)
+	}
+	if len(targets) != 1 {
+		t.Fatalf("expected 1 target, got %d", len(targets))
+	}
+	if targets[0].Weight != 10 {
+		t.Errorf("expected weight capped at 10, got %d", targets[0].Weight)
+	}
+}
+
+func TestHistoryFromSQLite_MissingFile(t *testing.T) {
+	_, err := historyFromSQLite("/tmp/sendit-no-such-history.db",
+		`SELECT url, visit_count FROM urls WHERE url LIKE 'http%' ORDER BY visit_count DESC LIMIT ?`, 10)
+	if err == nil {
+		t.Fatal("expected error for missing database file, got nil")
+	}
+}
+
+// --- browser bookmarks SQLite fixtures ---
+
+// makeFirefoxPlacesDB creates a minimal places.sqlite at path with moz_places
+// and moz_bookmarks tables and the given bookmark URLs.
+func makeFirefoxPlacesDB(t *testing.T, path string, urls []string) {
+	t.Helper()
+	db, err := sql.Open("sqlite", path)
+	if err != nil {
+		t.Fatalf("open places db: %v", err)
+	}
+	defer db.Close() //nolint:errcheck
+
+	if _, err := db.Exec(`CREATE TABLE moz_places (id INTEGER PRIMARY KEY, url TEXT, visit_count INTEGER)`); err != nil {
+		t.Fatalf("create moz_places: %v", err)
+	}
+	if _, err := db.Exec(`CREATE TABLE moz_bookmarks (id INTEGER PRIMARY KEY, fk INTEGER, type INTEGER)`); err != nil {
+		t.Fatalf("create moz_bookmarks: %v", err)
+	}
+	for i, u := range urls {
+		id := i + 1
+		if _, err := db.Exec(`INSERT INTO moz_places VALUES (?, ?, 1)`, id, u); err != nil {
+			t.Fatalf("insert moz_places row: %v", err)
+		}
+		if _, err := db.Exec(`INSERT INTO moz_bookmarks VALUES (?, ?, 1)`, id, id); err != nil {
+			t.Fatalf("insert moz_bookmarks row: %v", err)
+		}
+	}
+}
+
+func TestFirefoxBookmarks_HappyPath(t *testing.T) {
+	dir := t.TempDir()
+	dbPath := filepath.Join(dir, "places.sqlite")
+
+	makeFirefoxPlacesDB(t, dbPath, []string{
+		"https://example.com",
+		"https://go.dev",
+		"ftp://oldproto.net", // non-http, must be excluded
+	})
+
+	targets, err := firefoxBookmarks(dbPath)
+	if err != nil {
+		t.Fatalf("firefoxBookmarks: %v", err)
+	}
+	if len(targets) != 2 {
+		t.Fatalf("expected 2 http targets, got %d: %v", len(targets), targets)
+	}
+	urls := map[string]bool{}
+	for _, tgt := range targets {
+		urls[tgt.URL] = true
+	}
+	if !urls["https://example.com"] || !urls["https://go.dev"] {
+		t.Errorf("unexpected targets: %v", targets)
+	}
+}
+
+func TestFirefoxBookmarks_MissingFile(t *testing.T) {
+	_, err := firefoxBookmarks("/tmp/sendit-no-such-places.sqlite")
+	if err == nil {
+		t.Fatal("expected error for missing database, got nil")
+	}
+}
+
+// --- Safari bookmarks plist fixture ---
+
+// safariPlistXML is a minimal XML plist with the same structure Safari writes.
+const safariPlistXML = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>WebBookmarkType</key>
+	<string>WebBookmarkTypeList</string>
+	<key>Children</key>
+	<array>
+		<dict>
+			<key>WebBookmarkType</key>
+			<string>WebBookmarkTypeLeaf</string>
+			<key>URLString</key>
+			<string>https://example.com</string>
+		</dict>
+		<dict>
+			<key>WebBookmarkType</key>
+			<string>WebBookmarkTypeList</string>
+			<key>Children</key>
+			<array>
+				<dict>
+					<key>WebBookmarkType</key>
+					<string>WebBookmarkTypeLeaf</string>
+					<key>URLString</key>
+					<string>https://go.dev/doc</string>
+				</dict>
+				<dict>
+					<key>WebBookmarkType</key>
+					<string>WebBookmarkTypeLeaf</string>
+					<key>URLString</key>
+					<string>reading-list://ignored</string>
+				</dict>
+			</array>
+		</dict>
+	</array>
+</dict>
+</plist>`
+
+func TestSafariBookmarks_HappyPath(t *testing.T) {
+	dir := t.TempDir()
+	plistPath := filepath.Join(dir, "Bookmarks.plist")
+	if err := os.WriteFile(plistPath, []byte(safariPlistXML), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	targets, err := safariBookmarks(plistPath)
+	if err != nil {
+		t.Fatalf("safariBookmarks: %v", err)
+	}
+	if len(targets) != 2 {
+		t.Fatalf("expected 2 http targets, got %d", len(targets))
+	}
+	urls := map[string]bool{}
+	for _, tgt := range targets {
+		urls[tgt.URL] = true
+		if tgt.Type != "http" {
+			t.Errorf("expected type http, got %q for %s", tgt.Type, tgt.URL)
+		}
+		if tgt.Weight != 1 {
+			t.Errorf("expected weight 1, got %d for %s", tgt.Weight, tgt.URL)
+		}
+	}
+	if !urls["https://example.com"] {
+		t.Error("missing https://example.com")
+	}
+	if !urls["https://go.dev/doc"] {
+		t.Error("missing https://go.dev/doc")
+	}
+	if urls["reading-list://ignored"] {
+		t.Error("non-http URL should have been excluded")
+	}
+}
+
+func TestSafariBookmarks_MissingFile(t *testing.T) {
+	_, err := safariBookmarks("/tmp/sendit-no-such-Bookmarks.plist")
+	if err == nil {
+		t.Fatal("expected error for missing plist file, got nil")
+	}
+}
+
+func TestWalkSafariNodes_Empty(t *testing.T) {
+	if got := walkSafariNodes(nil); got != nil {
+		t.Errorf("expected nil for empty nodes, got %v", got)
 	}
 }

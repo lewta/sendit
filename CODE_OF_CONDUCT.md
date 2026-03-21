@@ -1,5 +1,17 @@
 # Contributor Covenant 3.0 Code of Conduct
 
+## Contents
+
+- [Our Pledge](#our-pledge)
+- [Encouraged Behaviors](#encouraged-behaviors)
+- [Restricted Behaviors](#restricted-behaviors)
+- [Reporting an Issue](#reporting-an-issue)
+- [Addressing and Repairing Harm](#addressing-and-repairing-harm)
+- [Scope](#scope)
+- [Attribution](#attribution)
+
+---
+
 ## Our Pledge
 
 We pledge to make our community welcoming, safe, and equitable for all.

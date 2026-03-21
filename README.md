@@ -20,6 +20,26 @@ Key properties:
 
 ---
 
+## Contents
+
+- [Install](#install)
+- [Quick Start](#quick-start)
+- [CLI Commands](#cli-commands)
+- [Dry-run mode](#dry-run-mode)
+- [Generate](#generate)
+- [Probe](#probe)
+- [Pinch](#pinch)
+- [Capture](#capture)
+- [Docker](#docker)
+- [Configuration Reference](#configuration-reference)
+- [Dispatch Pipeline](#dispatch-pipeline)
+- [Architecture](#architecture)
+- [Running Tests](#running-tests)
+- [Verification](#verification)
+- [Security](#security)
+
+---
+
 ## Install
 
 ### Homebrew (macOS / Linux)

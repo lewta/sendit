@@ -2,6 +2,47 @@
 
 Features planned for future releases of sendit. Contributions are welcome — open an issue to discuss before starting work on a large item.
 
+## Contents
+
+**Completed**
+- [v0.1.0 — Initial release ✓](#v010--initial-release-)
+- [v0.2.0 — Result export ✓](#v020--result-export-)
+- [v0.3.0 — Probe command ✓](#v030--probe-command-)
+- [v0.4.0 — Config hot-reload ✓](#v040--config-hot-reload-)
+- [v0.5.0 — Security CI ✓](#v050--security-ci-)
+- [v0.6.0 — Documentation site ✓](#v060--documentation-site-)
+- [v0.7.0 — Container support ✓](#v070--container-support-)
+- [v0.8.0 — Observability improvements ✓](#v080--observability-improvements-)
+- [v0.9.0 — Probe WebSocket ✓](#v090--probe-websocket-)
+- [v0.10.0 — Distribution ✓](#v0100--distribution-)
+- [v0.10.4 — Repository security hardening ✓](#v0104--repository-security-hardening-)
+- [v0.10.5 — macOS code signing and notarization ✓](#v0105--macos-code-signing-and-notarization-)
+- [v0.10.6 — Packet capture ✓](#v0106--packet-capture-)
+- [v0.11.0 — Config generator ✓](#v0110--config-generator-)
+- [v0.11.1 — Arch Linux package ✓](#v0111--arch-linux-package-)
+- [v0.12.0 — OSSF Scorecard: Token-Permissions ✓](#v0120--ossf-scorecard-token-permissions-)
+- [v0.12.1 — OSSF Scorecard: Pinned-Dependencies ✓](#v0121--ossf-scorecard-pinned-dependencies-)
+- [v0.12.2 — OSSF Scorecard: Signed-Releases ✓](#v0122--ossf-scorecard-signed-releases-)
+- [v0.12.3 — OSSF Scorecard: Branch-Protection ✓](#v0123--ossf-scorecard-branch-protection--dependency-updates-)
+- [v0.12.4 — OSSF Scorecard: CII Best Practices ✓](#v0124--ossf-scorecard-cii-best-practices-)
+- [v0.12.5 — OSSF Scorecard: Fuzzing ✓](#v0125--ossf-scorecard-fuzzing-)
+- [v0.12.6 — OpenSSF Best Practices: gap audit ✓](#v0126--openssf-best-practices-gap-audit-)
+- [v0.13.0 — Changelog and release notes ✓](#v0130--changelog-and-release-notes-)
+- [v0.13.1 — Test coverage ✓](#v0131--test-coverage-)
+- [v0.13.2 — Benchmark suite ✓](#v0132--benchmark-suite-)
+- [v0.13.3 — Dependency audit ✓](#v0133--dependency-audit-)
+- [v0.13.4 — Table of contents ✓](#v0134--table-of-contents-for-key-documents-)
+
+**Planned**
+- [v0.11.2 — AUR package](#v0112--aur-package)
+- [v1.0.0 — TUI + stable API](#v100--tui--stable-api)
+
+**Research**
+- [Non-standard traffic driver](#research--non-standard-traffic-driver)
+- [Aggressive / burst pacing mode](#research--aggressive--burst-pacing-mode)
+- [Browser history and bookmarks harvesting](#research--browser-history-and-bookmarks-harvesting)
+- [Live packet capture](#research--live-packet-capture-future)
+
 ---
 
 ## v0.1.0 — Initial release ✓
@@ -356,16 +397,14 @@ Review and tighten the dependency tree before committing to a stable v1.0.0 API.
 
 ---
 
-## v0.13.4 — Table of contents for key documents
+## v0.13.4 — Table of contents for key documents ✓
 
 Add a table of contents to the four main project documents so readers can navigate long files without scrolling.
 
-- **`README.md`** — TOC covering: Installation, Quick start, Configuration, CLI commands, Drivers, Pacing modes, Metrics, Docker, Contributing
-- **`ROADMAP.md`** — TOC listing every versioned milestone so the current state of the project is visible at a glance
-- **`CONTRIBUTING.md`** — TOC covering the contribution workflow sections (e.g. getting started, submitting PRs, coding conventions, running tests)
-- **`CODE_OF_CONDUCT.md`** — TOC covering the main sections (Our Pledge, Standards, Enforcement)
-
-Use GitHub-compatible anchor links (`[Section](#section)` format) so the TOC works both on GitHub and in any Markdown renderer.
+- **`README.md`** — TOC covering all 15 top-level sections using GitHub-compatible anchor links
+- **`ROADMAP.md`** — TOC listing every milestone (completed, planned, research) with anchor links
+- **`CONTRIBUTING.md`** — TOC covering all 10 contribution workflow sections
+- **`CODE_OF_CONDUCT.md`** — TOC covering all 7 main sections
 
 ---
 

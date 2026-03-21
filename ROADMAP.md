@@ -344,14 +344,15 @@ Add Go benchmarks for the hot paths in the dispatch loop so performance regressi
 
 ---
 
-## v0.13.3 — Dependency audit
+## v0.13.3 — Dependency audit ✓
 
 Review and tighten the dependency tree before committing to a stable v1.0.0 API.
 
-- **`go mod tidy`** — verify the module graph is clean; remove any unused indirect dependencies that have accumulated
-- **Licence audit** — run [golicense](https://github.com/mitchellh/golicense) or similar to produce a summary of dependency licences; confirm all are permissive (MIT, BSD, Apache 2.0) and compatible with the project's MIT licence
-- **Alternatives review** — evaluate whether any dependency can be replaced with a standard-library equivalent now that Go 1.24 covers more ground (e.g. `golang.org/x/net` subpackages, structured logging)
-- **Document findings** — add a `docs/content/docs/dependencies.md` page listing all direct dependencies, their purpose, and their licence
+- **`go mod tidy`** — module graph confirmed clean; no unused indirect dependencies
+- **Licence audit** — all 12 direct dependencies carry permissive licences (MIT, ISC, BSD-3-Clause, Apache-2.0); all compatible with the project's MIT licence
+- **Alternatives review** — `x/net/html` (no stdlib HTML parser), `x/time/rate` (no stdlib token bucket), `viper` (env-overlay config complexity), `zerolog` (zero-allocation over `log/slog`) all retained as justified; all other deps are the only practical choice for their driver or feature
+- **`docs/content/docs/dependencies.md`** — published page listing all 12 direct deps with purpose, licence, and alternatives rationale
+- **`docs/content/docs/ossf.md`** — published OpenSSF Best Practices evidence page (supersedes local working document)
 
 ---
 

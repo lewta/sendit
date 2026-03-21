@@ -1,0 +1,15 @@
+coverage:
+  status:
+    project:
+      default:
+        target: auto       # must not drop below the base-branch coverage
+        threshold: 2%      # allow up to 2% slip before failing
+    patch:
+      default:
+        target: 50%        # new code in each PR must be at least 50% covered
+        threshold: 0%
+
+comment:
+  layout: "reach,diff,flags,files"
+  behavior: default
+  require_changes: true    # only post a comment when coverage changes

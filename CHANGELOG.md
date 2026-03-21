@@ -12,6 +12,12 @@ under the affected version with a reference to the CVE or advisory.
 
 ## [Unreleased]
 
+### Added
+- Codecov integration: `go test` now runs with `-coverprofile` in CI and uploads
+  to [codecov.io](https://codecov.io/gh/lewta/sendit); Codecov badge added to README
+- `codecov.yml` — coverage gate: project coverage must not drop more than 2%
+  relative to base branch; new code in each PR must be at least 50% covered
+
 ---
 
 ## [0.12.7] - 2026-03-21

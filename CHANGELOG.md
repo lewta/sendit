@@ -14,6 +14,25 @@ under the affected version with a reference to the CVE or advisory.
 
 ---
 
+## [0.12.7] - 2026-03-21
+
+### Changed
+- Bumped `github.com/chromedp/chromedp` from 0.14.2 to 0.15.0
+- Bumped `modernc.org/sqlite` from 1.46.1 to 1.47.0
+- Bumped `github/codeql-action` from 4.32.6 to 4.34.1 (Actions pin)
+- Bumped `dorny/paths-filter` from 3.0.2 to 4.0.1 (Actions pin)
+
+---
+
+## [0.12.6] - 2026-03-21
+
+### Changed
+- Answered all passing-level criteria on the OpenSSF Best Practices platform,
+  bringing the badge to **passing** (99%); `test_most` left as unknown pending
+  Codecov integration (v0.13.1)
+
+---
+
 ## [0.12.5] - 2026-03-19
 
 ### Added
@@ -366,7 +385,9 @@ under the affected version with a reference to the CVE or advisory.
 
 ---
 
-[Unreleased]: https://github.com/lewta/sendit/compare/v0.12.5...HEAD
+[Unreleased]: https://github.com/lewta/sendit/compare/v0.12.7...HEAD
+[0.12.7]: https://github.com/lewta/sendit/compare/v0.12.6...v0.12.7
+[0.12.6]: https://github.com/lewta/sendit/compare/v0.12.5...v0.12.6
 [0.12.5]: https://github.com/lewta/sendit/compare/v0.12.4...v0.12.5
 [0.12.4]: https://github.com/lewta/sendit/compare/v0.12.3...v0.12.4
 [0.12.3]: https://github.com/lewta/sendit/compare/v0.12.2...v0.12.3

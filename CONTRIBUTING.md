@@ -2,6 +2,19 @@
 
 Thanks for your interest in contributing. This document covers everything you need to get started.
 
+## Contents
+
+- [Prerequisites](#prerequisites)
+- [Development workflow](#development-workflow)
+- [Branch naming](#branch-naming)
+- [Commit messages](#commit-messages)
+- [Contribution requirements](#contribution-requirements)
+- [Testing policy](#testing-policy)
+- [Running tests and the linter](#running-tests-and-the-linter)
+- [CI checks](#ci-checks)
+- [What to work on](#what-to-work-on)
+- [Releases](#releases)
+
 ---
 
 ## Prerequisites

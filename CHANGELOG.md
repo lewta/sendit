@@ -13,6 +13,14 @@ under the affected version with a reference to the CVE or advisory.
 ## [Unreleased]
 
 ### Added
+- Table of contents added to `README.md`, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`,
+  and `ROADMAP.md` using GitHub-compatible anchor links
+
+---
+
+## [0.13.3] - 2026-03-21
+
+### Added
 - `docs/content/docs/dependencies.md` — lists all 12 direct dependencies with
   purpose, licence, and alternatives review findings
 - `docs/content/docs/ossf.md` — published OpenSSF Best Practices evidence page
@@ -426,7 +434,9 @@ under the affected version with a reference to the CVE or advisory.
 
 ---
 
-[Unreleased]: https://github.com/lewta/sendit/compare/v0.13.2...HEAD
+[Unreleased]: https://github.com/lewta/sendit/compare/v0.13.4...HEAD
+[0.13.4]: https://github.com/lewta/sendit/compare/v0.13.3...v0.13.4
+[0.13.3]: https://github.com/lewta/sendit/compare/v0.13.2...v0.13.3
 [0.13.2]: https://github.com/lewta/sendit/compare/v0.13.1...v0.13.2
 [0.13.1]: https://github.com/lewta/sendit/compare/v0.12.7...v0.13.1
 [0.12.7]: https://github.com/lewta/sendit/compare/v0.12.6...v0.12.7

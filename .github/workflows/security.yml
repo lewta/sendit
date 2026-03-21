@@ -23,9 +23,10 @@ jobs:
           go-version-file: go.mod
           cache: true
 
-      - uses: golang/govulncheck-action@b625fbe08f3bccbe446d94fbf87fcc875a4f50ee  # v1
-        with:
-          repo-checkout: false  # repo already checked out above; avoids duplicate Authorization header
+      - name: Run govulncheck
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@latest
+          govulncheck ./...
 
   codeql:
     name: CodeQL

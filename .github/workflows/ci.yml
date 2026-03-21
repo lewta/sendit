@@ -6,9 +6,7 @@ on:
   pull_request:
     branches: [main]
 
-permissions:
-  contents: read
-  id-token: write  # required for Codecov OIDC tokenless upload
+permissions: read-all
 
 jobs:
   lint:
@@ -40,6 +38,7 @@ jobs:
 
       - uses: codecov/codecov-action@1af58845a975a7985b0beb0cbe6fbbb71a41dbad  # v5.5.3
         with:
+          token: ${{ secrets.CODECOV_TOKEN }}
           files: coverage.txt
           fail_ci_if_error: true
 

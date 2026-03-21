@@ -27,5 +27,3 @@ public/
 .vscode/
 *.swp
 
-# Local working documents (not for contribution)
-ossf-gap-audit.md

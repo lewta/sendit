@@ -12,6 +12,16 @@ under the affected version with a reference to the CVE or advisory.
 
 ## [Unreleased]
 
+### Added
+- `docs/content/docs/dependencies.md` — lists all 12 direct dependencies with
+  purpose, licence, and alternatives review findings
+- `docs/content/docs/ossf.md` — published OpenSSF Best Practices evidence page
+  (supersedes the gitignored local working document)
+
+### Changed
+- `go mod tidy` confirmed clean — no unused indirect dependencies
+- Removed `ossf-gap-audit.md` from `.gitignore`; content published via docs site
+
 ---
 
 ## [0.13.2] - 2026-03-21

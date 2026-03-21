@@ -36,3 +36,6 @@ Press Ctrl-C to stop and print a summary. See the [CLI Reference](cli/) for all 
 | [Drivers](drivers/) | `http`, `browser`, `dns`, `websocket` — options and examples for each |
 | [Metrics](metrics/) | Prometheus metrics exposed by sendit and how to scrape them |
 | [CLI Reference](cli/) | All commands and flags |
+| [Dependencies](dependencies/) | Direct dependencies, their purpose, and their licences |
+| [OpenSSF Best Practices](ossf/) | Evidence and criteria for the OpenSSF passing badge |
+| [Security](security/) | Security policy, supported versions, and how to report a vulnerability |

@@ -333,14 +333,14 @@ Surface test coverage metrics so regressions are visible in CI and PRs.
 
 ---
 
-## v0.13.2 — Benchmark suite
+## v0.13.2 — Benchmark suite ✓
 
 Add Go benchmarks for the hot paths in the dispatch loop so performance regressions are caught before they reach `main`.
 
-- **`internal/task`** — `BenchmarkSelectorPick`: benchmark `Selector.Pick` across 1, 10, and 100 targets to verify O(1) behaviour holds in practice
-- **`internal/ratelimit`** — `BenchmarkClassifyStatusCode`, `BenchmarkRegistryWait`: benchmark the hot error-classification and rate-limit paths
-- **`internal/engine`** — `BenchmarkDispatch`: benchmark a full dispatch cycle end-to-end using a no-op driver stub
-- **CI** — run `go test -bench=. -benchmem ./...` on every PR and store results as a workflow artifact; a follow-up can wire this into [benchstat](https://pkg.go.dev/golang.org/x/perf/cmd/benchstat) for regression detection
+- **`internal/task`** — `BenchmarkSelectorPick` across 1, 10, and 100 targets; confirms O(1) Vose alias behaviour (~28–34 ns/op, zero allocs)
+- **`internal/ratelimit`** — `BenchmarkClassifyStatusCode` (~6 ns/op), `BenchmarkClassifyError` (~8 ns/op), `BenchmarkRegistryWait` (~100 ns/op); all zero allocs
+- **`internal/engine`** — `BenchmarkDispatch` with a no-op driver stub (~1 µs/op, 3 allocs); covers backoff check, rate-limit check, and metrics recording
+- **CI** — `bench` job runs `go test -bench=. -benchmem -run='^$'` on every PR and stores `bench.txt` as a `bench-results` artifact
 
 ---
 

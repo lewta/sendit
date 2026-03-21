@@ -36,11 +36,11 @@ jobs:
           cache: true
 
       - name: Test
-        run: go test -race -coverprofile=coverage.out -covermode=atomic ./...
+        run: go test -race -coverprofile=coverage.txt -covermode=atomic ./...
 
       - uses: codecov/codecov-action@1af58845a975a7985b0beb0cbe6fbbb71a41dbad  # v5.5.3
         with:
-          files: coverage.out
+          files: coverage.txt
           fail_ci_if_error: true
 
   integration:

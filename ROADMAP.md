@@ -284,15 +284,26 @@ yay -S sendit    # or: paru -S sendit
 
 ---
 
-## v0.14.1 — Burst pacing mode
+## v0.14.1 — Burst pacing mode + `--duration` flag
 
-Add a `burst` pacing mode for scenarios where politeness constraints should be relaxed — load testing, internal infrastructure, or controlled chaos experiments.
+Add an explicit opt-in `burst` pacing mode for internal infrastructure testing and controlled load experiments. sendit stays polite by default — burst requires being asked nicely.
 
-- **`mode: burst`** — fires requests as fast as worker slots allow with no inter-request delay; existing `max_workers` cap still applies as a hard concurrency ceiling
-- **Configurable ramp-up** — optional `ramp_up_s` field in the `pacing` block; linearly increases workers from 1 to `max_workers` over the specified duration so the target is not hit with full concurrency immediately
-- **`--duration` flag on `sendit start`** — auto-stops after a fixed wall-clock time; useful for timed load runs without needing SIGTERM; example: `sendit start --config cfg.yaml --duration 5m`
-- **Backoff and rate-limit interaction** — burst mode bypasses per-domain rate-limit waits but still respects the resource gate (`cpu_threshold_pct`, `memory_threshold_mb`); backoff still engages on repeated errors to avoid hammering a failing target
-- **Docs** — new pacing mode documented in `docs/content/docs/pacing.md`; `--duration` flag documented in `docs/content/docs/cli.md`
+**Design principles:**
+
+- `mode: burst` is set in the config file, not a runtime flag — it is a deliberate configuration choice, not something that can be accidentally triggered
+- `--duration` is **required** when `mode: burst`; the engine refuses to start a burst run without a time bound; this is the primary safety gate that prevents open-ended hammering
+- The resource gate (`cpu_threshold_pct`, `memory_threshold_mb`) still applies — the local machine always protects itself
+- Backoff still engages on repeated errors — burst mode does not disable error handling
+- Clearly documented as intended for internal or owned infrastructure; pointing burst at external targets you do not control is out of scope and discouraged
+
+**Implementation:**
+
+- **`mode: burst`** in the `pacing:` config block — fires requests as fast as worker slots allow with no inter-request delay; `min_delay_ms` / `max_delay_ms` / `requests_per_minute` are ignored
+- **`ramp_up_s`** — optional field in the `pacing:` block; linearly increases active workers from 1 to `max_workers` over the specified number of seconds; applies to `burst` mode only; prevents a cold-start spike against the target
+- **`--duration <duration>`** on `sendit start` — auto-stops the engine after the specified wall-clock time (e.g. `--duration 5m`, `--duration 30s`); **required when `mode: burst`**, optional otherwise; on expiry the engine performs a graceful shutdown (drains in-flight requests) identical to SIGTERM
+- **Config validation** — `config.Load` returns an error if `mode: burst` and `--duration` was not passed; enforced at startup, not silently defaulted
+- **README key properties** — update "Never bursts aggressively" to reflect the opt-in design
+- **Docs** — burst mode documented in `docs/content/docs/pacing.md` with an explicit "internal use" callout; `--duration` flag documented in `docs/content/docs/cli.md`
 
 ---
 

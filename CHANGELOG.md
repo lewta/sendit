@@ -12,6 +12,10 @@ under the affected version with a reference to the CVE or advisory.
 
 ## [Unreleased]
 
+---
+
+## [0.14.0] - 2026-03-21
+
 ### Added
 - Safari bookmarks support in `sendit generate --from-bookmarks safari`: reads
   `~/Library/Safari/Bookmarks.plist` (binary and XML plist formats) using
@@ -448,7 +452,8 @@ under the affected version with a reference to the CVE or advisory.
 
 ---
 
-[Unreleased]: https://github.com/lewta/sendit/compare/v0.13.4...HEAD
+[Unreleased]: https://github.com/lewta/sendit/compare/v0.14.0...HEAD
+[0.14.0]: https://github.com/lewta/sendit/compare/v0.13.4...v0.14.0
 [0.13.4]: https://github.com/lewta/sendit/compare/v0.13.3...v0.13.4
 [0.13.3]: https://github.com/lewta/sendit/compare/v0.13.2...v0.13.3
 [0.13.2]: https://github.com/lewta/sendit/compare/v0.13.1...v0.13.2

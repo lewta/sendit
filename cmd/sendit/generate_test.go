@@ -795,7 +795,7 @@ func TestWalkChromeNode_InvalidJSON(t *testing.T) {
 func TestFirefoxFallbackProfile_HappyPath(t *testing.T) {
 	dir := t.TempDir()
 	profDir := filepath.Join(dir, "abc123.default-release")
-	if err := os.Mkdir(profDir, 0o755); err != nil {
+	if err := os.Mkdir(profDir, 0o750); err != nil {
 		t.Fatal(err)
 	}
 
@@ -810,7 +810,7 @@ func TestFirefoxFallbackProfile_HappyPath(t *testing.T) {
 
 func TestFirefoxFallbackProfile_NoMatchingDir(t *testing.T) {
 	dir := t.TempDir()
-	if err := os.Mkdir(filepath.Join(dir, "somedir"), 0o755); err != nil {
+	if err := os.Mkdir(filepath.Join(dir, "somedir"), 0o750); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := firefoxFallbackProfile(dir); err == nil {
@@ -833,7 +833,7 @@ func TestFirefoxDefaultProfile_WithValidINI(t *testing.T) {
 
 	dir := t.TempDir()
 	profDir := filepath.Join(dir, "profile.default-release")
-	if err := os.Mkdir(profDir, 0o755); err != nil {
+	if err := os.Mkdir(profDir, 0o750); err != nil {
 		t.Fatal(err)
 	}
 
@@ -854,7 +854,7 @@ func TestFirefoxDefaultProfile_WithValidINI(t *testing.T) {
 func TestFirefoxDefaultProfile_FallsBackWithNoINI(t *testing.T) {
 	dir := t.TempDir()
 	profDir := filepath.Join(dir, "xyz.default")
-	if err := os.Mkdir(profDir, 0o755); err != nil {
+	if err := os.Mkdir(profDir, 0o750); err != nil {
 		t.Fatal(err)
 	}
 

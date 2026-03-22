@@ -359,13 +359,13 @@ func captureStdout(t *testing.T, fn func()) string {
 	old := os.Stdout
 	os.Stdout = w
 	fn()
-	w.Close()
+	_ = w.Close()
 	os.Stdout = old
 	var buf bytes.Buffer
 	if _, err := io.Copy(&buf, r); err != nil {
 		t.Fatalf("io.Copy: %v", err)
 	}
-	r.Close()
+	_ = r.Close()
 	return buf.String()
 }
 

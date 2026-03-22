@@ -15,12 +15,13 @@ Controls how requests are spaced in time. See [Pacing Modes](../pacing/) for det
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `mode` | string | `human` | `human` \| `rate_limited` \| `scheduled` |
+| `mode` | string | `human` | `human` \| `rate_limited` \| `scheduled` \| `burst` |
 | `requests_per_minute` | float | `20` | Target RPM — used by `rate_limited` and `scheduled` only |
 | `jitter_factor` | float | `0.4` | Reserved for future modes; unused in current pacing logic |
 | `min_delay_ms` | int | `800` | Minimum inter-request delay for `human` mode (ms) |
 | `max_delay_ms` | int | `8000` | Maximum inter-request delay for `human` mode (ms) |
 | `schedule` | list | `[]` | Cron windows — required when `mode: scheduled` |
+| `ramp_up_s` | int | `0` | Seconds to linearly ramp up to full speed — `burst` mode only; `0` = immediate full speed |
 
 ## `limits`
 

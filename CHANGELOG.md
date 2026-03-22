@@ -13,6 +13,16 @@ under the affected version with a reference to the CVE or advisory.
 ## [Unreleased]
 
 ### Added
+- AUR package: `sendit` is now installable via AUR helpers (`yay -S sendit`,
+  `paru -S sendit`); GoReleaser generates and pushes a `PKGBUILD` to
+  `aur.archlinux.org/sendit.git` on every release; the `.pkg.tar.zst` direct
+  install option from v0.11.1 remains available for users without an AUR helper
+
+---
+
+## [0.14.1] - 2026-03-21
+
+### Added
 - `mode: burst` pacing mode fires requests at full worker concurrency with no
   inter-request delay; intended for internal infrastructure testing and load
   experiments against services you own

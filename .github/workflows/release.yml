@@ -48,6 +48,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SKIP_GH_RELEASE: "false"
+          AUR_SSH_KEY: ${{ secrets.AUR_SSH_KEY }}
           MACOS_SIGN_P12: ${{ secrets.MACOS_SIGN_P12 }}
           MACOS_SIGN_PASSWORD: ${{ secrets.MACOS_SIGN_PASSWORD }}
           NOTARIZE_KEY: ${{ secrets.NOTARIZE_KEY }}
@@ -64,6 +65,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GORELEASER_CURRENT_TAG: ${{ github.event.inputs.tag }}
           SKIP_GH_RELEASE: "false"
+          AUR_SSH_KEY: ${{ secrets.AUR_SSH_KEY }}
           MACOS_SIGN_P12: ${{ secrets.MACOS_SIGN_P12 }}
           MACOS_SIGN_PASSWORD: ${{ secrets.MACOS_SIGN_PASSWORD }}
           NOTARIZE_KEY: ${{ secrets.NOTARIZE_KEY }}

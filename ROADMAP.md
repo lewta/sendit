@@ -32,12 +32,11 @@ Features planned for future releases of sendit. Contributions are welcome — op
 - [v0.13.2 — Benchmark suite ✓](#v0132--benchmark-suite-)
 - [v0.13.3 — Dependency audit ✓](#v0133--dependency-audit-)
 - [v0.13.4 — Table of contents ✓](#v0134--table-of-contents-for-key-documents-)
+- [v0.11.2 — AUR package ✓](#v0112--aur-package)
 - [v0.14.0 — Safari bookmarks + browser history tests ✓](#v0140--safari-bookmarks--browser-history-tests-)
 - [v0.14.1 — Burst pacing mode + `--duration` flag ✓](#v0141--burst-pacing-mode--duration-flag-)
 
 **Planned**
-- [v0.11.2 — AUR package](#v0112--aur-package)
-- [v0.14.1 — Burst pacing mode](#v0141--burst-pacing-mode)
 - [v0.14.2 — Browser type expansion](#v0142--browser-type-expansion)
 - [v1.0.0 — TUI + stable API](#v100--tui--stable-api)
 
@@ -262,7 +261,7 @@ sudo pacman -U sendit_<version>_linux_amd64.pkg.tar.zst
 
 ---
 
-## v0.11.2 — AUR package
+## v0.11.2 — AUR package ✓
 
 Make `sendit` installable via Arch User Repository helpers so Arch Linux and Arch-based users (e.g. Omarchy) can install with a single command:
 

@@ -36,9 +36,9 @@ Features planned for future releases of sendit. Contributions are welcome — op
 - [v0.14.0 — Safari bookmarks + browser history tests ✓](#v0140--safari-bookmarks--browser-history-tests-)
 - [v0.14.1 — Burst pacing mode + `--duration` flag ✓](#v0141--burst-pacing-mode--duration-flag-)
 - [v0.14.2 — AUR latest sync ✓](#v0142--aur-latest-sync-)
+- [v0.15.0 — Test coverage improvement ✓](#v0150--test-coverage-improvement-)
 
 **Planned**
-- [v0.15.0 — Test coverage improvement](#v0150--test-coverage-improvement)
 - [v0.15.1 — Integration test suite expansion](#v0151--integration-test-suite-expansion)
 - [v1.0.0 — TUI + stable API](#v100--tui--stable-api)
 
@@ -469,7 +469,7 @@ Add a table of contents to the four main project documents so readers can naviga
 
 ---
 
-## v0.15.0 — Test coverage improvement
+## v0.15.0 — Test coverage improvement ✓
 
 Raise overall test coverage from its current **62.1%** toward **~75%** before the
 v1.0.0 stability commitment. The audit identified three categories of uncovered code:

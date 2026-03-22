@@ -12,6 +12,10 @@ under the affected version with a reference to the CVE or advisory.
 
 ## [Unreleased]
 
+---
+
+## [0.15.0] - 2026-03-22
+
 ### Added
 - Test coverage raised from 62% to 71% overall; `internal/metrics` from 44% to 94%
 - New unit tests for `detectProbeType`, `probeRcodeLabel`, `probeFormatBytes`, `probeSummary`, `pinchSummary`, `isConnRefused`, `printDryRun` (all pacing modes)
@@ -493,7 +497,10 @@ landed on v0.11.2 (out-of-sequence due to unblocking prerequisites).
 
 ---
 
-[Unreleased]: https://github.com/lewta/sendit/compare/v0.14.0...HEAD
+[Unreleased]: https://github.com/lewta/sendit/compare/v0.15.0...HEAD
+[0.15.0]: https://github.com/lewta/sendit/compare/v0.14.2...v0.15.0
+[0.14.2]: https://github.com/lewta/sendit/compare/v0.14.1...v0.14.2
+[0.14.1]: https://github.com/lewta/sendit/compare/v0.14.0...v0.14.1
 [0.14.0]: https://github.com/lewta/sendit/compare/v0.13.4...v0.14.0
 [0.13.4]: https://github.com/lewta/sendit/compare/v0.13.3...v0.13.4
 [0.13.3]: https://github.com/lewta/sendit/compare/v0.13.2...v0.13.3

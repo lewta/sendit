@@ -12,6 +12,12 @@ under the affected version with a reference to the CVE or advisory.
 
 ## [Unreleased]
 
+### Added
+- Test coverage raised from 62% to 71% overall; `internal/metrics` from 44% to 94%
+- New unit tests for `detectProbeType`, `probeRcodeLabel`, `probeFormatBytes`, `probeSummary`, `pinchSummary`, `isConnRefused`, `printDryRun` (all pacing modes)
+- New unit tests for `chromeBookmarks`, `walkChromeNode`, `firefoxDefaultProfile`, `firefoxFallbackProfile`, `historyDBInfo`
+- New unit tests for `metrics.New()` and `metrics.ServeHTTP` (`/healthz` and `/metrics` routes via live server)
+
 ---
 
 ## [0.14.2] - 2026-03-21

@@ -6,6 +6,11 @@ import (
 	"testing"
 )
 
+// note: t.TempDir() is intentionally avoided in the fuzz body — its cleanup
+// goroutine is tied to t.Context(), which Go cancels when the -fuzztime
+// deadline expires, causing a spurious "context deadline exceeded" FAIL.
+// os.MkdirTemp + defer os.RemoveAll sidesteps this.
+
 // FuzzLoad feeds arbitrary YAML bytes through the config loader.
 // It catches panics and unexpected parse errors on malformed input.
 func FuzzLoad(f *testing.F) {
@@ -36,7 +41,13 @@ targets:
 	f.Add([]byte(`\x00\x01\x02`))
 
 	f.Fuzz(func(t *testing.T, data []byte) {
-		path := filepath.Join(t.TempDir(), "config.yaml")
+		dir, err := os.MkdirTemp("", "fuzz-config-*")
+		if err != nil {
+			t.Skip()
+		}
+		defer os.RemoveAll(dir)
+
+		path := filepath.Join(dir, "config.yaml")
 		if err := os.WriteFile(path, data, 0o600); err != nil {
 			t.Skip()
 		}

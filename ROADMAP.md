@@ -40,6 +40,7 @@ Features planned for future releases of sendit. Contributions are welcome — op
 
 **Planned**
 - [v0.15.1 — Integration test suite expansion](#v0151--integration-test-suite-expansion)
+- [v0.15.2 — Codecov Test Analytics](#v0152--codecov-test-analytics)
 - [v1.0.0 — TUI + stable API](#v100--tui--stable-api)
 
 **Research**
@@ -575,6 +576,33 @@ coverage into Codecov.
 - `probe` and `pinch` network integration (require live external endpoints)
 - `start` full run via CLI binary subprocess (covered by engine integration tests at
   the library level; binary-level testing deferred to a future E2E suite)
+
+---
+
+## v0.15.2 — Codecov Test Analytics
+
+Surface per-test pass/fail data in Codecov so failed test names and messages appear
+directly in PR comments, removing the need to dig into CI logs.
+
+**Approach:**
+
+- Replace the raw `go test` call in the CI `test` job with
+  [`gotestsum`](https://github.com/gotestyourself/gotestsum), which wraps `go test`
+  and emits a JUnit XML report alongside the existing coverage profile:
+  ```sh
+  gotestsum --junitfile junit.xml -- -race -coverprofile=coverage.txt -covermode=atomic ./...
+  ```
+- Add a second Codecov upload step using `codecov/test-results-action` with
+  `if: ${{ !cancelled() }}` so results are uploaded even when tests fail
+- Pin both the `gotestsum` install and the action to commit SHAs (consistent with
+  existing policy)
+
+**Features unlocked:**
+
+- Failed test names + failure messages shown in PR comments without opening CI logs
+- Flaky test detection — tests that fail on `main` are flagged separately from new
+  failures introduced by the PR
+- Per-test duration tracking over time in the Codecov dashboard
 
 ---
 

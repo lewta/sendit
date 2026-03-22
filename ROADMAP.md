@@ -39,6 +39,7 @@ Features planned for future releases of sendit. Contributions are welcome — op
 
 **Planned**
 - [v0.15.0 — Test coverage improvement](#v0150--test-coverage-improvement)
+- [v0.15.1 — Integration test suite expansion](#v0151--integration-test-suite-expansion)
 - [v1.0.0 — TUI + stable API](#v100--tui--stable-api)
 
 **Research**
@@ -522,6 +523,58 @@ This milestone targets the third category and as much of the second as is practi
   unit-testable
 - `probeWS`, `pinchTCP`, `pinchUDP` — require live network connections; out of
   scope for unit tests; candidate for a future integration test suite
+
+---
+
+## v0.15.1 — Integration test suite expansion
+
+The engine integration test infrastructure already exists
+(`internal/engine/integration_test.go`, `//go:build integration`, 7 tests, CI job).
+This milestone widens its scope, fills the missing scenarios, and wires integration
+coverage into Codecov.
+
+**Current state:**
+- 7 integration tests in `internal/engine/` covering HTTP happy path, HTTP 429
+  backoff, graceful shutdown, resource gate, DNS, PCAP, and WebSocket
+- CI `integration` job runs `go test -race -tags integration -v ./internal/engine/...`
+- Integration tests do **not** contribute to Codecov (no `-coverprofile` in the job)
+- No cmd-level or CLI-level integration tests
+
+**Deliverables:**
+
+- **Widen CI scope** — change the integration job from `./internal/engine/...` to
+  `./...` so any future integration-tagged tests in other packages are automatically
+  picked up
+- **Codecov integration coverage** — add `-coverprofile=integration-coverage.out`
+  to the integration CI job and upload to Codecov with `flags: integration`; this
+  surfaces engine dispatch, `Run`, and `dispatch` coverage that unit tests cannot reach
+- **Hot-reload during dispatch** — integration test that starts the engine, waits for
+  at least 3 requests, calls `Reload()` with a new target list, then verifies
+  subsequent requests hit the new target; exercises the live reload path under real
+  concurrency
+- **Burst mode + `--duration`** — integration test that configures `mode: burst` with
+  a short `ramp_up_s` and runs the engine with a context timeout; verifies requests
+  are dispatched and that the engine stops cleanly at the deadline
+- **Output writer end-to-end** — integration test that enables `output.enabled` with a
+  temp JSONL file, dispatches ≥5 requests, and verifies the file contains valid
+  newline-delimited JSON records with correct `url`, `status`, and `duration_ms` fields;
+  complements the existing PCAP test
+- **Per-domain rate-limit enforcement** — integration test that sets a per-domain RPS
+  of 2 against a local httptest server, dispatches requests over a measured window, and
+  asserts the observed RPS does not materially exceed the configured limit; catches
+  regressions in the rate-limit registry wiring
+- **cmd integration tests** — test the Cobra commands directly (not via `exec.Command`)
+  using a shared test helper that invokes `rootCmd.Execute()` with args and a captured
+  stdout buffer:
+  - `validate` — valid config → exit 0; invalid config → exit 1 with error text
+  - `start --dry-run` — prints dry-run summary, does not start the engine
+  - `generate --targets-file` — emits valid YAML to stdout given a temp targets file
+  - `version` — prints version string
+
+**Not targeted:**
+- `probe` and `pinch` network integration (require live external endpoints)
+- `start` full run via CLI binary subprocess (covered by engine integration tests at
+  the library level; binary-level testing deferred to a future E2E suite)
 
 ---
 

@@ -35,9 +35,10 @@ Features planned for future releases of sendit. Contributions are welcome — op
 - [v0.11.2 — AUR package ✓](#v0112--aur-package)
 - [v0.14.0 — Safari bookmarks + browser history tests ✓](#v0140--safari-bookmarks--browser-history-tests-)
 - [v0.14.1 — Burst pacing mode + `--duration` flag ✓](#v0141--burst-pacing-mode--duration-flag-)
+- [v0.14.2 — AUR latest sync ✓](#v0142--aur-latest-sync-)
 
 **Planned**
-- [v0.14.2 — Browser type expansion](#v0142--browser-type-expansion)
+- [v0.14.3 — Browser type expansion](#v0143--browser-type-expansion)
 - [v1.0.0 — TUI + stable API](#v100--tui--stable-api)
 
 **Research**
@@ -307,7 +308,16 @@ Add an explicit opt-in `burst` pacing mode for internal infrastructure testing a
 
 ---
 
-## v0.14.2 — Browser type expansion
+## v0.14.2 — AUR latest sync ✓
+
+Distribution-only patch. The initial AUR publication in v0.11.2 was out-of-sequence
+(version number lower than the current latest), leaving the AUR pointing at old
+binaries. This release updates the AUR `PKGBUILD` to the current latest so
+`yay -S sendit` installs up-to-date code.
+
+---
+
+## v0.14.3 — Browser type expansion
 
 Extend the `browser` driver to support additional browser types beyond Chrome/Chromium. Decision on approach (Playwright-go vs chromedp-only) requires evaluation before implementation; see [#49](https://github.com/lewta/sendit/issues/49) for the research questions.
 

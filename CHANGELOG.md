@@ -12,6 +12,14 @@ under the affected version with a reference to the CVE or advisory.
 
 ## [Unreleased]
 
+---
+
+## [0.14.2] - 2026-03-21
+
+Distribution-only release — no functional changes. Brings the AUR package
+up to date with the current latest release after the initial AUR publication
+landed on v0.11.2 (out-of-sequence due to unblocking prerequisites).
+
 ### Added
 - AUR package: `sendit` is now installable via AUR helpers (`yay -S sendit`,
   `paru -S sendit`); GoReleaser generates and pushes a `PKGBUILD` to

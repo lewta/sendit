@@ -123,14 +123,14 @@ scoops:
     license: MIT
 
 aurs:
-  - name: sendit
+  - name: sendit-bin
     homepage: "https://github.com/lewta/sendit"
     description: "Traffic generation tool for HTTP, DNS, WebSocket, and headless-browser targets."
     maintainers:
       - "lewta <77890109+lewta@users.noreply.github.com>"
     license: MIT
     private_key: "{{ .Env.AUR_SSH_KEY }}"
-    git_url: "ssh://aur@aur.archlinux.org/sendit.git"
+    git_url: "ssh://aur@aur.archlinux.org/sendit-bin.git"
     package: |-
       install -Dm755 "./sendit" "${pkgdir}/usr/bin/sendit"
       install -Dm644 "./completions/sendit.bash" "${pkgdir}/usr/share/bash-completion/completions/sendit"

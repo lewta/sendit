@@ -61,7 +61,11 @@ sudo dpkg -i sendit_*_linux_amd64.deb
 # Fedora / RHEL / CentOS
 sudo rpm -i sendit_*_linux_amd64.rpm
 
-# Arch Linux / Omarchy (and other Arch-based distros)
+# Arch Linux / Omarchy — via AUR helper (recommended)
+yay -S sendit
+# or: paru -S sendit
+
+# Arch Linux — direct package install (no AUR helper required)
 sudo pacman -U sendit_*_linux_amd64.pkg.tar.zst
 ```
 

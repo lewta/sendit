@@ -122,6 +122,21 @@ scoops:
     description: Traffic generation tool for HTTP, DNS, WebSocket, and headless-browser targets.
     license: MIT
 
+aurs:
+  - name: sendit
+    homepage: "https://github.com/lewta/sendit"
+    description: "Traffic generation tool for HTTP, DNS, WebSocket, and headless-browser targets."
+    maintainers:
+      - "lewta <77890109+lewta@users.noreply.github.com>"
+    license: MIT
+    private_key: "{{ .Env.AUR_SSH_KEY }}"
+    git_url: "ssh://aur@aur.archlinux.org/sendit.git"
+    package: |-
+      install -Dm755 "./sendit" "${pkgdir}/usr/bin/sendit"
+      install -Dm644 "./completions/sendit.bash" "${pkgdir}/usr/share/bash-completion/completions/sendit"
+      install -Dm644 "./completions/sendit.zsh" "${pkgdir}/usr/share/zsh/site-functions/_sendit"
+      install -Dm644 "./completions/sendit.fish" "${pkgdir}/usr/share/fish/vendor_completions.d/sendit.fish"
+
 # SKIP_GH_RELEASE=true skips artifact uploads and keeps the existing release
 # unchanged. Used by release-taps.yml: GoReleaser reads the existing release
 # to compute download URLs for the homebrew cask and scoop manifest, then

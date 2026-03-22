@@ -38,6 +38,7 @@ Features planned for future releases of sendit. Contributions are welcome — op
 - [v0.14.2 — AUR latest sync ✓](#v0142--aur-latest-sync-)
 
 **Planned**
+- [v0.15.0 — Test coverage improvement](#v0150--test-coverage-improvement)
 - [v1.0.0 — TUI + stable API](#v100--tui--stable-api)
 
 **Research**
@@ -464,6 +465,63 @@ Add a table of contents to the four main project documents so readers can naviga
 - **`ROADMAP.md`** — TOC listing every milestone (completed, planned, research) with anchor links
 - **`CONTRIBUTING.md`** — TOC covering all 10 contribution workflow sections
 - **`CODE_OF_CONDUCT.md`** — TOC covering all 7 main sections
+
+---
+
+## v0.15.0 — Test coverage improvement
+
+Raise overall test coverage from its current **62.1%** toward **~75%** before the
+v1.0.0 stability commitment. The audit identified three categories of uncovered code:
+intentionally untestable (needs real Chrome, live network, OS process), structurally
+hard (engine dispatch loop), and straightforwardly testable but missing tests.
+This milestone targets the third category and as much of the second as is practical.
+
+**Current per-package coverage (baseline):**
+
+| Package | Coverage | Primary gap |
+|---|---|---|
+| `cmd/sendit` (main) | 48.9% | `probe*`, `pinch*`, `printDryRun`, `validateCmd` all 0% |
+| `cmd/sendit` (generate) | ~70% | `chromeBookmarks`, path-resolution functions all 0% |
+| `internal/engine` | 55.7% | `Run`, `dispatch` 0%; `Start` 45%; `UpdatePacing` 56% |
+| `internal/metrics` | 44.1% | `New`, `ServeHTTP` both 0% |
+| `internal/driver` | 64.2% | `browser.Execute` 0% — intentionally skipped (needs Chrome) |
+| `internal/ratelimit` | 97.6% | — |
+| `internal/task` | 97.6% | — |
+| `internal/resource` | 100% | — |
+
+**Deliverables:**
+
+- **Pure helper functions** — unit tests for all zero-coverage pure functions in
+  `cmd/sendit/main.go`: `probeRcodeLabel`, `probeFormatBytes`, `probeSummary`,
+  `detectProbeType`, `pinchSummary`, `isConnRefused`, `printDryRun`; these have
+  no external dependencies and are straightforwardly table-driven
+- **Chrome bookmarks** — fixture-based tests for `chromeBookmarks` and
+  `walkChromeNode` using a synthetic Chrome `Bookmarks` JSON file; mirrors the
+  Firefox and Safari fixture tests added in v0.14.0
+- **Browser path resolution** — tests for `chromePath`, `firefoxPath`,
+  `firefoxDefaultProfile`, `firefoxFallbackProfile` using temp directories;
+  validates OS-specific path logic without touching the real filesystem
+- **`historyDBInfo`** — expand SQLite fixture tests to cover the 11% currently
+  missed (error paths and alternate schema branches)
+- **Metrics** — tests for `metrics.New` (Prometheus registry initialisation) and
+  `metrics.ServeHTTP` (`/metrics` and `/healthz` endpoints) using `httptest`
+- **Engine dispatch integration** — a short-lived integration test that runs
+  `engine.Run` with a stub no-op driver and a 100 ms timeout; exercises `dispatch`
+  and the full pipeline (scheduler → resource gate → pool → driver); kept in a
+  separate `_integration_test.go` file with a build tag so it does not run in
+  the unit-test path
+- **`scheduler.UpdatePacing` and `scheduler.Start`** — targeted tests for the
+  remaining uncovered branches (mode switches, cron window lifecycle)
+- **`validateCmd`** — extend existing tests to cover the uncovered flag/path branches
+
+**Intentionally not targeted (documented as such):**
+
+- `browser.Execute` — requires a real Chrome binary; skip annotation already in
+  place in `driver_test.go`; noted in a `// coverage: intentionally skipped` comment
+- `main()` entry point, `initLogger`, `writePID` — OS-level side effects; not
+  unit-testable
+- `probeWS`, `pinchTCP`, `pinchUDP` — require live network connections; out of
+  scope for unit tests; candidate for a future integration test suite
 
 ---
 

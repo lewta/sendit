@@ -1,5 +1,5 @@
 pacing:
-  mode: human                   # human | rate_limited | scheduled
+  mode: human                   # human | rate_limited | scheduled | burst
   requests_per_minute: 20
   jitter_factor: 0.4
   min_delay_ms: 800
@@ -9,6 +9,8 @@ pacing:
     - cron: "0 9 * * 1-5"       # weekdays at 09:00
       duration_minutes: 30
       requests_per_minute: 40
+  # ramp_up_s is only used when mode: burst
+  # ramp_up_s: 30               # linearly ramp up over 30 s; 0 = immediate full speed
 
 limits:
   max_workers: 4

@@ -1,0 +1,76 @@
+# burst.yaml — example configuration for burst / load-test mode
+#
+# Burst mode fires at full worker concurrency with no inter-request delay.
+# It is designed for internal load testing and staging validation, not for
+# traffic to third-party services.
+#
+# REQUIRED: --duration must be set on the command line when pacing.mode is burst.
+#
+#   sendit start --config config/burst.yaml --duration 2m
+#
+# The optional ramp_up_s field linearly increases from a throttled start to
+# full speed over the specified number of seconds. This prevents a thundering
+# herd on startup. Delay per request = 50ms × remaining_ramp_up_seconds,
+# capped at 5 s.
+
+pacing:
+  mode: burst
+  ramp_up_s: 30         # ramp from ~1500 ms/req to zero over 30 s
+
+limits:
+  max_workers: 20
+  max_browser_workers: 2
+  cpu_threshold_pct: 80.0
+  memory_threshold_mb: 2048
+
+# Rate limits and backoff are intentionally relaxed for burst mode.
+# The engine still respects them — remove or adjust as needed.
+rate_limits:
+  default_rps: 50.0
+
+backoff:
+  initial_ms: 500
+  max_ms: 10000
+  multiplier: 2.0
+  max_attempts: 2
+
+targets:
+  - url: "http://localhost:8080/health"
+    weight: 5
+    type: http
+    http:
+      method: GET
+      timeout_s: 5
+
+  - url: "http://localhost:8080/api/v1/status"
+    weight: 3
+    type: http
+    http:
+      method: GET
+      headers:
+        Accept: "application/json"
+      timeout_s: 5
+
+  - url: "http://localhost:8080/api/v1/submit"
+    weight: 2
+    type: http
+    http:
+      method: POST
+      headers:
+        Content-Type: "application/json"
+      body: '{"probe":true}'
+      timeout_s: 10
+
+output:
+  enabled: true
+  file: "burst-results.jsonl"
+  format: jsonl
+  append: false
+
+metrics:
+  enabled: true
+  prometheus_port: 9090
+
+daemon:
+  log_level: info
+  log_format: text

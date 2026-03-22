@@ -186,6 +186,7 @@ sendit completion <shell>
 | `--log-level` | | *(from config)* | Override log level: `debug` \| `info` \| `warn` \| `error` |
 | `--dry-run` | | `false` | Print config summary (targets, pacing, limits) and exit without sending traffic |
 | `--capture` | | `""` | Write a synthetic PCAP file while running; file is finalised on clean shutdown |
+| `--duration` | | *(unlimited)* | Auto-stop after this wall-clock time (e.g. `5m`, `30s`); **required** when `pacing.mode: burst` |
 
 ### `probe` flags
 
@@ -569,18 +570,20 @@ Controls how requests are spaced in time.
 
 | Field | Default | Description |
 |-------|---------|-------------|
-| `mode` | `human` | `human` \| `rate_limited` \| `scheduled` |
+| `mode` | `human` | `human` \| `rate_limited` \| `scheduled` \| `burst` |
 | `requests_per_minute` | `20` | Target RPM — used by `rate_limited` and `scheduled` modes only |
 | `jitter_factor` | `0.4` | Unused in `human` mode; reserved for future modes |
 | `min_delay_ms` | `800` | Minimum inter-request delay in `human` mode |
 | `max_delay_ms` | `8000` | Maximum inter-request delay in `human` mode |
 | `schedule` | `[]` | List of cron windows — required when `mode: scheduled` |
+| `ramp_up_s` | `0` | Seconds to linearly ramp up to full speed — `burst` mode only; `0` = immediate |
 
 **Pacing modes:**
 
 - **`human`** — random delay per request uniformly sampled from `[min_delay_ms, max_delay_ms]`. `requests_per_minute` and `jitter_factor` are ignored in this mode.
 - **`rate_limited`** — token-bucket limiter at `requests_per_minute` plus a small random jitter after each token.
 - **`scheduled`** — cron expressions open active windows; within each window behaves like `rate_limited` at the window's own RPM. Dispatch is paused between windows.
+- **`burst`** — fires requests as fast as worker slots allow with no inter-request delay. Intended for internal infrastructure testing. **Requires `--duration`** on `sendit start` — the engine refuses to run an unbounded burst session.
 
 ```yaml
 pacing:
@@ -589,6 +592,13 @@ pacing:
     - cron: "0 9 * * 1-5"      # weekdays 09:00
       duration_minutes: 30
       requests_per_minute: 40
+```
+
+```yaml
+# Burst example — always pair with --duration when starting
+pacing:
+  mode: burst
+  ramp_up_s: 30   # optional: ramp from slow to full speed over 30 s
 ```
 
 ### `limits`

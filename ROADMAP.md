@@ -38,7 +38,6 @@ Features planned for future releases of sendit. Contributions are welcome — op
 - [v0.14.2 — AUR latest sync ✓](#v0142--aur-latest-sync-)
 
 **Planned**
-- [v0.14.3 — Browser type expansion](#v0143--browser-type-expansion)
 - [v1.0.0 — TUI + stable API](#v100--tui--stable-api)
 
 **Research**
@@ -46,6 +45,7 @@ Features planned for future releases of sendit. Contributions are welcome — op
 - [Aggressive / burst pacing mode ✓ (promoted to v0.14.1)](#research--aggressive--burst-pacing-mode)
 - [Browser history and bookmarks harvesting ✓ (shipped in v0.11.0 / v0.14.0)](#research--browser-history-and-bookmarks-harvesting)
 - [Live packet capture](#research--live-packet-capture-future)
+- [Multi-browser support (post-v1.0.0)](#research--multi-browser-support-post-v100)
 
 ---
 
@@ -314,18 +314,6 @@ Distribution-only patch. The initial AUR publication in v0.11.2 was out-of-seque
 (version number lower than the current latest), leaving the AUR pointing at old
 binaries. This release updates the AUR `PKGBUILD` to the current latest so
 `yay -S sendit` installs up-to-date code.
-
----
-
-## v0.14.3 — Browser type expansion
-
-Extend the `browser` driver to support additional browser types beyond Chrome/Chromium. Decision on approach (Playwright-go vs chromedp-only) requires evaluation before implementation; see [#49](https://github.com/lewta/sendit/issues/49) for the research questions.
-
-Evaluation criteria:
-- **Playwright-go** (`github.com/playwright-community/playwright-go`) — supports Chromium, Firefox, and WebKit from one API; downloads browser binaries at runtime; assess binary size impact, startup overhead, and compatibility with the per-task allocator model
-- **chromedp-only** — keep the existing driver; add Firefox via its experimental CDP endpoint if chromedp can connect to it; avoids a new dependency but limits browser coverage
-- **Config surface** — if expanded, add an `engine: chromium|firefox|webkit` field under the `browser:` target block; `chromium` remains the default for backwards compatibility
-- **CI/testing** — assess headless browser availability on `ubuntu-latest` for any non-Chromium engine
 
 ---
 
@@ -603,3 +591,23 @@ Areas to explore:
 - **OSSF Scorecard** — evaluate adding the OpenSSF Scorecard action to surface a public supply-chain security score
 - **Docs site — security page** — add a dedicated Security page to the docs site summarising the security policy, supported versions, and how to report a vulnerability; link from the homepage and CLI reference
 - **Docs site — `security.txt`** — add a `/.well-known/security.txt` (RFC 9116) to the GitHub Pages site (`docs/static/.well-known/security.txt`) so automated scanners and researchers can discover the disclosure contact and policy URL machine-readably
+
+---
+
+## Research — Multi-browser support (post-v1.0.0)
+
+Investigate extending the `browser` driver to support Firefox and WebKit/Safari in addition to the current Chrome/Chromium. Deferred from v0.14.3 after research (March 2026) concluded no viable path exists today that is compatible with sendit's statically compiled, CGO-free, single-binary distribution model.
+
+Full research findings are in [#49](https://github.com/lewta/sendit/issues/49#issuecomment-4106692916). Summary of why each option was rejected:
+
+- **playwright-go** (`github.com/playwright-community/playwright-go`) — spawns a bundled Node.js subprocess at runtime; cannot be embedded in a static Go binary; incompatible with `CGO_ENABLED=0` distribution
+- **Firefox via chromedp (CDP)** — Firefox dropped CDP support in Firefox 129 (mid-2024); removed from the Selenium ecosystem in early 2025; chromedp has no WebDriver BiDi implementation
+- **rod** (`github.com/go-rod/rod`) — Chromium-only; same limitation as current chromedp; no multi-browser gain
+
+**Unblocking condition:** A production-ready, CGO-free Go client for **WebDriver BiDi** (the cross-browser successor to CDP). Chrome, Firefox, and Safari all support or are implementing BiDi. Once a viable Go BiDi library emerges, revisit this item with an `engine: chromium|firefox|webkit` field under the `browser:` target block.
+
+Areas to re-evaluate when revisiting:
+- Go WebDriver BiDi client maturity (watch `seleniumhq/selenium` Go bindings and community alternatives)
+- Per-task allocator model compatibility — does the library support spawn-per-task or require a shared browser instance?
+- Headless browser availability on `ubuntu-latest` for non-Chromium engines
+- Docker image strategy — single image vs separate `browser-expanded` tag with pre-installed browsers

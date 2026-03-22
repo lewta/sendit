@@ -2,13 +2,18 @@ package main
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"testing"
 	"time"
+
+	"github.com/lewta/sendit/internal/config"
 )
 
 // writePIDFile writes pid to a temp file and returns the path.
@@ -266,5 +271,263 @@ func TestStatusCmd_DeadProcess(t *testing.T) {
 	cmd.SetArgs([]string{"--pid-file", writePIDFile(t, 99999999)})
 	if err := cmd.Execute(); err != nil {
 		t.Fatalf("statusCmd returned unexpected error for dead process: %v", err)
+	}
+}
+
+// --- detectProbeType ---
+
+func TestDetectProbeType(t *testing.T) {
+	cases := []struct {
+		input string
+		want  string
+	}{
+		{"https://example.com", "http"},
+		{"http://example.com", "http"},
+		{"wss://echo.websocket.org", "websocket"},
+		{"ws://localhost:8080", "websocket"},
+		{"example.com", "dns"},
+		{"", "dns"},
+	}
+	for _, tc := range cases {
+		if got := detectProbeType(tc.input); got != tc.want {
+			t.Errorf("detectProbeType(%q) = %q, want %q", tc.input, got, tc.want)
+		}
+	}
+}
+
+// --- probeRcodeLabel ---
+
+func TestProbeRcodeLabel(t *testing.T) {
+	cases := []struct {
+		status int
+		want   string
+	}{
+		{200, "NOERROR"},
+		{404, "NXDOMAIN"},
+		{403, "REFUSED"},
+		{503, "SERVFAIL"},
+		{500, "RCODE_500"},
+		{0, "RCODE_0"},
+	}
+	for _, tc := range cases {
+		if got := probeRcodeLabel(tc.status); got != tc.want {
+			t.Errorf("probeRcodeLabel(%d) = %q, want %q", tc.status, got, tc.want)
+		}
+	}
+}
+
+// --- probeFormatBytes ---
+
+func TestProbeFormatBytes(t *testing.T) {
+	cases := []struct {
+		n    int64
+		want string
+	}{
+		{0, "0 B"},
+		{512, "512 B"},
+		{1023, "1023 B"},
+		{1024, "1.0 KB"},
+		{2048, "2.0 KB"},
+		{1024 * 1024, "1.0 MB"},
+		{2 * 1024 * 1024, "2.0 MB"},
+	}
+	for _, tc := range cases {
+		if got := probeFormatBytes(tc.n); got != tc.want {
+			t.Errorf("probeFormatBytes(%d) = %q, want %q", tc.n, got, tc.want)
+		}
+	}
+}
+
+// --- isConnRefused ---
+
+func TestIsConnRefused(t *testing.T) {
+	if !isConnRefused(errors.New("dial tcp: connection refused")) {
+		t.Error("expected true for 'connection refused' error")
+	}
+	if isConnRefused(errors.New("context deadline exceeded")) {
+		t.Error("expected false for non-connection-refused error")
+	}
+}
+
+// captureStdout redirects os.Stdout via a pipe, calls fn, then restores it.
+func captureStdout(t *testing.T, fn func()) string {
+	t.Helper()
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("os.Pipe: %v", err)
+	}
+	old := os.Stdout
+	os.Stdout = w
+	fn()
+	_ = w.Close()
+	os.Stdout = old
+	var buf bytes.Buffer
+	if _, err := io.Copy(&buf, r); err != nil {
+		t.Fatalf("io.Copy: %v", err)
+	}
+	_ = r.Close()
+	return buf.String()
+}
+
+// --- probeSummary ---
+
+func TestProbeSummary_NoSuccess(t *testing.T) {
+	out := captureStdout(t, func() {
+		probeSummary("example.com", 3, 0, 0, 0, 0)
+	})
+	if !strings.Contains(out, "3 sent") {
+		t.Errorf("expected '3 sent' in output, got: %q", out)
+	}
+	if !strings.Contains(out, "0 ok") {
+		t.Errorf("expected '0 ok' in output, got: %q", out)
+	}
+	if strings.Contains(out, "latency") {
+		t.Errorf("expected no latency line when success=0, got: %q", out)
+	}
+}
+
+func TestProbeSummary_WithSuccess(t *testing.T) {
+	out := captureStdout(t, func() {
+		probeSummary("example.com", 3, 2,
+			50*time.Millisecond, 150*time.Millisecond, 200*time.Millisecond)
+	})
+	if !strings.Contains(out, "3 sent") {
+		t.Errorf("expected '3 sent' in output, got: %q", out)
+	}
+	if !strings.Contains(out, "latency") {
+		t.Errorf("expected latency line when success>0, got: %q", out)
+	}
+}
+
+// --- pinchSummary ---
+
+func TestPinchSummary_NoOpen(t *testing.T) {
+	out := captureStdout(t, func() {
+		pinchSummary("example.com:80", 3, 0, 0, 0, 0)
+	})
+	if !strings.Contains(out, "3 sent") {
+		t.Errorf("expected '3 sent' in output, got: %q", out)
+	}
+	if !strings.Contains(out, "0 open") {
+		t.Errorf("expected '0 open' in output, got: %q", out)
+	}
+	if strings.Contains(out, "latency") {
+		t.Errorf("expected no latency line when open=0, got: %q", out)
+	}
+}
+
+func TestPinchSummary_WithOpen(t *testing.T) {
+	out := captureStdout(t, func() {
+		pinchSummary("example.com:80", 3, 2,
+			10*time.Millisecond, 100*time.Millisecond, 110*time.Millisecond)
+	})
+	if !strings.Contains(out, "latency") {
+		t.Errorf("expected latency line when open>0, got: %q", out)
+	}
+}
+
+// --- printDryRun ---
+
+func makeDryRunConfig(mode string) *config.Config {
+	cfg := &config.Config{}
+	cfg.Targets = []config.TargetConfig{
+		{URL: "https://example.com", Type: "http", Weight: 10},
+		{URL: "example.com", Type: "dns", Weight: 3},
+	}
+	cfg.Pacing.Mode = mode
+	cfg.Pacing.MinDelayMs = 800
+	cfg.Pacing.MaxDelayMs = 8000
+	cfg.Pacing.RequestsPerMinute = 60
+	cfg.Limits.MaxWorkers = 4
+	cfg.Limits.MaxBrowserWorkers = 1
+	cfg.Limits.CPUThresholdPct = 60
+	cfg.Limits.MemoryThresholdMB = 512
+	return cfg
+}
+
+func TestPrintDryRun_HumanMode(t *testing.T) {
+	cfg := makeDryRunConfig("human")
+	out := captureStdout(t, func() {
+		printDryRun("config/test.yaml", cfg, 0)
+	})
+	if !strings.Contains(out, "human") {
+		t.Errorf("expected 'human' pacing in output, got: %q", out)
+	}
+	if !strings.Contains(out, "https://example.com") {
+		t.Errorf("expected target URL in output, got: %q", out)
+	}
+}
+
+func TestPrintDryRun_RateLimitedMode(t *testing.T) {
+	cfg := makeDryRunConfig("rate_limited")
+	out := captureStdout(t, func() {
+		printDryRun("config/test.yaml", cfg, 0)
+	})
+	if !strings.Contains(out, "rate_limited") {
+		t.Errorf("expected 'rate_limited' in output, got: %q", out)
+	}
+}
+
+func TestPrintDryRun_ScheduledMode(t *testing.T) {
+	cfg := makeDryRunConfig("scheduled")
+	cfg.Pacing.Schedule = []config.ScheduleEntry{
+		{Cron: "0 9 * * 1-5", DurationMinutes: 480, RequestsPerMinute: 30},
+	}
+	out := captureStdout(t, func() {
+		printDryRun("config/test.yaml", cfg, 0)
+	})
+	if !strings.Contains(out, "scheduled") {
+		t.Errorf("expected 'scheduled' in output, got: %q", out)
+	}
+	if !strings.Contains(out, "0 9 * * 1-5") {
+		t.Errorf("expected cron expression in output, got: %q", out)
+	}
+}
+
+func TestPrintDryRun_BurstMode(t *testing.T) {
+	cfg := makeDryRunConfig("burst")
+	cfg.Pacing.RampUpS = 30
+	out := captureStdout(t, func() {
+		printDryRun("config/test.yaml", cfg, 60*time.Second)
+	})
+	if !strings.Contains(out, "burst") {
+		t.Errorf("expected 'burst' in output, got: %q", out)
+	}
+	if !strings.Contains(out, "30s") {
+		t.Errorf("expected ramp_up duration in output, got: %q", out)
+	}
+}
+
+func TestPrintDryRun_BurstMode_NoRampUp(t *testing.T) {
+	cfg := makeDryRunConfig("burst")
+	out := captureStdout(t, func() {
+		printDryRun("config/test.yaml", cfg, 0)
+	})
+	if !strings.Contains(out, "none") {
+		t.Errorf("expected 'none' ramp_up in output, got: %q", out)
+	}
+	if !strings.Contains(out, "unlimited") {
+		t.Errorf("expected 'unlimited' duration in output, got: %q", out)
+	}
+}
+
+func TestPrintDryRun_UnknownMode(t *testing.T) {
+	cfg := makeDryRunConfig("foobar")
+	out := captureStdout(t, func() {
+		printDryRun("config/test.yaml", cfg, 0)
+	})
+	if !strings.Contains(out, "foobar") {
+		t.Errorf("expected unknown mode in output, got: %q", out)
+	}
+}
+
+func TestPrintDryRun_EmptyTargets(t *testing.T) {
+	cfg := makeDryRunConfig("human")
+	cfg.Targets = nil
+	out := captureStdout(t, func() {
+		printDryRun("config/test.yaml", cfg, 0)
+	})
+	if !strings.Contains(out, "Targets (0)") {
+		t.Errorf("expected 'Targets (0)' in output, got: %q", out)
 	}
 }

@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"database/sql"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -679,5 +680,215 @@ func TestSafariBookmarks_MissingFile(t *testing.T) {
 func TestWalkSafariNodes_Empty(t *testing.T) {
 	if got := walkSafariNodes(nil); got != nil {
 		t.Errorf("expected nil for empty nodes, got %v", got)
+	}
+}
+
+// --- chromeBookmarks + walkChromeNode ---
+
+const chromeBookmarksJSON = `{
+	"roots": {
+		"bookmark_bar": {
+			"type": "folder",
+			"children": [
+				{"type": "url", "url": "https://example.com"},
+				{"type": "url", "url": "https://go.dev"},
+				{"type": "url", "url": "ftp://oldproto.net"},
+				{
+					"type": "folder",
+					"children": [
+						{"type": "url", "url": "https://nested.example.com"}
+					]
+				}
+			]
+		}
+	}
+}`
+
+func TestChromeBookmarks_HappyPath(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "Bookmarks")
+	if err := os.WriteFile(path, []byte(chromeBookmarksJSON), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	targets, err := chromeBookmarks(path)
+	if err != nil {
+		t.Fatalf("chromeBookmarks: %v", err)
+	}
+
+	urls := map[string]bool{}
+	for _, tgt := range targets {
+		urls[tgt.URL] = true
+	}
+	if !urls["https://example.com"] {
+		t.Error("missing https://example.com")
+	}
+	if !urls["https://go.dev"] {
+		t.Error("missing https://go.dev")
+	}
+	if !urls["https://nested.example.com"] {
+		t.Error("missing https://nested.example.com")
+	}
+	if urls["ftp://oldproto.net"] {
+		t.Error("ftp:// URL should be excluded")
+	}
+}
+
+func TestChromeBookmarks_MissingFile(t *testing.T) {
+	_, err := chromeBookmarks("/tmp/sendit-no-such-Bookmarks")
+	if err == nil {
+		t.Fatal("expected error for missing file, got nil")
+	}
+}
+
+func TestChromeBookmarks_InvalidJSON(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "Bookmarks")
+	if err := os.WriteFile(path, []byte("not json"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := chromeBookmarks(path); err == nil {
+		t.Fatal("expected error for invalid JSON, got nil")
+	}
+}
+
+func TestWalkChromeNode_URLNode(t *testing.T) {
+	raw := json.RawMessage(`{"type":"url","url":"https://example.com"}`)
+	targets := walkChromeNode(raw)
+	if len(targets) != 1 {
+		t.Fatalf("expected 1 target, got %d", len(targets))
+	}
+	if targets[0].URL != "https://example.com" {
+		t.Errorf("expected https://example.com, got %q", targets[0].URL)
+	}
+}
+
+func TestWalkChromeNode_NonHTTPURL(t *testing.T) {
+	raw := json.RawMessage(`{"type":"url","url":"ftp://example.com"}`)
+	targets := walkChromeNode(raw)
+	if len(targets) != 0 {
+		t.Errorf("expected 0 targets for ftp:// URL, got %d", len(targets))
+	}
+}
+
+func TestWalkChromeNode_FolderNode(t *testing.T) {
+	raw := json.RawMessage(`{"type":"folder","children":[{"type":"url","url":"https://child.com"}]}`)
+	targets := walkChromeNode(raw)
+	if len(targets) != 1 {
+		t.Fatalf("expected 1 target from folder, got %d", len(targets))
+	}
+	if targets[0].URL != "https://child.com" {
+		t.Errorf("expected https://child.com, got %q", targets[0].URL)
+	}
+}
+
+func TestWalkChromeNode_InvalidJSON(t *testing.T) {
+	raw := json.RawMessage(`not json`)
+	targets := walkChromeNode(raw)
+	if targets != nil {
+		t.Errorf("expected nil for invalid JSON, got %v", targets)
+	}
+}
+
+// --- firefoxFallbackProfile ---
+
+func TestFirefoxFallbackProfile_HappyPath(t *testing.T) {
+	dir := t.TempDir()
+	profDir := filepath.Join(dir, "abc123.default-release")
+	if err := os.Mkdir(profDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := firefoxFallbackProfile(dir)
+	if err != nil {
+		t.Fatalf("firefoxFallbackProfile: %v", err)
+	}
+	if got != profDir {
+		t.Errorf("expected %q, got %q", profDir, got)
+	}
+}
+
+func TestFirefoxFallbackProfile_NoMatchingDir(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.Mkdir(filepath.Join(dir, "somedir"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := firefoxFallbackProfile(dir); err == nil {
+		t.Fatal("expected error when no default profile dir exists, got nil")
+	}
+}
+
+func TestFirefoxFallbackProfile_MissingDir(t *testing.T) {
+	if _, err := firefoxFallbackProfile("/tmp/sendit-no-such-firefox-dir-" + strings.Repeat("x", 8)); err == nil {
+		t.Fatal("expected error for missing directory, got nil")
+	}
+}
+
+// --- firefoxDefaultProfile ---
+
+func TestFirefoxDefaultProfile_WithValidINI(t *testing.T) {
+	if runtime.GOOS == "darwin" {
+		t.Skip("INI path differs on macOS — test targets linux layout")
+	}
+
+	dir := t.TempDir()
+	profDir := filepath.Join(dir, "profile.default-release")
+	if err := os.Mkdir(profDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	ini := "[Profile0]\nDefault=1\nPath=profile.default-release\n"
+	if err := os.WriteFile(filepath.Join(dir, "profiles.ini"), []byte(ini), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := firefoxDefaultProfile(dir)
+	if err != nil {
+		t.Fatalf("firefoxDefaultProfile: %v", err)
+	}
+	if got != profDir {
+		t.Errorf("expected %q, got %q", profDir, got)
+	}
+}
+
+func TestFirefoxDefaultProfile_FallsBackWithNoINI(t *testing.T) {
+	dir := t.TempDir()
+	profDir := filepath.Join(dir, "xyz.default")
+	if err := os.Mkdir(profDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := firefoxDefaultProfile(dir)
+	if err != nil {
+		t.Fatalf("firefoxDefaultProfile fallback: %v", err)
+	}
+	if got != profDir {
+		t.Errorf("expected %q, got %q", profDir, got)
+	}
+}
+
+// TestHistoryDBInfo_Chrome verifies Chrome returns a valid path and query.
+// chromePath constructs the path without checking that Chrome is installed,
+// so this test works on any linux/darwin machine.
+func TestHistoryDBInfo_Chrome(t *testing.T) {
+	if runtime.GOOS != "linux" && runtime.GOOS != "darwin" {
+		t.Skip("chrome path not supported on this OS")
+	}
+	path, query, err := historyDBInfo("chrome")
+	if err != nil {
+		t.Fatalf("historyDBInfo(chrome): %v", err)
+	}
+	if path == "" {
+		t.Error("expected non-empty path")
+	}
+	if query == "" {
+		t.Error("expected non-empty query")
+	}
+}
+
+func TestHistoryDBInfo_UnsupportedBrowser(t *testing.T) {
+	_, _, err := historyDBInfo("edge")
+	if err == nil {
+		t.Fatal("expected error for unsupported browser, got nil")
 	}
 }

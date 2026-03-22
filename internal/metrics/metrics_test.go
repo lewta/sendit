@@ -1,6 +1,11 @@
 package metrics
 
 import (
+	"context"
+	"fmt"
+	"net"
+	"net/http"
+	"strings"
 	"testing"
 	"time"
 
@@ -102,6 +107,109 @@ func TestRecord_AllDriverTypes(t *testing.T) {
 		r := makeResult(typ, 200, 100*time.Millisecond, 512, nil)
 		m.Record(r) // must not panic
 	}
+}
+
+// freePort finds an available TCP port on loopback.
+func freePort(t *testing.T) int {
+	t.Helper()
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("freePort: %v", err)
+	}
+	port := ln.Addr().(*net.TCPAddr).Port
+	ln.Close()
+	return port
+}
+
+// TestNew_ReturnsUsableMetrics verifies New() creates a non-nil registry
+// and that Record does not panic on it.
+func TestNew_ReturnsUsableMetrics(t *testing.T) {
+	m := New()
+	if m == nil {
+		t.Fatal("New() returned nil")
+	}
+	if m.registry == nil {
+		t.Fatal("New() registry is nil")
+	}
+	// Record must not panic.
+	m.Record(makeResult("http", 200, 100*time.Millisecond, 1024, nil))
+	m.Record(makeResult("http", 0, 50*time.Millisecond, 0, errSentinel{}))
+}
+
+// TestServeHTTP_HealthzRoute verifies the /healthz endpoint returns 200 JSON.
+func TestServeHTTP_HealthzRoute(t *testing.T) {
+	m := New()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	port := freePort(t)
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		m.ServeHTTP(ctx, port)
+	}()
+
+	var resp *http.Response
+	for i := 0; i < 30; i++ {
+		var err error
+		resp, err = http.Get(fmt.Sprintf("http://127.0.0.1:%d/healthz", port))
+		if err == nil {
+			break
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	if resp == nil {
+		t.Fatal("server did not become ready within deadline")
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("healthz status = %d, want 200", resp.StatusCode)
+	}
+	if ct := resp.Header.Get("Content-Type"); !strings.Contains(ct, "application/json") {
+		t.Errorf("Content-Type = %q, want application/json", ct)
+	}
+
+	cancel()
+	<-done
+}
+
+// TestServeHTTP_MetricsRoute verifies the /metrics endpoint returns 200.
+func TestServeHTTP_MetricsRoute(t *testing.T) {
+	m := New()
+	// Record a result so the metrics endpoint has something to show.
+	m.Record(makeResult("http", 200, 100*time.Millisecond, 512, nil))
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	port := freePort(t)
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		m.ServeHTTP(ctx, port)
+	}()
+
+	var resp *http.Response
+	for i := 0; i < 30; i++ {
+		var err error
+		resp, err = http.Get(fmt.Sprintf("http://127.0.0.1:%d/metrics", port))
+		if err == nil {
+			break
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	if resp == nil {
+		t.Fatal("server did not become ready within deadline")
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("metrics status = %d, want 200", resp.StatusCode)
+	}
+
+	cancel()
+	<-done
 }
 
 // TestDomainOf verifies domain extraction from various URL formats.

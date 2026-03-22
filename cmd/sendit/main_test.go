@@ -133,6 +133,71 @@ func TestStartCmd_CaptureFlag(t *testing.T) {
 	}
 }
 
+// TestStartCmd_DurationFlag verifies --duration is registered on startCmd.
+func TestStartCmd_DurationFlag(t *testing.T) {
+	cmd := startCmd()
+	if f := cmd.Flags().Lookup("duration"); f == nil {
+		t.Fatal("--duration flag not registered on startCmd")
+	}
+}
+
+// TestStartCmd_BurstRequiresDuration verifies that starting with pacing.mode=burst
+// but no --duration returns a clear error rather than running indefinitely.
+func TestStartCmd_BurstRequiresDuration(t *testing.T) {
+	// Write a minimal burst config to a temp file.
+	dir := t.TempDir()
+	cfgPath := filepath.Join(dir, "burst.yaml")
+	cfgContent := `
+pacing:
+  mode: burst
+limits:
+  max_workers: 1
+  max_browser_workers: 1
+  cpu_threshold_pct: 80
+  memory_threshold_mb: 512
+rate_limits:
+  default_rps: 1
+backoff:
+  initial_ms: 100
+  max_ms: 1000
+  multiplier: 2.0
+  max_attempts: 1
+targets:
+  - url: "https://example.com"
+    weight: 1
+    type: http
+`
+	if err := os.WriteFile(cfgPath, []byte(cfgContent), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	cmd := startCmd()
+	cmd.SetArgs([]string{"--config", cfgPath})
+	cmd.SetOut(&bytes.Buffer{})
+	cmd.SetErr(&bytes.Buffer{})
+
+	err := cmd.Execute()
+	if err == nil {
+		t.Fatal("expected error when burst mode used without --duration, got nil")
+	}
+	if !containsAny(err.Error(), "--duration", "burst") {
+		t.Errorf("error message should mention --duration or burst, got: %v", err)
+	}
+}
+
+func containsAny(s string, substrs ...string) bool {
+	for _, sub := range substrs {
+		if len(s) >= len(sub) {
+			for i := 0; i <= len(s)-len(sub); i++ {
+				if s[i:i+len(sub)] == sub {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
 // --- exportCmd registration and flags ---
 
 // TestRootCmd_ExportCommandRegistered verifies that exportCmd is added to

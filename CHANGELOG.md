@@ -12,6 +12,23 @@ under the affected version with a reference to the CVE or advisory.
 
 ## [Unreleased]
 
+### Added
+- `mode: burst` pacing mode fires requests at full worker concurrency with no
+  inter-request delay; intended for internal infrastructure testing and load
+  experiments against services you own
+- `pacing.ramp_up_s` config field: optional linear ramp-up for burst mode;
+  inter-request delay decreases from ~50 ms × ramp_up_s down to zero over the
+  specified number of seconds, preventing a cold-start spike
+- `--duration <duration>` flag on `sendit start`: auto-stops the engine after
+  the specified wall-clock time (e.g. `--duration 5m`); triggers the same
+  graceful shutdown as SIGTERM; **required** when `pacing.mode` is `burst`
+
+### Changed
+- Config validation now accepts `mode: burst` and skips the `requests_per_minute`
+  check for burst mode (the field is unused in that mode)
+- Dry-run output now displays burst mode with ramp-up and duration summary,
+  including a reminder that burst is intended for internal infrastructure
+
 ---
 
 ## [0.14.0] - 2026-03-21

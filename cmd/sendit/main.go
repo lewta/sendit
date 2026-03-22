@@ -497,6 +497,7 @@ func startCmd() *cobra.Command {
 		logLevel    string
 		dryRun      bool
 		capturePath string
+		duration    time.Duration
 	)
 
 	cmd := &cobra.Command{
@@ -538,8 +539,13 @@ to pacing mode or resource limits (workers, cpu, memory) require a restart.`,
 				cfg.Output.PCAPFile = capturePath
 			}
 
+			// burst mode requires --duration so runs are always time-bounded.
+			if cfg.Pacing.Mode == "burst" && duration == 0 {
+				return fmt.Errorf("--duration is required when pacing.mode is burst (e.g. --duration 5m)")
+			}
+
 			if dryRun {
-				printDryRun(cfgPath, cfg)
+				printDryRun(cfgPath, cfg, duration)
 				return nil
 			}
 
@@ -559,6 +565,14 @@ to pacing mode or resource limits (workers, cpu, memory) require a restart.`,
 
 			ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 			defer stop()
+
+			// If --duration is set, wrap the context so the engine auto-stops.
+			if duration > 0 {
+				var durationCancel context.CancelFunc
+				ctx, durationCancel = context.WithTimeout(ctx, duration)
+				defer durationCancel()
+				log.Info().Dur("duration", duration).Msg("run will auto-stop after duration")
+			}
 
 			var m *metrics.Metrics
 			if cfg.Metrics.Enabled {
@@ -606,6 +620,7 @@ to pacing mode or resource limits (workers, cpu, memory) require a restart.`,
 	cmd.Flags().StringVar(&logLevel, "log-level", "", "Override log level (debug|info|warn|error)")
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Print config summary and exit without sending any traffic")
 	cmd.Flags().StringVar(&capturePath, "capture", "", "Write a synthetic PCAP file while running (e.g. capture.pcap); finalised on clean shutdown")
+	cmd.Flags().DurationVar(&duration, "duration", 0, "Auto-stop after this wall-clock duration (e.g. 5m, 30s); required when pacing.mode is burst")
 
 	return cmd
 }
@@ -791,7 +806,7 @@ Exits non-zero and prints the validation error on failure.`,
 
 // --- helpers ---
 
-func printDryRun(path string, cfg *config.Config) {
+func printDryRun(path string, cfg *config.Config, duration time.Duration) {
 	fmt.Printf("Config: %s  ✓ valid\n\n", path)
 
 	// Compute total weight.
@@ -832,6 +847,17 @@ func printDryRun(path string, cfg *config.Config) {
 		for i, s := range p.Schedule {
 			fmt.Printf("  [%d] cron: %q  duration: %dm  rpm: %.0f\n", i, s.Cron, s.DurationMinutes, s.RequestsPerMinute)
 		}
+	case "burst":
+		rampUp := "none"
+		if p.RampUpS > 0 {
+			rampUp = fmt.Sprintf("%ds", p.RampUpS)
+		}
+		dur := "unlimited (SIGTERM to stop)"
+		if duration > 0 {
+			dur = duration.String()
+		}
+		fmt.Printf("Pacing:\n  mode: burst | ramp_up: %s | duration: %s\n", rampUp, dur)
+		fmt.Println("  ⚠  burst mode is intended for internal or owned infrastructure only")
 	default:
 		fmt.Printf("Pacing:\n  mode: %s\n", p.Mode)
 	}

@@ -155,13 +155,18 @@ func loadTargetsFile(cfg *Config) error {
 func validate(cfg *Config) error {
 	var errs []string
 
-	validModes := map[string]bool{"human": true, "rate_limited": true, "scheduled": true}
+	validModes := map[string]bool{"human": true, "rate_limited": true, "scheduled": true, "burst": true}
 	if !validModes[cfg.Pacing.Mode] {
-		errs = append(errs, fmt.Sprintf("pacing.mode must be one of human|rate_limited|scheduled, got %q", cfg.Pacing.Mode))
+		errs = append(errs, fmt.Sprintf("pacing.mode must be one of human|rate_limited|scheduled|burst, got %q", cfg.Pacing.Mode))
 	}
 
-	if cfg.Pacing.RequestsPerMinute <= 0 {
+	// requests_per_minute is not used by burst mode; skip the check for it.
+	if cfg.Pacing.Mode != "burst" && cfg.Pacing.RequestsPerMinute <= 0 {
 		errs = append(errs, "pacing.requests_per_minute must be > 0")
+	}
+
+	if cfg.Pacing.RampUpS < 0 {
+		errs = append(errs, "pacing.ramp_up_s must be >= 0")
 	}
 
 	if cfg.Pacing.JitterFactor < 0 || cfg.Pacing.JitterFactor > 1 {

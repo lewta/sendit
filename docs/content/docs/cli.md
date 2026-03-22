@@ -96,6 +96,7 @@ Browser history weights are derived from visit count (capped at 10) so frequentl
 | `--log-level` | | *(from config)* | Override log level: `debug` \| `info` \| `warn` \| `error` |
 | `--dry-run` | | `false` | Print config summary and exit without sending traffic |
 | `--capture` | | `""` | Write a synthetic PCAP file while running; file is finalised on clean shutdown |
+| `--duration` | | `0` (unlimited) | Auto-stop after this wall-clock duration (e.g. `5m`, `30s`, `1h`); **required** when `pacing.mode` is `burst` |
 
 ### Dry-run output example
 

@@ -158,10 +158,17 @@ targets:
 		}
 	}
 
-	// Invalid mode.
-	path := writeTemp(t, strings.ReplaceAll(minimalValidYAML, "mode: human", "mode: burst"))
+	// burst mode is valid (requires no rpm since it fires at full speed).
+	burstYAML := strings.ReplaceAll(minimalValidYAML, "mode: human", "mode: burst")
+	path := writeTemp(t, burstYAML)
+	if _, err := Load(path); err != nil {
+		t.Errorf("mode burst: unexpected error: %v", err)
+	}
+
+	// Truly unknown mode.
+	path = writeTemp(t, strings.ReplaceAll(minimalValidYAML, "mode: human", "mode: aggressive"))
 	if _, err := Load(path); err == nil {
-		t.Error("expected error for invalid pacing mode, got nil")
+		t.Error("expected error for unknown pacing mode, got nil")
 	}
 }
 

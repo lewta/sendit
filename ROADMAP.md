@@ -33,6 +33,7 @@ Features planned for future releases of sendit. Contributions are welcome — op
 - [v0.13.3 — Dependency audit ✓](#v0133--dependency-audit-)
 - [v0.13.4 — Table of contents ✓](#v0134--table-of-contents-for-key-documents-)
 - [v0.14.0 — Safari bookmarks + browser history tests ✓](#v0140--safari-bookmarks--browser-history-tests-)
+- [v0.14.1 — Burst pacing mode + `--duration` flag ✓](#v0141--burst-pacing-mode--duration-flag-)
 
 **Planned**
 - [v0.11.2 — AUR package](#v0112--aur-package)
@@ -284,7 +285,7 @@ yay -S sendit    # or: paru -S sendit
 
 ---
 
-## v0.14.1 — Burst pacing mode + `--duration` flag
+## v0.14.1 — Burst pacing mode + `--duration` flag ✓
 
 Add an explicit opt-in `burst` pacing mode for internal infrastructure testing and controlled load experiments. sendit stays polite by default — burst requires being asked nicely.
 

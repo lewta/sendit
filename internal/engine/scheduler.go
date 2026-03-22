@@ -29,11 +29,15 @@ type Scheduler struct {
 
 	// limiter is only set in rate_limited / scheduled mode; nil otherwise.
 	limiter atomic.Pointer[rate.Limiter]
+
+	// startedAt records when the scheduler was created. Used by burst mode
+	// to compute the linear ramp-up delay.
+	startedAt time.Time
 }
 
 // NewScheduler creates a Scheduler from the pacing config.
 func NewScheduler(cfg config.PacingConfig) *Scheduler {
-	s := &Scheduler{cfg: cfg}
+	s := &Scheduler{cfg: cfg, startedAt: time.Now()}
 
 	s.minDelayMs.Store(int64(cfg.MinDelayMs))
 	s.maxDelayMs.Store(int64(cfg.MaxDelayMs))
@@ -45,7 +49,7 @@ func NewScheduler(cfg config.PacingConfig) *Scheduler {
 		s.limiter.Store(rate.NewLimiter(rate.Limit(rpm/60.0), 1))
 	case "scheduled":
 		s.inWindow.Store(false)
-	default: // human
+	default: // human, burst
 	}
 
 	return s
@@ -117,6 +121,8 @@ func (s *Scheduler) Wait(ctx context.Context) error {
 		return s.rateLimitedWait(ctx)
 	case "scheduled":
 		return s.scheduledWait(ctx)
+	case "burst":
+		return s.burstWait(ctx)
 	default:
 		return s.humanWait(ctx)
 	}
@@ -150,8 +156,8 @@ func (s *Scheduler) UpdatePacing(cfg config.PacingConfig) {
 		s.limiter.Store(rate.NewLimiter(rate.Limit(rpm/60.0), 1))
 		s.activeRPM.Store(rpm)
 		log.Info().Float64("rpm", rpm).Msg("hot-reload: rate_limited pacing updated")
-	case "scheduled":
-		log.Warn().Msg("hot-reload: scheduled pacing changes require restart")
+	case "scheduled", "burst":
+		log.Warn().Str("mode", s.cfg.Mode).Msg("hot-reload: pacing changes require restart")
 	}
 }
 
@@ -177,6 +183,26 @@ func (s *Scheduler) scheduledWait(ctx context.Context) error {
 		}
 	}
 	return s.rateLimitedWait(ctx)
+}
+
+// burstWait returns immediately once the ramp-up period has elapsed.
+// During the ramp-up period it adds a linearly decreasing inter-request delay:
+// delay = 50ms × remaining_ramp_up_seconds (capped at 5 s).
+// This creates a smooth traffic ramp without requiring Pool surgery.
+func (s *Scheduler) burstWait(ctx context.Context) error {
+	rampUpS := s.cfg.RampUpS
+	if rampUpS <= 0 {
+		return nil // no ramp-up — fire immediately at full concurrency
+	}
+	remaining := time.Duration(rampUpS)*time.Second - time.Since(s.startedAt)
+	if remaining <= 0 {
+		return nil // ramp-up period complete
+	}
+	delayMs := int64(remaining.Seconds() * 50)
+	if delayMs > 5000 {
+		delayMs = 5000
+	}
+	return sleepCtx(ctx, time.Duration(delayMs)*time.Millisecond)
 }
 
 func sleepCtx(ctx context.Context, d time.Duration) error {

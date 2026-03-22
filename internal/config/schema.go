@@ -27,12 +27,16 @@ type TargetDefaultsConfig struct {
 
 // PacingConfig controls how requests are spaced in time.
 type PacingConfig struct {
-	Mode              string          `mapstructure:"mode"` // human | rate_limited | scheduled
+	Mode              string          `mapstructure:"mode"` // human | rate_limited | scheduled | burst
 	RequestsPerMinute float64         `mapstructure:"requests_per_minute"`
 	JitterFactor      float64         `mapstructure:"jitter_factor"`
 	MinDelayMs        int             `mapstructure:"min_delay_ms"`
 	MaxDelayMs        int             `mapstructure:"max_delay_ms"`
 	Schedule          []ScheduleEntry `mapstructure:"schedule"`
+	// RampUpS is the number of seconds over which burst mode linearly
+	// increases from a throttled start to full-speed dispatch. Only used
+	// when Mode is "burst". 0 means no ramp-up (immediate full speed).
+	RampUpS int `mapstructure:"ramp_up_s"`
 }
 
 // ScheduleEntry defines a cron-based active window with its own RPM.

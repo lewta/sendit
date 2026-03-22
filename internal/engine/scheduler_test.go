@@ -148,7 +148,97 @@ func TestScheduler_Scheduled_OutsideWindow(t *testing.T) {
 	}
 }
 
-// TestSleepCtx_ShortDuration verifies sleepCtx respects context.
+// --- burst mode ---
+
+func burstCfg(rampUpS int) config.PacingConfig {
+	return config.PacingConfig{
+		Mode:    "burst",
+		RampUpS: rampUpS,
+	}
+}
+
+// TestScheduler_Burst_NoRampUp verifies burst mode with no ramp-up returns
+// immediately on every call.
+func TestScheduler_Burst_NoRampUp(t *testing.T) {
+	s := NewScheduler(burstCfg(0))
+	ctx := context.Background()
+
+	for i := 0; i < 10; i++ {
+		start := time.Now()
+		if err := s.Wait(ctx); err != nil {
+			t.Fatalf("iter %d: unexpected error: %v", i, err)
+		}
+		if elapsed := time.Since(start); elapsed > 20*time.Millisecond {
+			t.Errorf("iter %d: burst with no ramp-up took %v; expected near-zero", i, elapsed)
+		}
+	}
+}
+
+// TestScheduler_Burst_RampUp verifies that the first call during the ramp-up
+// period adds a non-zero delay, and that calls after ramp-up complete are immediate.
+func TestScheduler_Burst_RampUp(t *testing.T) {
+	// ramp_up_s = 1; initial delay = ~50ms (50ms * 1s remaining)
+	s := NewScheduler(burstCfg(1))
+	ctx := context.Background()
+
+	// First call should be delayed (ramp-up not yet complete).
+	start := time.Now()
+	if err := s.Wait(ctx); err != nil {
+		t.Fatalf("first Wait error: %v", err)
+	}
+	if elapsed := time.Since(start); elapsed < 10*time.Millisecond {
+		t.Errorf("expected ramp-up delay on first call, got %v", elapsed)
+	}
+
+	// After 1s the ramp-up is complete; subsequent calls should be immediate.
+	time.Sleep(1100 * time.Millisecond)
+	start = time.Now()
+	if err := s.Wait(ctx); err != nil {
+		t.Fatalf("post-ramp Wait error: %v", err)
+	}
+	if elapsed := time.Since(start); elapsed > 20*time.Millisecond {
+		t.Errorf("after ramp-up: expected near-zero delay, got %v", elapsed)
+	}
+}
+
+// TestScheduler_Burst_ContextCancel verifies Wait returns when context is cancelled
+// during the ramp-up sleep.
+func TestScheduler_Burst_ContextCancel(t *testing.T) {
+	// ramp_up_s = 60; initial delay ≈ 3000ms — long enough to test cancellation.
+	s := NewScheduler(burstCfg(60))
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+
+	start := time.Now()
+	err := s.Wait(ctx)
+	elapsed := time.Since(start)
+
+	if err == nil {
+		t.Fatal("expected context error during ramp-up sleep, got nil")
+	}
+	if elapsed > 500*time.Millisecond {
+		t.Errorf("Wait returned too late after cancel: %v", elapsed)
+	}
+}
+
+// TestScheduler_Burst_SteadyStateAfterRampUp verifies that Wait is called
+// after the ramp-up period ends and returns immediately.
+func TestScheduler_Burst_SteadyStateAfterRampUp(t *testing.T) {
+	s := NewScheduler(burstCfg(1))
+	// Override startedAt so ramp-up is already in the past.
+	s.startedAt = time.Now().Add(-2 * time.Second)
+	ctx := context.Background()
+
+	start := time.Now()
+	if err := s.Wait(ctx); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if elapsed := time.Since(start); elapsed > 20*time.Millisecond {
+		t.Errorf("expected near-zero delay after ramp-up complete, got %v", elapsed)
+	}
+}
+
+// TestScheduler_Burst_SteadyStateAfterRampUp verifies sleepCtx respects context.
 func TestSleepCtx_ShortDuration(t *testing.T) {
 	ctx := context.Background()
 	start := time.Now()

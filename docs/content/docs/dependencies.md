@@ -5,7 +5,7 @@ weight: 95
 description: "Direct dependencies, their purpose, and their licences."
 ---
 
-sendit has 12 direct runtime dependencies. All are permissive open-source licences
+sendit has 14 direct runtime dependencies. All are permissive open-source licences
 compatible with the project's [MIT licence](https://github.com/lewta/sendit/blob/main/LICENSE).
 
 The module graph is managed with `go mod tidy` and kept minimal — no dependency
@@ -15,6 +15,8 @@ appears that cannot be justified by the table below.
 
 | Module | Version | Licence | Purpose |
 |--------|---------|---------|---------|
+| [`github.com/charmbracelet/bubbletea`](https://github.com/charmbracelet/bubbletea) | v1.3.10 | MIT | Elm-architecture TUI framework — powers the `--tui` terminal dashboard |
+| [`github.com/charmbracelet/lipgloss`](https://github.com/charmbracelet/lipgloss) | v1.1.0 | MIT | Style definitions for the terminal UI (bold labels, colour-coded counters) |
 | [`github.com/chromedp/chromedp`](https://github.com/chromedp/chromedp) | v0.15.0 | MIT | Browser automation via the Chrome DevTools Protocol — powers the `browser` driver |
 | [`github.com/coder/websocket`](https://github.com/coder/websocket) | v1.8.14 | ISC | WebSocket client — powers the `websocket` driver |
 | [`github.com/miekg/dns`](https://github.com/miekg/dns) | v1.1.72 | BSD-3-Clause | Full-featured DNS client and server library — powers the `dns` driver |
@@ -45,7 +47,7 @@ All dependency licences are permissive and compatible with the project's MIT lic
 
 | Licence | Dependencies |
 |---------|-------------|
-| MIT | `chromedp`, `cron/v3`, `zerolog`, `viper` |
+| MIT | `bubbletea`, `lipgloss`, `chromedp`, `cron/v3`, `zerolog`, `viper` |
 | ISC | `coder/websocket` |
 | BSD-3-Clause | `miekg/dns`, `gopsutil/v3`, `x/net`, `x/time`, `modernc.org/sqlite` |
 | Apache-2.0 | `prometheus/client_golang`, `cobra` |

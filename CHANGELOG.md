@@ -14,6 +14,15 @@ under the affected version with a reference to the CVE or advisory.
 
 ---
 
+## [0.15.3] - 2026-03-24
+
+### Fixed
+- `CLAUDE.md`: correct Go download URL (was `go1.22`, now `go1.24`); add `burst` pacing mode to architecture notes; add `internal/output` and `internal/pcap` to key packages table
+- Docs site (`_index.md`): add `burst` to pacing modes description in sections table
+- Docs site (`dependencies.md`): remove `howett.net/plist` from direct dependencies table (it is an indirect dependency); correct count from 13 to 12; remove from licence compatibility table
+
+---
+
 ## [0.15.0] - 2026-03-22
 
 ### Added
@@ -497,7 +506,8 @@ landed on v0.11.2 (out-of-sequence due to unblocking prerequisites).
 
 ---
 
-[Unreleased]: https://github.com/lewta/sendit/compare/v0.15.0...HEAD
+[Unreleased]: https://github.com/lewta/sendit/compare/v0.15.3...HEAD
+[0.15.3]: https://github.com/lewta/sendit/compare/v0.15.0...v0.15.3
 [0.15.0]: https://github.com/lewta/sendit/compare/v0.14.2...v0.15.0
 [0.14.2]: https://github.com/lewta/sendit/compare/v0.14.1...v0.14.2
 [0.14.1]: https://github.com/lewta/sendit/compare/v0.14.0...v0.14.1

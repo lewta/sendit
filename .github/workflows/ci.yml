@@ -158,16 +158,16 @@ jobs:
           cache: true
 
       - name: Fuzz config loader
-        run: go test -fuzz=FuzzLoad -fuzztime=30s ./internal/config/
+        run: bash scripts/fuzz.sh -fuzz=FuzzLoad -fuzztime=30s ./internal/config/
 
       - name: Fuzz task selector
-        run: go test -fuzz=FuzzSelector -fuzztime=30s ./internal/task/
+        run: bash scripts/fuzz.sh -fuzz=FuzzSelector -fuzztime=30s ./internal/task/
 
       - name: Fuzz error classifier
-        run: go test -fuzz=FuzzClassifyError -fuzztime=30s ./internal/ratelimit/
+        run: bash scripts/fuzz.sh -fuzz=FuzzClassifyError -fuzztime=30s ./internal/ratelimit/
 
       - name: Fuzz status code classifier
-        run: go test -fuzz=FuzzClassifyStatusCode -fuzztime=30s ./internal/ratelimit/
+        run: bash scripts/fuzz.sh -fuzz=FuzzClassifyStatusCode -fuzztime=30s ./internal/ratelimit/
 
       - name: Fuzz PCAP writer
-        run: go test -fuzz=FuzzWriteRecord -fuzztime=30s ./internal/pcap/
+        run: bash scripts/fuzz.sh -fuzz=FuzzWriteRecord -fuzztime=30s ./internal/pcap/

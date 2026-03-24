@@ -40,7 +40,7 @@ Features planned for future releases of sendit. Contributions are welcome — op
 
 **Planned**
 - [v0.15.1 — Integration test suite expansion](#v0151--integration-test-suite-expansion) ✓
-- [v0.15.2 — Codecov Test Analytics](#v0152--codecov-test-analytics)
+- [v0.15.2 — Codecov Test Analytics](#v0152--codecov-test-analytics) ✓
 - [v1.0.0 — TUI + stable API](#v100--tui--stable-api)
 
 **Research**
@@ -579,7 +579,7 @@ coverage into Codecov.
 
 ---
 
-## v0.15.2 — Codecov Test Analytics
+## v0.15.2 — Codecov Test Analytics ✓
 
 Surface per-test pass/fail data in Codecov so failed test names and messages appear
 directly in PR comments, removing the need to dig into CI logs.

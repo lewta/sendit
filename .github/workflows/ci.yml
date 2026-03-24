@@ -33,13 +33,23 @@ jobs:
           go-version-file: go.mod
           cache: true
 
+      - name: Install gotestsum
+        run: go install gotest.tools/gotestsum@latest
+
       - name: Test
-        run: go test -race -coverprofile=coverage.txt -covermode=atomic ./...
+        run: gotestsum --junitfile junit.xml -- -race -coverprofile=coverage.txt -covermode=atomic ./...
 
       - uses: codecov/codecov-action@1af58845a975a7985b0beb0cbe6fbbb71a41dbad  # v5.5.3
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: coverage.txt
+          fail_ci_if_error: true
+
+      - uses: codecov/test-results-action@0fa95f0e1eeaafde2c782583b36b28ad0d8c77d3  # v1.2.1
+        if: ${{ !cancelled() }}
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: junit.xml
           fail_ci_if_error: true
 
   integration:

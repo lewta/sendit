@@ -37,10 +37,11 @@ Features planned for future releases of sendit. Contributions are welcome — op
 - [v0.14.1 — Burst pacing mode + `--duration` flag ✓](#v0141--burst-pacing-mode--duration-flag-)
 - [v0.14.2 — AUR latest sync ✓](#v0142--aur-latest-sync-)
 - [v0.15.0 — Test coverage improvement ✓](#v0150--test-coverage-improvement-)
+- [v0.15.1 — Integration test suite expansion ✓](#v0151--integration-test-suite-expansion)
+- [v0.15.2 — Codecov Test Analytics ✓](#v0152--codecov-test-analytics)
+- [v0.15.3 — Docs audit + fuzz CI fix ✓](#v0153--docs-audit--fuzz-ci-fix)
 
 **Planned**
-- [v0.15.1 — Integration test suite expansion](#v0151--integration-test-suite-expansion) ✓
-- [v0.15.2 — Codecov Test Analytics](#v0152--codecov-test-analytics) ✓
 - [v1.0.0 — TUI + stable API](#v100--tui--stable-api)
 
 **Research**
@@ -610,8 +611,10 @@ directly in PR comments, removing the need to dig into CI logs.
 
 Terminal dashboard and commitment to a stable public API. By this point the OSSF Scorecard improvements (v0.12.x) will be in place; the `Contributors` check is expected to improve naturally as the project gains visibility following the TUI release.
 
-- Live terminal UI using [Bubble Tea](https://github.com/charmbracelet/bubbletea) behind a `--tui` flag; plain log output remains the default
-- Graceful fallback to plain logs when stdout is not a TTY
+- ✓ Live terminal UI using [Bubble Tea](https://github.com/charmbracelet/bubbletea) behind a `--tui` flag; plain log output remains the default
+- ✓ Graceful fallback to plain logs when stdout is not a TTY (`ModeCharDevice` detection; zerolog silenced when TUI active)
+- ✓ `internal/tui` package: `State` (lock-free ring buffer + atomic counters), Bubble Tea model with sparkline, `Run` entry point
+- ✓ `Engine.SetObserver` hook — called after every dispatch; zero coupling to TUI internals
 - v1.0.0 marks a stability commitment: CLI flags, config schema, and Prometheus metric names will not have breaking changes without a major version bump
 
 ```

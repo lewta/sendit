@@ -19,6 +19,7 @@ import (
 	"github.com/lewta/sendit/internal/metrics"
 	"github.com/lewta/sendit/internal/pcap"
 	"github.com/lewta/sendit/internal/task"
+	"github.com/lewta/sendit/internal/tui"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
@@ -498,6 +499,7 @@ func startCmd() *cobra.Command {
 		dryRun      bool
 		capturePath string
 		duration    time.Duration
+		tuiFlag     bool
 	)
 
 	cmd := &cobra.Command{
@@ -610,6 +612,19 @@ to pacing mode or resource limits (workers, cpu, memory) require a restart.`,
 				}
 			}()
 
+			if tuiFlag {
+				fi, err := os.Stdout.Stat()
+				isTerminal := err == nil && (fi.Mode()&os.ModeCharDevice) != 0
+				if isTerminal {
+					zerolog.SetGlobalLevel(zerolog.Disabled)
+					st := tui.NewState()
+					eng.SetObserver(st.Record)
+					go eng.Run(ctx)
+					return tui.Run(ctx, st, cfg)
+				}
+				log.Warn().Msg("--tui: stdout is not a terminal, falling back to plain output")
+			}
+
 			eng.Run(ctx)
 			return nil
 		},
@@ -621,6 +636,7 @@ to pacing mode or resource limits (workers, cpu, memory) require a restart.`,
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Print config summary and exit without sending any traffic")
 	cmd.Flags().StringVar(&capturePath, "capture", "", "Write a synthetic PCAP file while running (e.g. capture.pcap); finalised on clean shutdown")
 	cmd.Flags().DurationVar(&duration, "duration", 0, "Auto-stop after this wall-clock duration (e.g. 5m, 30s); required when pacing.mode is burst")
+	cmd.Flags().BoolVar(&tuiFlag, "tui", false, "Enable the terminal UI (requires a TTY; silently ignored otherwise)")
 
 	return cmd
 }

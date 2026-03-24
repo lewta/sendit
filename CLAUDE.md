@@ -7,8 +7,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 Go is **not in PATH** on this machine. Download it first:
 
 ```sh
-curl -Lo /tmp/go.tar.gz https://go.dev/dl/go1.22.linux-amd64.tar.gz
-tar -C /tmp -xzf /tmp/go.tar.gz
+curl -Lo /tmp/go124.tar.gz https://go.dev/dl/go1.24.0.linux-amd64.tar.gz
+tar -C /tmp -xzf /tmp/go124.tar.gz
 export PATH=/tmp/go/bin:$PATH
 ```
 
@@ -55,19 +55,22 @@ Backoff and per-domain rate-limit waits happen **inside** the goroutine so a slo
 
 | Package | Role |
 |---|---|
-| `internal/engine` | `Engine` owns the dispatch loop. `Scheduler` handles pacing (human/rate_limited/scheduled). `Pool` is a semaphore with a sub-semaphore for browser workers. |
+| `internal/engine` | `Engine` owns the dispatch loop. `Scheduler` handles pacing (human/rate_limited/scheduled/burst). `Pool` is a semaphore with a sub-semaphore for browser workers. |
 | `internal/config` | Viper-backed YAML loader. `schema.go` defines all struct types. Validates on load; `targets_file` is parsed here too. |
 | `internal/task` | `Task`/`Result` types. `Selector` uses the Vose alias method for O(1) weighted random picks. |
 | `internal/ratelimit` | `Registry` — per-domain `x/time/rate` token buckets. `BackoffRegistry` — decorrelated jitter backoff (AWS-style); shared by all domains, keyed by hostname. `ClassifyError`/`ClassifyStatusCode` unify error handling across all driver types. |
 | `internal/driver` | `Driver` interface with four implementations: `http`, `browser` (chromedp), `dns` (miekg/dns), `websocket` (coder/websocket). DNS RCODEs are mapped to HTTP-like status codes so the engine's error classifier works uniformly. |
 | `internal/resource` | gopsutil CPU/RAM poller. `Admit()` blocks dispatch when either threshold is exceeded. |
 | `internal/metrics` | Prometheus counters/histograms. `Noop()` returns a no-op implementation when metrics are disabled — avoids nil checks everywhere. |
+| `internal/output` | JSONL/CSV result writer. A dedicated goroutine drains results non-blocking to the dispatch loop. |
+| `internal/pcap` | Synthetic PCAP writer (LINKTYPE_USER0/147). No CGO or root required. |
 
 ### Pacing modes
 
 - **`human`** — uniform random delay between `min_delay_ms` and `max_delay_ms`; `requests_per_minute` is ignored.
 - **`rate_limited`** — `x/time/rate` token bucket at `requests_per_minute` plus ≤200 ms random jitter.
 - **`scheduled`** — cron expressions open windows; within each window behaves like `rate_limited`. Outside a window, `scheduledWait` polls every 5 s. The `Scheduler.limiter` `atomic.Value` is **only populated** in `rate_limited` and `scheduled` modes — the `mode: human` path never touches it, so casting it is safe only after checking the mode.
+- **`burst`** — fires requests as fast as worker slots allow with no inter-request delay. Requires `--duration` on `sendit start`. Optional `ramp_up_s` linearly increases speed from slow to full over N seconds.
 
 ### Browser driver
 

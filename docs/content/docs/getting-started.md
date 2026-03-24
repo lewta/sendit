@@ -185,6 +185,28 @@ By default `start` writes a PID file to `/tmp/sendit.pid` so you can manage the 
 
 Use `--foreground` to skip the PID file (useful in containers or CI).
 
+## Run with the terminal UI
+
+Add `--tui` to get a live dashboard instead of log output:
+
+```sh
+./sendit start --config config/my.yaml --tui
+```
+
+```
+sendit — q or ctrl-c to stop
+
+Mode      human · 800–8000ms delay · 4 workers
+Running   4m 12s
+
+Requests  48 total · 47 ok · 1 errors (2.1%)
+Latency   avg 142ms · p95 380ms
+
+          ▁▁▂▃▄▅▄▃▂▁▂▃▄▅▆▇█▇▆▅▄▃▂▁▁▂▃▄▅▆▅▄
+```
+
+Press `q` or `ctrl-c` to stop — the engine finishes any in-flight requests before exiting. When stdout is not a TTY (pipe, redirect, CI), `--tui` is silently ignored and plain logging continues.
+
 ## Run with Docker
 
 The `docker/` directory in the repository contains a ready-to-use setup. No binary download needed — the image builds from source.

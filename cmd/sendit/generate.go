@@ -187,7 +187,7 @@ func targetsFromCrawl(seedURL string, maxDepth, maxPages int, ignoreRobots bool)
 	if base.Scheme != "http" && base.Scheme != "https" {
 		return nil, fmt.Errorf("seed URL must be http:// or https://; got scheme %q", base.Scheme)
 	}
-	base.Fragment = ""
+	normalizeCrawlURL(base)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
@@ -275,7 +275,7 @@ func extractLinks(n *html.Node, pageURL, base *url.URL) []string {
 						break
 					}
 					abs := pageURL.ResolveReference(ref)
-					abs.Fragment = ""
+					normalizeCrawlURL(abs)
 					if abs.Scheme == base.Scheme && abs.Host == base.Host {
 						links = append(links, abs.String())
 					}
@@ -289,6 +289,19 @@ func extractLinks(n *html.Node, pageURL, base *url.URL) []string {
 	}
 	walk(n)
 	return links
+}
+
+// normalizeCrawlURL strips fragment, query string, and trailing slashes from
+// non-root paths so that https://example.com and https://example.com/ are
+// treated as the same URL during crawl deduplication.
+func normalizeCrawlURL(u *url.URL) {
+	u.Fragment = ""
+	u.RawQuery = ""
+	if u.Path == "" {
+		u.Path = "/"
+	} else if u.Path != "/" {
+		u.Path = strings.TrimRight(u.Path, "/")
+	}
 }
 
 // fetchRobots downloads /robots.txt and returns the Disallow path prefixes

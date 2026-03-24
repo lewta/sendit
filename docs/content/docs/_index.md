@@ -6,6 +6,24 @@ description: "Reference documentation for sendit — a flexible traffic generato
 
 Welcome to the sendit reference documentation.
 
+## Terminal UI
+
+Run `sendit start --tui` for a live dashboard — no extra config needed:
+
+```
+sendit — q or ctrl-c to stop
+
+Mode      rate_limited · 60 rpm · 4 workers
+Running   1m 23s
+
+Requests  312 total · 308 ok · 4 errors (1.3%)
+Latency   avg 45ms · p95 118ms
+
+          ▁▂▂▃▄▄▅▆▇▆▅▄▃▃▂▃▄▅▆▇▆▅▄▅▆▇█▇▆▅▄▃▂▁▂▃▄
+```
+
+The sparkline shows the latency distribution of the last 128 requests. Press `q` or `ctrl-c` to stop — the engine shuts down gracefully. Falls back to plain log output automatically when stdout is not a TTY (Docker, CI, pipes). See the [CLI Reference](cli/#terminal-ui---tui) for details.
+
 ## Quick tools — no config required
 
 Two commands let you verify connectivity instantly without writing a config file:

@@ -12,6 +12,9 @@ under the affected version with a reference to the CVE or advisory.
 
 ## [Unreleased]
 
+### Fixed
+- `sendit generate --url`: crawl now normalises URLs before deduplication — strips trailing slashes from non-root paths and removes fragments/query strings so that `https://example.com/page` and `https://example.com/page/` are no longer treated as separate targets
+
 ---
 
 ## [1.0.0] - 2026-03-24

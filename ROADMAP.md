@@ -39,7 +39,7 @@ Features planned for future releases of sendit. Contributions are welcome — op
 - [v0.15.0 — Test coverage improvement ✓](#v0150--test-coverage-improvement-)
 
 **Planned**
-- [v0.15.1 — Integration test suite expansion](#v0151--integration-test-suite-expansion)
+- [v0.15.1 — Integration test suite expansion](#v0151--integration-test-suite-expansion) ✓
 - [v0.15.2 — Codecov Test Analytics](#v0152--codecov-test-analytics)
 - [v1.0.0 — TUI + stable API](#v100--tui--stable-api)
 
@@ -527,7 +527,7 @@ This milestone targets the third category and as much of the second as is practi
 
 ---
 
-## v0.15.1 — Integration test suite expansion
+## v0.15.1 — Integration test suite expansion ✓
 
 The engine integration test infrastructure already exists
 (`internal/engine/integration_test.go`, `//go:build integration`, 7 tests, CI job).

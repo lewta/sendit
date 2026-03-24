@@ -3,8 +3,10 @@
 package engine_test
 
 import (
+	"bufio"
 	"context"
 	"encoding/binary"
+	"encoding/json"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -414,5 +416,248 @@ func TestIntegration_WebSocket(t *testing.T) {
 
 	if n := counter.Load(); n < 1 {
 		t.Errorf("expected >= 1 WebSocket connection, got %d", n)
+	}
+}
+
+// TestIntegration_HotReload verifies that calling Reload() while the engine is
+// dispatching causes subsequent requests to hit the new target list and not the
+// old one.
+func TestIntegration_HotReload(t *testing.T) {
+	var beforeReload, afterReload atomic.Int64
+
+	srvA := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		beforeReload.Add(1)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer srvA.Close()
+
+	srvB := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		afterReload.Add(1)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer srvB.Close()
+
+	cfg := testCfg([]config.TargetConfig{
+		{URL: srvA.URL, Type: "http", Weight: 1},
+	})
+
+	eng, err := engine.New(cfg, metrics.Noop())
+	if err != nil {
+		t.Fatalf("engine.New: %v", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	runDone := make(chan struct{})
+	go func() {
+		defer close(runDone)
+		eng.Run(ctx)
+	}()
+
+	// Wait for at least 3 requests to srvA before reloading.
+	deadline := time.Now().Add(8 * time.Second)
+	for beforeReload.Load() < 3 {
+		if time.Now().After(deadline) {
+			t.Fatal("timed out waiting for 3 pre-reload requests")
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	newCfg := testCfg([]config.TargetConfig{
+		{URL: srvB.URL, Type: "http", Weight: 1},
+	})
+	if err := eng.Reload(newCfg); err != nil {
+		t.Fatalf("Reload: %v", err)
+	}
+
+	// Wait for at least 3 requests to srvB after the reload.
+	deadline = time.Now().Add(8 * time.Second)
+	for afterReload.Load() < 3 {
+		if time.Now().After(deadline) {
+			t.Fatalf("timed out waiting for 3 post-reload requests; got %d", afterReload.Load())
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	cancel()
+	<-runDone
+
+	if n := afterReload.Load(); n < 3 {
+		t.Errorf("expected >= 3 requests to srvB after reload, got %d", n)
+	}
+}
+
+// TestIntegration_BurstMode verifies that the engine dispatches requests in
+// burst mode and stops cleanly when the context deadline is reached.
+func TestIntegration_BurstMode(t *testing.T) {
+	var counter atomic.Int64
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		counter.Add(1)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer srv.Close()
+
+	cfg := testCfg([]config.TargetConfig{
+		{URL: srv.URL, Type: "http", Weight: 1},
+	})
+	cfg.Pacing.Mode = "burst"
+	cfg.Pacing.RampUpS = 0
+
+	eng, err := engine.New(cfg, metrics.Noop())
+	if err != nil {
+		t.Fatalf("engine.New: %v", err)
+	}
+
+	// --duration equivalent: cancel the context after 500 ms.
+	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
+	defer cancel()
+
+	start := time.Now()
+	eng.Run(ctx)
+	elapsed := time.Since(start)
+
+	// Engine must stop within 1 s of the deadline.
+	if elapsed > 1500*time.Millisecond {
+		t.Errorf("Run() took %v after context cancel, want < 1.5s", elapsed)
+	}
+	if n := counter.Load(); n < 1 {
+		t.Errorf("expected >= 1 burst request, got %d", n)
+	}
+}
+
+// TestIntegration_OutputWriter_JSONL verifies that enabling output.enabled with
+// format=jsonl causes the engine to write valid newline-delimited JSON records
+// containing url, status, and duration_ms fields.
+func TestIntegration_OutputWriter_JSONL(t *testing.T) {
+	var counter atomic.Int64
+	var once sync.Once
+	done := make(chan struct{})
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if counter.Add(1) >= 5 {
+			once.Do(func() { close(done) })
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer srv.Close()
+
+	f, err := os.CreateTemp("", "sendit-output-*.jsonl")
+	if err != nil {
+		t.Fatal(err)
+	}
+	outPath := f.Name()
+	_ = f.Close()
+	defer os.Remove(outPath)
+
+	cfg := testCfg([]config.TargetConfig{
+		{URL: srv.URL, Type: "http", Weight: 1},
+	})
+	cfg.Output.Enabled = true
+	cfg.Output.File = outPath
+	cfg.Output.Format = "jsonl"
+
+	eng, err := engine.New(cfg, metrics.Noop())
+	if err != nil {
+		t.Fatalf("engine.New: %v", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	runDone := make(chan struct{})
+	go func() {
+		defer close(runDone)
+		eng.Run(ctx)
+	}()
+
+	select {
+	case <-done:
+		cancel()
+	case <-ctx.Done():
+		t.Errorf("timed out waiting for 5 requests; got %d", counter.Load())
+	}
+	<-runDone // wait for the output writer to flush and close
+
+	file, err := os.Open(outPath)
+	if err != nil {
+		t.Fatalf("opening output file: %v", err)
+	}
+	defer file.Close()
+
+	var records int
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := scanner.Text()
+		if line == "" {
+			continue
+		}
+		var rec map[string]any
+		if err := json.Unmarshal([]byte(line), &rec); err != nil {
+			t.Errorf("invalid JSON on line %d: %v — %q", records+1, err, line)
+			continue
+		}
+		if _, ok := rec["url"]; !ok {
+			t.Errorf("record %d missing 'url' field: %v", records+1, rec)
+		}
+		if _, ok := rec["status"]; !ok {
+			t.Errorf("record %d missing 'status' field: %v", records+1, rec)
+		}
+		if _, ok := rec["duration_ms"]; !ok {
+			t.Errorf("record %d missing 'duration_ms' field: %v", records+1, rec)
+		}
+		records++
+	}
+	if err := scanner.Err(); err != nil {
+		t.Fatalf("scanning output file: %v", err)
+	}
+	if records < 5 {
+		t.Errorf("expected >= 5 JSONL records, got %d", records)
+	}
+}
+
+// TestIntegration_RateLimit_PerDomain verifies that per-domain rate limiting
+// is enforced: with DefaultRPS=2 against a single domain, the observed request
+// rate should not materially exceed 2 RPS.
+func TestIntegration_RateLimit_PerDomain(t *testing.T) {
+	var counter atomic.Int64
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		counter.Add(1)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer srv.Close()
+
+	cfg := testCfg([]config.TargetConfig{
+		{URL: srv.URL, Type: "http", Weight: 1},
+	})
+	cfg.Pacing.Mode = "burst" // remove pacing-layer throttle; only rate limiter constrains
+	cfg.Pacing.RampUpS = 0
+	cfg.RateLimits.DefaultRPS = 2
+	cfg.Limits.MaxWorkers = 20 // plenty of workers so the limiter is the bottleneck
+
+	eng, err := engine.New(cfg, metrics.Noop())
+	if err != nil {
+		t.Fatalf("engine.New: %v", err)
+	}
+
+	window := 2 * time.Second
+	ctx, cancel := context.WithTimeout(context.Background(), window)
+	defer cancel()
+
+	eng.Run(ctx)
+
+	got := counter.Load()
+	// Allow generous headroom: token bucket may pre-fill one burst token, and
+	// there is scheduling jitter. Cap at 3× the theoretical max to catch gross
+	// regressions without being brittle.
+	maxAllowed := int64(float64(window/time.Second)*cfg.RateLimits.DefaultRPS*3 + 2)
+	if got > maxAllowed {
+		t.Errorf("observed %d requests in %v with DefaultRPS=%.0f; want <= %d (3× headroom)",
+			got, window, cfg.RateLimits.DefaultRPS, maxAllowed)
+	}
+	if got < 1 {
+		t.Errorf("expected >= 1 request, got 0 — rate limiter may be blocking all dispatch")
 	}
 }

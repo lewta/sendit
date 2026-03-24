@@ -9,7 +9,7 @@ description: "All sendit commands and their flags."
 
 ```
 sendit generate [--targets-file <path>] [--url <url>] [--from-history chrome|firefox|safari] [--from-bookmarks chrome|firefox] [--output <file>]
-sendit start    [-c <path>] [--foreground] [--log-level debug|info|warn|error] [--dry-run] [--capture <file>]
+sendit start    [-c <path>] [--foreground] [--log-level debug|info|warn|error] [--dry-run] [--capture <file>] [--tui]
 sendit probe    <target>    [--type http|dns|websocket] [--interval 1s] [--timeout 5s] [--send <msg>]
 sendit pinch    <host:port> [--type tcp|udp] [--interval 1s] [--timeout 5s]
 sendit export   --pcap <results.jsonl> [--output <results.pcap>]
@@ -97,6 +97,31 @@ Browser history weights are derived from visit count (capped at 10) so frequentl
 | `--dry-run` | | `false` | Print config summary and exit without sending traffic |
 | `--capture` | | `""` | Write a synthetic PCAP file while running; file is finalised on clean shutdown |
 | `--duration` | | `0` (unlimited) | Auto-stop after this wall-clock duration (e.g. `5m`, `30s`, `1h`); **required** when `pacing.mode` is `burst` |
+| `--tui` | | `false` | Enable the live terminal UI (requires a TTY; silently ignored when stdout is piped or redirected) |
+
+### Terminal UI (--tui)
+
+When run on a TTY, `--tui` replaces the default log output with a live dashboard:
+
+```sh
+sendit start --config config/example.yaml --tui
+```
+
+```
+sendit — q or ctrl-c to stop
+
+Mode      rate_limited · 60 rpm · 4 workers
+Running   1m 23s
+
+Requests  312 total · 308 ok · 4 errors (1.3%)
+Latency   avg 45ms · p95 118ms
+
+          ▁▂▂▃▄▄▅▆▇▆▅▄▃▃▂▃▄▅▆▇▆▅▄▅▆▇█▇▆▅▄▃▂▁▂▃▄
+```
+
+The sparkline shows the last 128 successful request latencies, scaled from `▁` (fastest) to `█` (slowest). Press `q` or `ctrl-c` to stop — the engine shuts down gracefully, waiting for in-flight requests to complete.
+
+When stdout is not a TTY (pipe, redirect, Docker, CI), `--tui` is silently ignored and plain zerolog output continues unchanged.
 
 ### Dry-run output example
 

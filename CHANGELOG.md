@@ -12,10 +12,17 @@ under the affected version with a reference to the CVE or advisory.
 
 ## [Unreleased]
 
+---
+
+## [1.0.0] - 2026-03-24
+
 ### Added
 - `sendit start --tui`: live terminal UI powered by Bubble Tea; displays mode, running time, request counts (total/ok/errors), avg/p95 latency, and a latency sparkline; auto-falls back to plain log output when stdout is not a TTY
 - `internal/tui` package: `State` (lock-free shared counters + latency ring buffer), Bubble Tea `model`, and `Run` entry point
 - `Engine.SetObserver(fn)`: hook called after every dispatched result, used by the TUI and available for future integrations
+
+### Stability commitment
+v1.0.0 marks a compatibility guarantee: CLI flags, config schema, and Prometheus metric names will not have breaking changes without a major version bump.
 
 ---
 
@@ -512,7 +519,8 @@ landed on v0.11.2 (out-of-sequence due to unblocking prerequisites).
 
 ---
 
-[Unreleased]: https://github.com/lewta/sendit/compare/v0.15.3...HEAD
+[Unreleased]: https://github.com/lewta/sendit/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/lewta/sendit/compare/v0.15.3...v1.0.0
 [0.15.3]: https://github.com/lewta/sendit/compare/v0.15.0...v0.15.3
 [0.15.0]: https://github.com/lewta/sendit/compare/v0.14.2...v0.15.0
 [0.14.2]: https://github.com/lewta/sendit/compare/v0.14.1...v0.14.2

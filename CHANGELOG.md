@@ -12,6 +12,11 @@ under the affected version with a reference to the CVE or advisory.
 
 ## [Unreleased]
 
+### Added
+- `sendit start --tui`: live terminal UI powered by Bubble Tea; displays mode, running time, request counts (total/ok/errors), avg/p95 latency, and a latency sparkline; auto-falls back to plain log output when stdout is not a TTY
+- `internal/tui` package: `State` (lock-free shared counters + latency ring buffer), Bubble Tea `model`, and `Run` entry point
+- `Engine.SetObserver(fn)`: hook called after every dispatched result, used by the TUI and available for future integrations
+
 ---
 
 ## [0.15.3] - 2026-03-24

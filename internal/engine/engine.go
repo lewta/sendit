@@ -30,6 +30,13 @@ type Engine struct {
 	writer     *output.Writer
 	pcapWriter *pcap.Writer
 	drivers    map[string]driver.Driver
+	observer   atomic.Pointer[func(task.Result)]
+}
+
+// SetObserver registers a function called after every completed dispatch.
+// It is safe to call before or after Run. Pass nil to clear.
+func (e *Engine) SetObserver(fn func(task.Result)) {
+	e.observer.Store(&fn)
 }
 
 // New creates an Engine wired with all dependencies.
@@ -168,6 +175,10 @@ func (e *Engine) dispatch(ctx context.Context, t task.Task) {
 	result := drv.Execute(ctx, t)
 
 	e.metrics.Record(result)
+
+	if obs := e.observer.Load(); obs != nil {
+		(*obs)(result)
+	}
 
 	if e.writer != nil {
 		e.writer.Send(result)

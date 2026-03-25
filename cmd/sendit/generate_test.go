@@ -1035,10 +1035,10 @@ func TestTargetsFromCrawl_SitemapViaRobots(t *testing.T) {
 		switch r.URL.Path {
 		case "/robots.txt":
 			w.Header().Set("Content-Type", "text/plain")
-			_, _ = w.Write([]byte("User-agent: *\nDisallow:\nSitemap: http://" + r.Host + "/sitemap.xml\n"))
+			_, _ = w.Write([]byte("User-agent: *\nDisallow:\nSitemap: http://" + r.Host + "/sitemap.xml\n")) //nolint:gosec // test handler; r.Host is always 127.0.0.1:<port>
 		case "/sitemap.xml":
 			w.Header().Set("Content-Type", "application/xml")
-			_, _ = w.Write([]byte(`<?xml version="1.0"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">` +
+			_, _ = w.Write([]byte(`<?xml version="1.0"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">` + //nolint:gosec // test handler; r.Host is always 127.0.0.1:<port>
 				"<url><loc>http://" + r.Host + "/from-sitemap</loc></url>" +
 				"</urlset>"))
 		case "/":
@@ -1087,11 +1087,11 @@ func TestTargetsFromCrawl_SitemapSchemeNormalised(t *testing.T) {
 		switch r.URL.Path {
 		case "/robots.txt":
 			w.Header().Set("Content-Type", "text/plain")
-			_, _ = w.Write([]byte("User-agent: *\nDisallow:\nSitemap: http://" + r.Host + "/sitemap.xml\n"))
+			_, _ = w.Write([]byte("User-agent: *\nDisallow:\nSitemap: http://" + r.Host + "/sitemap.xml\n")) //nolint:gosec // test handler; r.Host is always 127.0.0.1:<port>
 		case "/sitemap.xml":
 			w.Header().Set("Content-Type", "application/xml")
 			// Sitemap lists the seed root (already in visited set) and one unique URL.
-			_, _ = w.Write([]byte(`<?xml version="1.0"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">` +
+			_, _ = w.Write([]byte(`<?xml version="1.0"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">` + //nolint:gosec // test handler; r.Host is always 127.0.0.1:<port>
 				"<url><loc>http://" + r.Host + "/</loc></url>" +
 				"<url><loc>http://" + r.Host + "/unique-from-sitemap</loc></url>" +
 				"</urlset>"))

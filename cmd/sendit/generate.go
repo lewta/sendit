@@ -5,6 +5,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"encoding/xml"
 	"fmt"
 	"io"
 	"net/http"
@@ -177,7 +178,10 @@ func targetsFromFile(path string) ([]config.TargetConfig, error) {
 // --- source: HTTP crawl ---
 
 // targetsFromCrawl fetches the seed URL, discovers in-domain links up to
-// maxDepth levels deep (BFS), and returns each unique URL as an http target.
+// maxDepth levels deep (BFS), and returns each unique HTML URL as an http
+// target. Non-HTML file extensions (.pdf, .css, .js, images, etc.) are
+// excluded. Sitemap XML files found via robots.txt or as crawled links are
+// parsed for additional URLs rather than included as targets themselves.
 // Respects robots.txt unless ignoreRobots is true.
 func targetsFromCrawl(seedURL string, maxDepth, maxPages int, ignoreRobots bool) ([]config.TargetConfig, error) {
 	base, err := url.Parse(seedURL)
@@ -192,19 +196,28 @@ func targetsFromCrawl(seedURL string, maxDepth, maxPages int, ignoreRobots bool)
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 
-	var disallowed []string
+	var disallowed, sitemaps []string
 	if !ignoreRobots {
-		disallowed = fetchRobots(ctx, base)
+		disallowed, sitemaps = fetchRobotsInfo(ctx, base)
 	}
 
 	type queueItem struct {
-		u     string
-		depth int
+		u       string
+		depth   int
+		sitemap bool // true: parse as sitemap XML, not an HTML crawl target
 	}
 
 	client := &http.Client{Timeout: 10 * time.Second}
 	visited := map[string]bool{base.String(): true}
-	queue := []queueItem{{base.String(), 0}}
+	queue := []queueItem{{base.String(), 0, false}}
+
+	// Seed sitemaps discovered from robots.txt.
+	for _, s := range sitemaps {
+		if !visited[s] {
+			visited[s] = true
+			queue = append(queue, queueItem{s, 0, true})
+		}
+	}
 
 	var targets []config.TargetConfig
 	for len(queue) > 0 && len(targets) < maxPages {
@@ -212,6 +225,35 @@ func targetsFromCrawl(seedURL string, maxDepth, maxPages int, ignoreRobots bool)
 		queue = queue[1:]
 
 		if isDisallowed(item.u, disallowed) {
+			continue
+		}
+
+		if item.sitemap {
+			// Parse sitemap XML and feed discovered in-domain URLs into the queue.
+			locs, err := fetchSitemapLocs(ctx, client, item.u)
+			if err != nil {
+				continue // non-fatal
+			}
+			for _, loc := range locs {
+				u, err := url.Parse(loc)
+				if err != nil || u.Host != base.Host {
+					continue
+				}
+				// Normalise scheme to match the seed URL — sitemaps often list
+				// http:// entries even when the site now serves https://.
+				u.Scheme = base.Scheme
+				normalizeCrawlURL(u)
+				s := u.String()
+				if !visited[s] {
+					visited[s] = true
+					queue = append(queue, queueItem{s, 0, isSitemapURL(s)})
+				}
+			}
+			continue
+		}
+
+		// Skip non-HTML URLs (images, fonts, stylesheets, feeds, etc.).
+		if !isHTMLURL(item.u) {
 			continue
 		}
 
@@ -228,7 +270,7 @@ func targetsFromCrawl(seedURL string, maxDepth, maxPages int, ignoreRobots bool)
 		for _, link := range links {
 			if !visited[link] {
 				visited[link] = true
-				queue = append(queue, queueItem{link, item.depth + 1})
+				queue = append(queue, queueItem{link, item.depth + 1, isSitemapURL(link)})
 			}
 		}
 	}
@@ -304,24 +346,24 @@ func normalizeCrawlURL(u *url.URL) {
 	}
 }
 
-// fetchRobots downloads /robots.txt and returns the Disallow path prefixes
-// for the wildcard user-agent. Returns nil on any error (fail open).
-func fetchRobots(ctx context.Context, base *url.URL) []string {
+// fetchRobotsInfo downloads /robots.txt and returns the Disallow path prefixes
+// for the wildcard user-agent and any Sitemap: URLs declared in the file.
+// Returns nil slices on any error (fail open).
+func fetchRobotsInfo(ctx context.Context, base *url.URL) (disallowed, sitemaps []string) {
 	robotsURL := &url.URL{Scheme: base.Scheme, Host: base.Host, Path: "/robots.txt"}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, robotsURL.String(), nil)
 	if err != nil {
-		return nil
+		return nil, nil
 	}
 	req.Header.Set("User-Agent", generateUserAgent)
 
 	client := &http.Client{Timeout: 5 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil || resp.StatusCode != http.StatusOK {
-		return nil
+		return nil, nil
 	}
 	defer resp.Body.Close() //nolint:errcheck
 
-	var disallowed []string
 	inWildcard := false
 	scanner := bufio.NewScanner(resp.Body)
 	for scanner.Scan() {
@@ -346,9 +388,91 @@ func fetchRobots(ctx context.Context, base *url.URL) []string {
 			if inWildcard && val != "" {
 				disallowed = append(disallowed, val)
 			}
+		case "sitemap":
+			if val != "" {
+				sitemaps = append(sitemaps, val)
+			}
 		}
 	}
-	return disallowed
+	return disallowed, sitemaps
+}
+
+// fetchSitemapLocs downloads a sitemap XML file and returns all <loc> URLs,
+// handling both urlset (regular sitemaps) and sitemapindex (sitemap indexes).
+// Returns nil on any error (fail open).
+func fetchSitemapLocs(ctx context.Context, client *http.Client, sitemapURL string) ([]string, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, sitemapURL, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("User-Agent", generateUserAgent)
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close() //nolint:errcheck
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, nil
+	}
+
+	// Both <urlset><url><loc> and <sitemapindex><sitemap><loc> use <loc>.
+	type locEntry struct {
+		Loc string `xml:"loc"`
+	}
+	var doc struct {
+		URLs     []locEntry `xml:"url"`
+		Sitemaps []locEntry `xml:"sitemap"`
+	}
+	if err := xml.NewDecoder(resp.Body).Decode(&doc); err != nil {
+		return nil, err
+	}
+
+	var locs []string
+	for _, u := range doc.URLs {
+		if u.Loc != "" {
+			locs = append(locs, u.Loc)
+		}
+	}
+	for _, s := range doc.Sitemaps {
+		if s.Loc != "" {
+			locs = append(locs, s.Loc)
+		}
+	}
+	return locs, nil
+}
+
+// isHTMLURL returns true for URLs that are likely HTML pages. URLs with no
+// recognised non-HTML extension are treated as HTML.
+func isHTMLURL(rawURL string) bool {
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return false
+	}
+	ext := strings.ToLower(filepath.Ext(u.Path))
+	switch ext {
+	case ".xml", ".json", ".atom", ".rss",
+		".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx",
+		".css", ".js", ".ts", ".map",
+		".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".ico", ".avif",
+		".woff", ".woff2", ".ttf", ".eot", ".otf",
+		".mp4", ".mp3", ".webm", ".ogg", ".wav",
+		".zip", ".gz", ".tar", ".br":
+		return false
+	}
+	return true
+}
+
+// isSitemapURL returns true for URLs whose filename contains "sitemap" and
+// ends in ".xml" (e.g. /sitemap.xml, /sitemap-index.xml, /sitemaps/news.xml).
+func isSitemapURL(rawURL string) bool {
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return false
+	}
+	name := strings.ToLower(filepath.Base(u.Path))
+	return strings.Contains(name, "sitemap") && strings.HasSuffix(name, ".xml")
 }
 
 // isDisallowed returns true if rawURL's path starts with any disallowed prefix.

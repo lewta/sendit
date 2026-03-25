@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"database/sql"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -1036,12 +1035,12 @@ func TestTargetsFromCrawl_SitemapViaRobots(t *testing.T) {
 		switch r.URL.Path {
 		case "/robots.txt":
 			w.Header().Set("Content-Type", "text/plain")
-			fmt.Fprintf(w, "User-agent: *\nDisallow:\nSitemap: %s/sitemap.xml\n", "http://"+r.Host)
+			_, _ = w.Write([]byte("User-agent: *\nDisallow:\nSitemap: http://" + r.Host + "/sitemap.xml\n"))
 		case "/sitemap.xml":
 			w.Header().Set("Content-Type", "application/xml")
-			fmt.Fprintf(w, `<?xml version="1.0"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-				<url><loc>http://%s/from-sitemap</loc></url>
-			</urlset>`, r.Host)
+			_, _ = w.Write([]byte(`<?xml version="1.0"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">` +
+				"<url><loc>http://" + r.Host + "/from-sitemap</loc></url>" +
+				"</urlset>"))
 		case "/":
 			w.Header().Set("Content-Type", "text/html")
 			_, _ = w.Write([]byte(`<html><body><a href="/from-crawl">crawl</a></body></html>`))
@@ -1088,14 +1087,14 @@ func TestTargetsFromCrawl_SitemapSchemeNormalised(t *testing.T) {
 		switch r.URL.Path {
 		case "/robots.txt":
 			w.Header().Set("Content-Type", "text/plain")
-			fmt.Fprintf(w, "User-agent: *\nDisallow:\nSitemap: http://%s/sitemap.xml\n", r.Host)
+			_, _ = w.Write([]byte("User-agent: *\nDisallow:\nSitemap: http://" + r.Host + "/sitemap.xml\n"))
 		case "/sitemap.xml":
 			w.Header().Set("Content-Type", "application/xml")
-			// Sitemap lists the seed root — already in visited set.
-			fmt.Fprintf(w, `<?xml version="1.0"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-				<url><loc>http://%s/</loc></url>
-				<url><loc>http://%s/unique-from-sitemap</loc></url>
-			</urlset>`, r.Host, r.Host)
+			// Sitemap lists the seed root (already in visited set) and one unique URL.
+			_, _ = w.Write([]byte(`<?xml version="1.0"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">` +
+				"<url><loc>http://" + r.Host + "/</loc></url>" +
+				"<url><loc>http://" + r.Host + "/unique-from-sitemap</loc></url>" +
+				"</urlset>"))
 		default:
 			w.Header().Set("Content-Type", "text/html")
 			_, _ = w.Write([]byte(`<html><body></body></html>`))

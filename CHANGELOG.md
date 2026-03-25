@@ -12,8 +12,13 @@ under the affected version with a reference to the CVE or advisory.
 
 ## [Unreleased]
 
+### Added
+- `sendit generate --url`: sitemap support — `Sitemap:` entries in `robots.txt` and `<a href="*sitemap*.xml">` links found during crawl are now parsed as sitemap XML sources, feeding discovered `<loc>` URLs into the crawl queue; handles both `<urlset>` and `<sitemapindex>` formats
+
 ### Fixed
 - `sendit generate --url`: crawl now normalises URLs before deduplication — strips trailing slashes from non-root paths and removes fragments/query strings so that `https://example.com/page` and `https://example.com/page/` are no longer treated as separate targets
+- `sendit generate --url`: non-HTML file extensions (`.xml`, `.json`, `.pdf`, `.css`, `.js`, images, fonts, media, archives) are now excluded as crawl targets; only pages likely to be HTML are included
+- `sendit generate --url`: sitemap `<loc>` entries with a different scheme than the seed URL (e.g. `http://` locs in an `https://` site's sitemap) are normalised to the seed's scheme, preventing scheme-variant duplicates
 
 ---
 

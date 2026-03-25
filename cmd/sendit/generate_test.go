@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -890,5 +891,236 @@ func TestHistoryDBInfo_UnsupportedBrowser(t *testing.T) {
 	_, _, err := historyDBInfo("edge")
 	if err == nil {
 		t.Fatal("expected error for unsupported browser, got nil")
+	}
+}
+
+// --- isHTMLURL ---
+
+func TestIsHTMLURL(t *testing.T) {
+	cases := []struct {
+		url  string
+		want bool
+	}{
+		{"https://example.com/", true},
+		{"https://example.com/about", true},
+		{"https://example.com/page.html", true},
+		{"https://example.com/feed.xml", false},
+		{"https://example.com/sitemap.xml", false},
+		{"https://example.com/data.json", false},
+		{"https://example.com/doc.pdf", false},
+		{"https://example.com/style.css", false},
+		{"https://example.com/app.js", false},
+		{"https://example.com/logo.png", false},
+		{"https://example.com/icon.svg", false},
+		{"https://example.com/font.woff2", false},
+		{"https://example.com/video.mp4", false},
+		{"https://example.com/archive.zip", false},
+	}
+	for _, c := range cases {
+		got := isHTMLURL(c.url)
+		if got != c.want {
+			t.Errorf("isHTMLURL(%q) = %v, want %v", c.url, got, c.want)
+		}
+	}
+}
+
+// --- isSitemapURL ---
+
+func TestIsSitemapURL(t *testing.T) {
+	cases := []struct {
+		url  string
+		want bool
+	}{
+		{"https://example.com/sitemap.xml", true},
+		{"https://example.com/sitemap-index.xml", true},
+		{"https://example.com/sitemaps/sitemap-news.xml", true},
+		{"https://example.com/feed.xml", false},
+		{"https://example.com/about", false},
+		{"https://example.com/sitemap.html", false},
+	}
+	for _, c := range cases {
+		got := isSitemapURL(c.url)
+		if got != c.want {
+			t.Errorf("isSitemapURL(%q) = %v, want %v", c.url, got, c.want)
+		}
+	}
+}
+
+// --- fetchSitemapLocs ---
+
+func TestFetchSitemapLocs_URLSet(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/xml")
+		_, _ = w.Write([]byte(`<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>https://example.com/page1</loc></url>
+  <url><loc>https://example.com/page2</loc></url>
+</urlset>`))
+	}))
+	defer srv.Close()
+
+	client := &http.Client{}
+	locs, err := fetchSitemapLocs(t.Context(), client, srv.URL+"/sitemap.xml")
+	if err != nil {
+		t.Fatalf("fetchSitemapLocs: %v", err)
+	}
+	if len(locs) != 2 {
+		t.Fatalf("expected 2 locs, got %d: %v", len(locs), locs)
+	}
+}
+
+func TestFetchSitemapLocs_SitemapIndex(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/xml")
+		_, _ = w.Write([]byte(`<?xml version="1.0" encoding="UTF-8"?>
+<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <sitemap><loc>https://example.com/sitemap-pages.xml</loc></sitemap>
+  <sitemap><loc>https://example.com/sitemap-posts.xml</loc></sitemap>
+</sitemapindex>`))
+	}))
+	defer srv.Close()
+
+	client := &http.Client{}
+	locs, err := fetchSitemapLocs(t.Context(), client, srv.URL+"/sitemap-index.xml")
+	if err != nil {
+		t.Fatalf("fetchSitemapLocs: %v", err)
+	}
+	if len(locs) != 2 {
+		t.Fatalf("expected 2 locs, got %d: %v", len(locs), locs)
+	}
+}
+
+// --- crawl: non-HTML filtering ---
+
+func TestTargetsFromCrawl_FiltersNonHTML(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/robots.txt" {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		w.Header().Set("Content-Type", "text/html")
+		_, _ = w.Write([]byte(`<html><body>
+			<a href="/about">About</a>
+			<a href="/feed.xml">Feed</a>
+			<a href="/logo.png">Logo</a>
+			<a href="/doc.pdf">PDF</a>
+		</body></html>`))
+	}))
+	defer srv.Close()
+
+	targets, err := targetsFromCrawl(srv.URL, 1, 50, true)
+	if err != nil {
+		t.Fatalf("targetsFromCrawl: %v", err)
+	}
+	for _, tgt := range targets {
+		if !isHTMLURL(tgt.URL) {
+			t.Errorf("non-HTML URL included as target: %s", tgt.URL)
+		}
+	}
+	// /about must be present; feed/logo/pdf must not.
+	var hasAbout bool
+	for _, tgt := range targets {
+		if strings.HasSuffix(tgt.URL, "/about") {
+			hasAbout = true
+		}
+	}
+	if !hasAbout {
+		t.Error("expected /about in targets")
+	}
+}
+
+// --- crawl: sitemap via robots.txt ---
+
+func TestTargetsFromCrawl_SitemapViaRobots(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/robots.txt":
+			w.Header().Set("Content-Type", "text/plain")
+			fmt.Fprintf(w, "User-agent: *\nDisallow:\nSitemap: %s/sitemap.xml\n", "http://"+r.Host)
+		case "/sitemap.xml":
+			w.Header().Set("Content-Type", "application/xml")
+			fmt.Fprintf(w, `<?xml version="1.0"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+				<url><loc>http://%s/from-sitemap</loc></url>
+			</urlset>`, r.Host)
+		case "/":
+			w.Header().Set("Content-Type", "text/html")
+			_, _ = w.Write([]byte(`<html><body><a href="/from-crawl">crawl</a></body></html>`))
+		default:
+			w.Header().Set("Content-Type", "text/html")
+			_, _ = w.Write([]byte(`<html><body></body></html>`))
+		}
+	}))
+	defer srv.Close()
+
+	targets, err := targetsFromCrawl(srv.URL, 1, 50, false)
+	if err != nil {
+		t.Fatalf("targetsFromCrawl: %v", err)
+	}
+
+	urls := make(map[string]bool, len(targets))
+	for _, tgt := range targets {
+		urls[tgt.URL] = true
+	}
+
+	// URL from sitemap should be present.
+	var hasSitemapURL bool
+	for u := range urls {
+		if strings.HasSuffix(u, "/from-sitemap") {
+			hasSitemapURL = true
+		}
+	}
+	if !hasSitemapURL {
+		t.Errorf("expected URL from sitemap to appear in targets; got: %v", urls)
+	}
+	// The sitemap.xml itself must not appear as a target.
+	for u := range urls {
+		if strings.HasSuffix(u, ".xml") {
+			t.Errorf("sitemap XML file included as a target: %s", u)
+		}
+	}
+}
+
+func TestTargetsFromCrawl_SitemapSchemeNormalised(t *testing.T) {
+	// Sitemap lists URLs with the same scheme as the seed. After scheme
+	// normalization the visited-set deduplicates them so no target appears
+	// twice even if both the crawl and the sitemap discover the same page.
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/robots.txt":
+			w.Header().Set("Content-Type", "text/plain")
+			fmt.Fprintf(w, "User-agent: *\nDisallow:\nSitemap: http://%s/sitemap.xml\n", r.Host)
+		case "/sitemap.xml":
+			w.Header().Set("Content-Type", "application/xml")
+			// Sitemap lists the seed root — already in visited set.
+			fmt.Fprintf(w, `<?xml version="1.0"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+				<url><loc>http://%s/</loc></url>
+				<url><loc>http://%s/unique-from-sitemap</loc></url>
+			</urlset>`, r.Host, r.Host)
+		default:
+			w.Header().Set("Content-Type", "text/html")
+			_, _ = w.Write([]byte(`<html><body></body></html>`))
+		}
+	}))
+	defer srv.Close()
+
+	targets, err := targetsFromCrawl(srv.URL, 1, 50, false)
+	if err != nil {
+		t.Fatalf("targetsFromCrawl: %v", err)
+	}
+	seen := make(map[string]int)
+	for _, tgt := range targets {
+		seen[tgt.URL]++
+		if seen[tgt.URL] > 1 {
+			t.Errorf("duplicate target: %s", tgt.URL)
+		}
+	}
+	var hasUnique bool
+	for u := range seen {
+		if strings.HasSuffix(u, "/unique-from-sitemap") {
+			hasUnique = true
+		}
+	}
+	if !hasUnique {
+		t.Error("expected /unique-from-sitemap from sitemap; not found")
 	}
 }

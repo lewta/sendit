@@ -40,9 +40,13 @@ Features planned for future releases of sendit. Contributions are welcome — op
 - [v0.15.1 — Integration test suite expansion ✓](#v0151--integration-test-suite-expansion)
 - [v0.15.2 — Codecov Test Analytics ✓](#v0152--codecov-test-analytics)
 - [v0.15.3 — Docs audit + fuzz CI fix ✓](#v0153--docs-audit--fuzz-ci-fix)
+- [v1.0.0 — TUI + stable API ✓](#v100--tui--stable-api)
 
 **Planned**
-- [v1.0.0 — TUI + stable API](#v100--tui--stable-api)
+- [v1.1.0 — gRPC driver](#v110--grpc-driver)
+- [v1.2.0 — Auth support](#v120--auth-support)
+- [v1.3.0 — Request templating](#v130--request-templating)
+- [v1.4.0 — Replay command](#v140--replay-command)
 
 **Research**
 - [Non-standard traffic driver](#research--non-standard-traffic-driver)
@@ -607,7 +611,7 @@ directly in PR comments, removing the need to dig into CI logs.
 
 ---
 
-## v1.0.0 — TUI + stable API
+## v1.0.0 — TUI + stable API ✓
 
 Terminal dashboard and commitment to a stable public API. By this point the OSSF Scorecard improvements (v0.12.x) will be in place; the `Contributors` check is expected to improve naturally as the project gains visibility following the TUI release.
 
@@ -630,6 +634,93 @@ Terminal dashboard and commitment to a stable public API. By this point the OSSF
 │ TOTALS          requests: 312   errors: 4   bytes: 1.1 MB │
 │ RATE LIMITS     httpbin.org ████░░ 0.8 rps               │
 └───────────────────────────────────────────────────────────┘
+```
+
+---
+
+## v1.1.0 — gRPC driver
+
+Add a `grpc` driver so sendit can generate traffic against gRPC services alongside its existing HTTP, DNS, WebSocket, and browser drivers.
+
+- New `type: grpc` target with `url: grpc://host:port/package.Service/Method`
+- Unary RPC calls; request body supplied as a JSON string that is marshalled to protobuf via the gRPC reflection API (no `.proto` files required at runtime)
+- Response mapped to a synthetic status code: `0 → 200`, gRPC status codes → HTTP-equivalent ranges so the existing error classifier and backoff logic work unchanged
+- `--tls`, `--insecure`, and `--authority` flags mirroring the HTTP driver's TLS options
+- Per-domain rate limiting and backoff apply to gRPC targets by hostname
+- Pure Go — `google.golang.org/grpc` with `google.golang.org/grpc/reflection/grpc_reflection_v1`; `CGO_ENABLED=0` preserved
+- Docs: new `grpc` section in the Drivers page; config examples
+
+```yaml
+targets:
+  - url: grpc://localhost:50051/helloworld.Greeter/SayHello
+    type: grpc
+    weight: 10
+    grpc:
+      body: '{"name": "world"}'
+      tls: false
+```
+
+---
+
+## v1.2.0 — Auth support
+
+Per-target authentication so sendit can generate traffic against protected endpoints without manual header management.
+
+- `auth` block on any target: `type: bearer | basic | header | query`
+- `bearer`: sets `Authorization: Bearer <token>`; token supplied as a literal string or read from an env var (`token_env: MY_TOKEN`)
+- `basic`: sets `Authorization: Basic <base64(user:pass)>`; password optionally from env var
+- `header`: arbitrary header name + value (covers API keys, `X-Api-Key`, etc.)
+- `query`: appends a key/value pair to the request URL query string
+- Auth config is redacted from `--dry-run` output and logs
+- Applies to `http`, `grpc`, and `websocket` drivers; ignored silently on `dns` and `browser`
+
+```yaml
+targets:
+  - url: https://api.example.com/data
+    type: http
+    weight: 5
+    auth:
+      type: bearer
+      token_env: API_TOKEN
+```
+
+---
+
+## v1.3.0 — Request templating
+
+Variable substitution in target URLs and request bodies so a single target definition can generate varied traffic without duplicating config entries.
+
+- `vars` block on a target: a map of variable name → list of values; one value is chosen per request (uniform random or weighted)
+- Substitution syntax: `{{var}}` in `url`, `http.body`, `grpc.body`, and `websocket.send`
+- Built-in variables: `{{uuid}}` (random UUIDv4), `{{timestamp}}` (Unix epoch seconds), `{{seq}}` (per-target incrementing counter)
+- `vars_file`: load variable lists from a CSV or newline-delimited file
+- Dry-run output shows an example expanded URL for each templated target
+
+```yaml
+targets:
+  - url: https://api.example.com/users/{{user_id}}
+    type: http
+    weight: 10
+    vars:
+      user_id: [alice, bob, carol, dave]
+```
+
+---
+
+## v1.4.0 — Replay command
+
+A `sendit replay` subcommand that reads a JSONL result file produced by `--output` and re-issues the same requests as live traffic — useful for reproducing a traffic pattern, debugging a failure sequence, or warming a cache.
+
+- `sendit replay --input results.jsonl` — re-sends each request in the JSONL file in order
+- `--rate` flag to replay at a fraction or multiple of the original rate (e.g. `0.5` for half speed, `2.0` for double)
+- `--filter status=5xx` to replay only failed requests
+- `--loop` to repeat the file in a continuous cycle
+- Uses the existing driver infrastructure — the appropriate driver is selected from the `type` field in each result record
+- Outputs a new JSONL file if `--output` is specified, enabling before/after comparison
+
+```sh
+# Replay last hour's failures at half speed
+sendit replay --input results.jsonl --filter status=5xx --rate 0.5
 ```
 
 ---

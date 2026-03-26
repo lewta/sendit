@@ -47,6 +47,7 @@ Features planned for future releases of sendit. Contributions are welcome — op
 - [v1.2.0 — Auth support](#v120--auth-support)
 - [v1.3.0 — Request templating](#v130--request-templating)
 - [v1.4.0 — Replay command](#v140--replay-command)
+- [v1.5.0 — HTTP version control](#v150--http-version-control)
 
 **Research**
 - [Non-standard traffic driver](#research--non-standard-traffic-driver)
@@ -721,6 +722,29 @@ A `sendit replay` subcommand that reads a JSONL result file produced by `--outpu
 ```sh
 # Replay last hour's failures at half speed
 sendit replay --input results.jsonl --filter status=5xx --rate 0.5
+```
+
+---
+
+## v1.5.0 — HTTP version control
+
+Explicit HTTP version selection for `http` targets. Today the driver uses Go's standard `http.Transport`, which automatically negotiates HTTP/2 over TLS via ALPN but provides no way to force or observe the negotiated protocol. HTTP/3 (QUIC) is not supported at all.
+
+- `http_version: 1 | 2 | 3` field under the `http:` target block (or as a top-level `target_defaults.http.http_version`)
+- `1` — force HTTP/1.1 (disable `h2` ALPN advertisement)
+- `2` — force HTTP/2; fail fast if the server does not support it
+- `3` — HTTP/3 over QUIC via `github.com/quic-go/quic-go`; plaintext and TLS both supported
+- Default (`0` / omitted) — current behaviour: HTTP/1.1 or HTTP/2 via ALPN negotiation; no HTTP/3
+- Negotiated protocol logged at debug level and included in JSONL result output
+- HTTP/3 is an optional build tag (`sendit_h3`) to keep the default binary dependency-free; a separate `sendit-h3` binary is released alongside the standard binary
+
+```yaml
+targets:
+  - url: https://example.com
+    type: http
+    weight: 5
+    http:
+      http_version: 2   # force HTTP/2; error if server does not support it
 ```
 
 ---

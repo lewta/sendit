@@ -23,6 +23,7 @@ type TargetDefaultsConfig struct {
 	Browser   BrowserConfig   `mapstructure:"browser"`
 	DNS       DNSConfig       `mapstructure:"dns"`
 	WebSocket WebSocketConfig `mapstructure:"websocket"`
+	GRPC      GRPCConfig      `mapstructure:"grpc"`
 }
 
 // PacingConfig controls how requests are spaced in time.
@@ -78,11 +79,12 @@ type BackoffConfig struct {
 type TargetConfig struct {
 	URL       string          `mapstructure:"url"`
 	Weight    int             `mapstructure:"weight"`
-	Type      string          `mapstructure:"type"` // http | browser | dns | websocket
+	Type      string          `mapstructure:"type"` // http | browser | dns | websocket | grpc
 	HTTP      HTTPConfig      `mapstructure:"http"`
 	Browser   BrowserConfig   `mapstructure:"browser"`
 	DNS       DNSConfig       `mapstructure:"dns"`
 	WebSocket WebSocketConfig `mapstructure:"websocket"`
+	GRPC      GRPCConfig      `mapstructure:"grpc"`
 }
 
 // HTTPConfig holds HTTP-specific target settings.
@@ -111,6 +113,16 @@ type WebSocketConfig struct {
 	DurationS      int      `mapstructure:"duration_s"`
 	SendMessages   []string `mapstructure:"send_messages"`
 	ExpectMessages int      `mapstructure:"expect_messages"`
+}
+
+// GRPCConfig holds gRPC target settings.
+// The URL scheme selects TLS: grpc:// for plaintext, grpcs:// for TLS.
+// The cfg.TLS field can also force TLS regardless of scheme.
+type GRPCConfig struct {
+	Body     string `mapstructure:"body"`      // JSON-encoded request body (unmarshalled via reflection)
+	TimeoutS int    `mapstructure:"timeout_s"` // per-call timeout in seconds (default 15)
+	TLS      bool   `mapstructure:"tls"`       // force TLS even when scheme is grpc://
+	Insecure bool   `mapstructure:"insecure"`  // skip TLS certificate verification
 }
 
 // OutputConfig controls writing request results to a file.

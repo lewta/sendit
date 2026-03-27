@@ -61,6 +61,7 @@ func New(cfg *config.Config, m *metrics.Metrics) (*Engine, error) {
 			"browser":   driver.NewBrowserDriver(),
 			"dns":       driver.NewDNSDriver(),
 			"websocket": driver.NewWebSocketDriver(),
+			"grpc":      driver.NewGRPCDriver(),
 		},
 	}
 

@@ -13,12 +13,9 @@ under the affected version with a reference to the CVE or advisory.
 ## [Unreleased]
 
 ### Added
-- `sendit generate --url`: sitemap support — `Sitemap:` entries in `robots.txt` and `<a href="*sitemap*.xml">` links found during crawl are now parsed as sitemap XML sources, feeding discovered `<loc>` URLs into the crawl queue; handles both `<urlset>` and `<sitemapindex>` formats
-
-### Fixed
-- `sendit generate --url`: crawl now normalises URLs before deduplication — strips trailing slashes from non-root paths and removes fragments/query strings so that `https://example.com/page` and `https://example.com/page/` are no longer treated as separate targets
-- `sendit generate --url`: non-HTML file extensions (`.xml`, `.json`, `.pdf`, `.css`, `.js`, images, fonts, media, archives) are now excluded as crawl targets; only pages likely to be HTML are included
-- `sendit generate --url`: sitemap `<loc>` entries with a different scheme than the seed URL (e.g. `http://` locs in an `https://` site's sitemap) are normalised to the seed's scheme, preventing scheme-variant duplicates
+- `type: grpc` driver — executes unary gRPC calls using server reflection; no `.proto` files required. URL format: `grpc://host:port/Service/Method` (plaintext) or `grpcs://` (TLS). JSON body is unmarshalled to protobuf via reflection. gRPC status codes are mapped to HTTP-like codes so the engine's error classifier and backoff work uniformly. Connections and method descriptors are cached per address.
+- `grpc` block in `TargetConfig` and `TargetDefaultsConfig` with fields: `body`, `timeout_s`, `tls`, `insecure`
+- gRPC driver documented in Drivers, Configuration, and Dependencies docs pages
 
 ---
 

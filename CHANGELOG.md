@@ -12,6 +12,10 @@ under the affected version with a reference to the CVE or advisory.
 
 ## [Unreleased]
 
+---
+
+## [1.1.0] - 2026-03-27
+
 ### Added
 - `type: grpc` driver — executes unary gRPC calls using server reflection; no `.proto` files required. URL format: `grpc://host:port/Service/Method` (plaintext) or `grpcs://` (TLS). JSON body is unmarshalled to protobuf via reflection. gRPC status codes are mapped to HTTP-like codes so the engine's error classifier and backoff work uniformly. Connections and method descriptors are cached per address.
 - `grpc` block in `TargetConfig` and `TargetDefaultsConfig` with fields: `body`, `timeout_s`, `tls`, `insecure`
@@ -524,7 +528,8 @@ landed on v0.11.2 (out-of-sequence due to unblocking prerequisites).
 
 ---
 
-[Unreleased]: https://github.com/lewta/sendit/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/lewta/sendit/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/lewta/sendit/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/lewta/sendit/compare/v0.15.3...v1.0.0
 [0.15.3]: https://github.com/lewta/sendit/compare/v0.15.0...v0.15.3
 [0.15.0]: https://github.com/lewta/sendit/compare/v0.14.2...v0.15.0

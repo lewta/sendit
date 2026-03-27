@@ -10,7 +10,7 @@ enableGitInfo = true
     path = "github.com/gohugoio/hugo-mod-bootstrap-scss/v5"
 
 [params]
-  description = "A flexible traffic generator for HTTP, browser, DNS, and WebSocket targets. Polite by design — paced, rate-limited, and resource-gated."
+  description = "A flexible traffic generator for HTTP, browser, DNS, WebSocket, and gRPC targets. Polite by design — paced, rate-limited, and resource-gated."
 
 [params.docs]
   title           = "sendit"

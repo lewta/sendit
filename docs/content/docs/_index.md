@@ -1,7 +1,7 @@
 ---
 title: "Documentation"
 weight: 1
-description: "Reference documentation for sendit — a flexible traffic generator for HTTP, DNS, WebSocket, and browser targets."
+description: "Reference documentation for sendit — a flexible traffic generator for HTTP, DNS, WebSocket, gRPC, and browser targets."
 ---
 
 Welcome to the sendit reference documentation.

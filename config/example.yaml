@@ -55,6 +55,10 @@ target_defaults:
   websocket:
     duration_s: 30
     expect_messages: 0
+  grpc:
+    timeout_s: 15
+    # tls: false       # force TLS even when scheme is grpc://
+    # insecure: false  # skip TLS certificate verification
 
 targets:
   # Non-standard ports are specified directly in the URL:
@@ -69,6 +73,13 @@ targets:
   #   type: dns
   #   dns:
   #     resolver: "192.168.1.1:5353"
+  # gRPC target — server must have reflection enabled; no .proto files needed:
+  # - url: "grpc://api.example.com:50051/helloworld.Greeter/SayHello"
+  #   weight: 4
+  #   type: grpc
+  #   grpc:
+  #     body: '{"name": "world"}'
+  #     timeout_s: 15
 
   - url: "https://httpbin.org/get"
     weight: 10

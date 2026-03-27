@@ -87,6 +87,9 @@ Every PR that ships a user-facing change **must** update all relevant surfaces b
 ### CHANGELOG.md
 - [ ] Entry added to `[Unreleased]` describing what changed
 
+### ROADMAP.md
+- [ ] If a planned milestone is completed: mark it ✓ in the Contents index and section header, move it out of **Planned** into the completed list
+
 ### Code surfaces (as applicable)
 - [ ] `internal/config/schema.go` — new config structs/fields
 - [ ] `internal/config/config.go` — validation rules, `loadTargetsFile` valid types, `setDefaults`

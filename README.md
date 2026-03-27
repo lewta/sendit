@@ -9,7 +9,7 @@
 [![codecov](https://codecov.io/gh/lewta/sendit/graph/badge.svg)](https://codecov.io/gh/lewta/sendit)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
-A Go CLI tool that simulates realistic user web traffic across HTTP, headless browser, DNS, and WebSocket protocols. Designed to blend into normal traffic baselines while being polite to both the local machine and target servers.
+A Go CLI tool that simulates realistic user web traffic across HTTP, headless browser, DNS, WebSocket, and gRPC protocols. Designed to blend into normal traffic baselines while being polite to both the local machine and target servers.
 
 Key properties:
 
@@ -658,17 +658,18 @@ Instead of (or in addition to) listing targets inline, you can point `targets_fi
 <url> <type> [weight]
 ```
 
-- `url` — full URL (`https://`, `wss://`) or a bare hostname for DNS targets
-- `type` — one of `http` | `browser` | `dns` | `websocket`
+- `url` — full URL (`https://`, `wss://`, `grpc://`) or a bare hostname for DNS targets
+- `type` — one of `http` | `browser` | `dns` | `websocket` | `grpc`
 - `weight` — optional positive integer; defaults to `target_defaults.weight` when omitted
 - Lines starting with `#` and blank lines are ignored
 
 ```
 # config/targets.txt
-https://example.com      http   5
-https://api.example.com  http   3
-example.com              dns    2
-wss://ws.example.com     websocket
+https://example.com                                          http      5
+https://api.example.com                                      http      3
+example.com                                                  dns       2
+wss://ws.example.com                                         websocket
+grpc://svc.example.com:50051/helloworld.Greeter/SayHello    grpc      4
 ```
 
 **`target_defaults`** supplies the remaining fields (driver settings, default weight) for every target loaded from the file. Inline targets are unaffected and use whatever fields they specify directly.
@@ -692,6 +693,8 @@ target_defaults:
   websocket:
     duration_s: 30
     expect_messages: 0
+  grpc:
+    timeout_s: 15
 ```
 
 | `target_defaults` field | Default | Description |
@@ -703,6 +706,7 @@ target_defaults:
 | `dns.resolver` | `8.8.8.8:53` | DNS resolver address |
 | `dns.record_type` | `A` | DNS record type |
 | `websocket.duration_s` | `30` | How long to hold the connection open |
+| `grpc.timeout_s` | `15` | Per-call timeout in seconds |
 
 > **Note:** HTTP header map keys are lowercased by the YAML parser (e.g. `User-Agent` is stored as `user-agent`). This applies to both inline targets and `target_defaults`.
 
@@ -765,6 +769,15 @@ targets:
       duration_s: 30                          # hold connection open for this long
       send_messages: ['{"type":"subscribe"}'] # messages to send on connect
       expect_messages: 1                      # wait to receive this many messages
+
+  - url: "grpc://api.example.com:50051/helloworld.Greeter/SayHello"
+    weight: 4
+    type: grpc
+    grpc:
+      body: '{"name": "world"}'   # JSON-encoded request (optional — empty sends default-constructed message)
+      timeout_s: 15
+      # tls: false                # force TLS even when scheme is grpc://
+      # insecure: false           # skip TLS certificate verification
 ```
 
 ### `output`
@@ -845,7 +858,7 @@ internal/config/                YAML loader, defaults, validator, targets_file p
 internal/task/                  Task & Result types; Vose alias weighted selector
 internal/ratelimit/             Per-domain token-bucket registry; decorrelated jitter backoff
 internal/resource/              gopsutil CPU/RAM monitor with Admit() gate
-internal/driver/                HTTP · headless browser (chromedp) · DNS (miekg) · WebSocket
+internal/driver/                HTTP · headless browser (chromedp) · DNS (miekg) · WebSocket · gRPC (reflection-based)
 internal/engine/                Worker pool · scheduler · dispatch loop
 internal/metrics/               Prometheus counters & histograms
 internal/output/                JSONL / CSV result writer (non-blocking, goroutine-backed)
@@ -872,6 +885,26 @@ DNS RCODEs are mapped to HTTP-like status codes so the engine's unified error cl
 | SERVFAIL (2) | 503 | transient backoff |
 | other | 502 | transient backoff |
 
+### gRPC driver
+
+Executes unary gRPC calls using server reflection — no `.proto` files required. gRPC status codes are mapped to HTTP-like codes on the same principle:
+
+| gRPC code | HTTP equivalent | Effect |
+|-----------|----------------|--------|
+| OK (0) | 200 | success |
+| InvalidArgument (3), OutOfRange (11) | 400 | permanent skip |
+| Unauthenticated (16) | 401 | permanent skip |
+| PermissionDenied (7) | 403 | permanent skip |
+| NotFound (5) | 404 | permanent skip |
+| AlreadyExists (6) | 409 | permanent skip |
+| ResourceExhausted (8) | 429 | transient backoff |
+| Unimplemented (12) | 501 | permanent skip |
+| Unavailable (14) | 503 | transient backoff |
+| DeadlineExceeded (4) | 504 | transient backoff |
+| other | 500 | transient backoff |
+
+URL format: `grpc://host:port/Service/Method` (plaintext) or `grpcs://host:port/Service/Method` (TLS). The target server must have the [gRPC server reflection service](https://grpc.io/docs/guides/reflection/) enabled.
+
 ---
 
 ## Running Tests
@@ -894,7 +927,8 @@ Integration tests spin up local HTTP, DNS, and WebSocket servers and exercise th
 | HTTP traffic | Use `config/test.yaml` (points at httpbin.org); observe status codes in logs |
 | DNS traffic | DNS targets in `config/test.yaml`; look for `type=dns status=200` log lines |
 | targets_file | Set `targets_file: "config/targets.txt"` in a config; `validate` checks the file, `start` loads all entries |
-| targets_file error | Point `targets_file` at a file with a bad line (e.g. `example.com grpc`) → `validate` prints the line number and error |
+| targets_file error | Point `targets_file` at a file with a bad line (e.g. `example.com ftp`) → `validate` prints the line number and error |
+| gRPC traffic | Add a `type: grpc` target pointing at a service with reflection enabled (e.g. a local gRPC health server); observe `type=grpc status=200` log lines |
 | target_defaults | Omit `method` from `target_defaults.http`; confirm requests default to GET in logs |
 | Resource gate | Set `cpu_threshold_pct: 1` → logs show "resource monitor: over threshold, dispatch paused" |
 | Rate limiting | Set `default_rps: 0.1`, `max_workers: 1` → ~1 req/10s per domain observed |

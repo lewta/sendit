@@ -42,7 +42,7 @@ curl http://localhost:9090/healthz
 
 ### Label values
 
-**`type`** matches the `type` field in your target config: `http`, `browser`, `dns`, or `websocket`.
+**`type`** matches the `type` field in your target config: `http`, `browser`, `dns`, `websocket`, or `grpc`.
 
 **`domain`** is the hostname extracted from the target URL (e.g. `example.com`, `api.example.com`). For DNS targets with bare hostnames the value is the hostname itself.
 

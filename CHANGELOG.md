@@ -14,6 +14,14 @@ under the affected version with a reference to the CVE or advisory.
 
 ---
 
+## [1.1.1] - 2026-03-27
+
+### Fixed
+- Docs site descriptions (site root, docs root, `hugo.toml`) updated to include `gRPC` alongside HTTP, DNS, WebSocket, and browser
+- Metrics reference: `type` label now lists `grpc` as a valid value
+
+---
+
 ## [1.1.0] - 2026-03-27
 
 ### Added

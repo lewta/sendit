@@ -41,9 +41,9 @@ Features planned for future releases of sendit. Contributions are welcome — op
 - [v0.15.2 — Codecov Test Analytics ✓](#v0152--codecov-test-analytics)
 - [v0.15.3 — Docs audit + fuzz CI fix ✓](#v0153--docs-audit--fuzz-ci-fix)
 - [v1.0.0 — TUI + stable API ✓](#v100--tui--stable-api)
+- [v1.1.0 — gRPC driver ✓](#v110--grpc-driver)
 
 **Planned**
-- [v1.1.0 — gRPC driver](#v110--grpc-driver)
 - [v1.2.0 — Auth support](#v120--auth-support)
 - [v1.3.0 — Request templating](#v130--request-templating)
 - [v1.4.0 — Replay command](#v140--replay-command)
@@ -639,7 +639,7 @@ Terminal dashboard and commitment to a stable public API. By this point the OSSF
 
 ---
 
-## v1.1.0 — gRPC driver
+## v1.1.0 — gRPC driver ✓
 
 Add a `grpc` driver so sendit can generate traffic against gRPC services alongside its existing HTTP, DNS, WebSocket, and browser drivers.
 

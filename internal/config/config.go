@@ -100,7 +100,7 @@ func loadTargetsFile(cfg *Config) error {
 	defer f.Close()
 
 	d := cfg.TargetDefaults
-	validTypes := map[string]bool{"http": true, "browser": true, "dns": true, "websocket": true}
+	validTypes := map[string]bool{"http": true, "browser": true, "dns": true, "websocket": true, "grpc": true}
 
 	scanner := bufio.NewScanner(f)
 	lineNum := 0
@@ -120,7 +120,7 @@ func loadTargetsFile(cfg *Config) error {
 		typ := strings.ToLower(fields[1])
 
 		if !validTypes[typ] {
-			return fmt.Errorf("line %d: unknown type %q (must be http|browser|dns|websocket)", lineNum, typ)
+			return fmt.Errorf("line %d: unknown type %q (must be http|browser|dns|websocket|grpc)", lineNum, typ)
 		}
 
 		weight := d.Weight
@@ -143,6 +143,7 @@ func loadTargetsFile(cfg *Config) error {
 			Browser:   d.Browser,
 			DNS:       d.DNS,
 			WebSocket: d.WebSocket,
+			GRPC:      d.GRPC,
 		})
 	}
 
@@ -221,7 +222,7 @@ func validate(cfg *Config) error {
 		errs = append(errs, "targets must have at least one entry (via 'targets' in config or 'targets_file')")
 	}
 
-	validTypes := map[string]bool{"http": true, "browser": true, "dns": true, "websocket": true}
+	validTypes := map[string]bool{"http": true, "browser": true, "dns": true, "websocket": true, "grpc": true}
 	for i, t := range cfg.Targets {
 		if t.URL == "" {
 			errs = append(errs, fmt.Sprintf("targets[%d].url must not be empty", i))
@@ -230,7 +231,10 @@ func validate(cfg *Config) error {
 			errs = append(errs, fmt.Sprintf("targets[%d].weight must be > 0", i))
 		}
 		if !validTypes[t.Type] {
-			errs = append(errs, fmt.Sprintf("targets[%d].type must be one of http|browser|dns|websocket, got %q", i, t.Type))
+			errs = append(errs, fmt.Sprintf("targets[%d].type must be one of http|browser|dns|websocket|grpc, got %q", i, t.Type))
+		}
+		if t.Type == "grpc" && !strings.HasPrefix(t.URL, "grpc://") && !strings.HasPrefix(t.URL, "grpcs://") {
+			errs = append(errs, fmt.Sprintf("targets[%d].url must start with grpc:// or grpcs:// for type grpc, got %q", i, t.URL))
 		}
 	}
 

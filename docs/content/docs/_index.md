@@ -51,7 +51,7 @@ Press Ctrl-C to stop and print a summary. See the [CLI Reference](cli/) for all 
 | [Getting Started](getting-started/) | Install, build, validate a config, run your first traffic, and deploy with Docker |
 | [Configuration](configuration/) | Every config key, its type, default, and description |
 | [Pacing Modes](pacing/) | `human`, `rate_limited`, `scheduled`, and `burst` — how request timing works |
-| [Drivers](drivers/) | `http`, `browser`, `dns`, `websocket` — options and examples for each |
+| [Drivers](drivers/) | `http`, `browser`, `dns`, `websocket`, `grpc` — options and examples for each |
 | [Metrics](metrics/) | Prometheus metrics exposed by sendit and how to scrape them |
 | [CLI Reference](cli/) | All commands and flags |
 | [Dependencies](dependencies/) | Direct dependencies, their purpose, and their licences |

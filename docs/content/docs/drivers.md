@@ -2,7 +2,7 @@
 title: "Drivers"
 linkTitle: "Drivers"
 weight: 4
-description: "HTTP, browser, DNS, and WebSocket driver options and examples."
+description: "HTTP, browser, DNS, WebSocket, and gRPC driver options and examples."
 ---
 
 A **driver** is responsible for executing a single request and returning a result. Each target in your config specifies a `type` that selects the driver. All drivers map their results to HTTP-like status codes so the engine's error classifier, backoff, and metrics work uniformly.
@@ -135,4 +135,69 @@ targets:
 ```yaml
 - url: "wss://stream.example.com:9443/feed"
   type: websocket
+```
+
+## `grpc`
+
+Executes a **unary gRPC call** using [google.golang.org/grpc](https://pkg.go.dev/google.golang.org/grpc). No `.proto` files are required — the driver uses [server reflection](https://grpc.io/docs/guides/reflection/) to discover request and response types at runtime, then marshals the JSON body to protobuf automatically.
+
+```yaml
+targets:
+  - url: grpc://localhost:50051/helloworld.Greeter/SayHello
+    weight: 10
+    type: grpc
+    grpc:
+      body: '{"name": "world"}'   # JSON-encoded request (optional — defaults to empty message)
+      timeout_s: 15               # per-call timeout in seconds
+      tls: false                  # force TLS even when scheme is grpc://
+      insecure: false             # skip TLS certificate verification
+```
+
+| Field | Default | Description |
+|---|---|---|
+| `body` | `""` | JSON-encoded request body. Must match the method's input proto type. Empty sends a default-constructed message. |
+| `timeout_s` | `15` | Per-call timeout in seconds |
+| `tls` | `false` | Force TLS even when the URL scheme is `grpc://` |
+| `insecure` | `false` | Skip TLS certificate verification (combine with `tls: true` or `grpcs://` scheme) |
+
+**URL scheme** selects transport security:
+
+| Scheme | Transport |
+|---|---|
+| `grpc://host:port/Service/Method` | Plaintext |
+| `grpcs://host:port/Service/Method` | TLS |
+
+**gRPC status codes** are mapped to HTTP-like status codes so the engine's backoff and error classifier work uniformly:
+
+| gRPC code | HTTP equivalent | Effect |
+|---|---|---|
+| OK (0) | 200 | success |
+| InvalidArgument (3), OutOfRange (11) | 400 | permanent skip |
+| Unauthenticated (16) | 401 | permanent skip |
+| PermissionDenied (7) | 403 | permanent skip |
+| NotFound (5) | 404 | permanent skip |
+| AlreadyExists (6) | 409 | permanent skip |
+| ResourceExhausted (8) | 429 | transient backoff |
+| Unimplemented (12) | 501 | permanent skip |
+| Unavailable (14) | 503 | transient backoff |
+| DeadlineExceeded (4) | 504 | transient backoff |
+| other | 500 | transient backoff |
+
+**Prerequisite:** the gRPC server must have the [server reflection service](https://grpc.io/docs/guides/reflection/) enabled. Most frameworks enable it via a single line (e.g. `reflection.Register(s)` in Go). If reflection is not available, the driver returns an error immediately.
+
+**Connection and descriptor caching:** connections and method descriptors are cached per address+TLS mode. Reflection is called only on the first request to each method; subsequent calls reuse the cached descriptor.
+
+```yaml
+# Multiple gRPC targets on the same server — connection is shared
+targets:
+  - url: grpc://api.example.com:50051/user.UserService/GetUser
+    type: grpc
+    weight: 8
+    grpc:
+      body: '{"user_id": "u-123"}'
+  - url: grpc://api.example.com:50051/user.UserService/ListUsers
+    type: grpc
+    weight: 2
+    grpc:
+      body: '{}'
 ```

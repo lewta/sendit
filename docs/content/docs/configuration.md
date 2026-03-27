@@ -92,10 +92,11 @@ Load targets from a plain-text file instead of (or in addition to) the inline `t
 
 ```
 # config/targets.txt
-https://example.com      http   5
-https://api.example.com  http   3
-example.com              dns    2
-wss://ws.example.com     websocket
+https://example.com             http      5
+https://api.example.com         http      3
+example.com                     dns       2
+wss://ws.example.com            websocket
+grpc://svc.example.com:50051/helloworld.Greeter/SayHello   grpc   4
 ```
 
 `target_defaults` supplies remaining fields for every file-loaded target:
@@ -122,6 +123,7 @@ target_defaults:
 | `dns.resolver` | `8.8.8.8:53` | DNS resolver address |
 | `dns.record_type` | `A` | DNS record type |
 | `websocket.duration_s` | `30` | How long to hold the connection open (seconds) |
+| `grpc.timeout_s` | `15` | Per-call timeout (seconds) |
 
 ## `output`
 

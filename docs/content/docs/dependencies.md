@@ -5,7 +5,7 @@ weight: 95
 description: "Direct dependencies, their purpose, and their licences."
 ---
 
-sendit has 14 direct runtime dependencies. All are permissive open-source licences
+sendit has 16 direct runtime dependencies. All are permissive open-source licences
 compatible with the project's [MIT licence](https://github.com/lewta/sendit/blob/main/LICENSE).
 
 The module graph is managed with `go mod tidy` and kept minimal — no dependency
@@ -28,6 +28,8 @@ appears that cannot be justified by the table below.
 | [`github.com/spf13/viper`](https://github.com/spf13/viper) | v1.21.0 | MIT | Config file loading with environment variable overlay and `mapstructure` unmarshalling |
 | [`golang.org/x/net`](https://pkg.go.dev/golang.org/x/net) | v0.52.0 | BSD-3-Clause | `html` subpackage — HTML parser used by the `generate` command to extract links |
 | [`golang.org/x/time`](https://pkg.go.dev/golang.org/x/time) | v0.15.0 | BSD-3-Clause | `rate` subpackage — token-bucket rate limiter used by `rate_limited` and `scheduled` pacing |
+| [`google.golang.org/grpc`](https://pkg.go.dev/google.golang.org/grpc) | v1.79.3 | Apache-2.0 | gRPC client and server — powers the `grpc` driver; includes reflection client and health service |
+| [`google.golang.org/genproto/googleapis/rpc`](https://pkg.go.dev/google.golang.org/genproto/googleapis/rpc) | v0.0.0-20251202 | Apache-2.0 | Generated gRPC status and error type definitions — transitive requirement of `google.golang.org/grpc` |
 | [`modernc.org/sqlite`](https://pkg.go.dev/modernc.org/sqlite) | v1.47.0 | BSD-3-Clause | Pure-Go SQLite driver (CGo-free) — used by `generate` to read Chrome/Firefox history and bookmark databases |
 
 ## Alternatives considered
@@ -50,7 +52,7 @@ All dependency licences are permissive and compatible with the project's MIT lic
 | MIT | `bubbletea`, `lipgloss`, `chromedp`, `cron/v3`, `zerolog`, `viper` |
 | ISC | `coder/websocket` |
 | BSD-3-Clause | `miekg/dns`, `gopsutil/v3`, `x/net`, `x/time`, `modernc.org/sqlite` |
-| Apache-2.0 | `prometheus/client_golang`, `cobra` |
+| Apache-2.0 | `prometheus/client_golang`, `cobra`, `google.golang.org/grpc`, `genproto/googleapis/rpc` |
 
 ISC, BSD-2-Clause, and BSD-3-Clause are functionally equivalent to MIT for distribution purposes.
 Apache-2.0 is compatible with MIT when distributing binaries (no copyleft restriction).

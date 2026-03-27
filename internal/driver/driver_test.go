@@ -15,6 +15,12 @@ import (
 	"github.com/lewta/sendit/internal/driver"
 	"github.com/lewta/sendit/internal/task"
 	dns "github.com/miekg/dns"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/health"
+	healthpb "google.golang.org/grpc/health/grpc_health_v1"
+	"google.golang.org/grpc/reflection"
+	"google.golang.org/grpc/status"
 )
 
 // httpTask builds a minimal http task pointing at the given URL.
@@ -286,6 +292,207 @@ func TestWebSocketDriver_ServerClosesEarly(t *testing.T) {
 
 	// The driver should return without hanging regardless of early server close.
 	_ = result // either success or an error is acceptable; must not block
+}
+
+// --- gRPC driver ---
+
+// grpcTask builds a minimal gRPC task.
+func grpcTask(rawURL string, cfg config.GRPCConfig) task.Task {
+	c := config.TargetConfig{URL: rawURL, Type: "grpc", GRPC: cfg}
+	return task.Task{URL: rawURL, Type: "grpc", Config: c}
+}
+
+// startGRPCServer starts a real gRPC server with the health service and
+// reflection enabled, returning its address.
+func startGRPCServer(t *testing.T) string {
+	t.Helper()
+	lis, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+	srv := grpc.NewServer()
+	hs := health.NewServer()
+	hs.SetServingStatus("", healthpb.HealthCheckResponse_SERVING)
+	healthpb.RegisterHealthServer(srv, hs)
+	reflection.Register(srv)
+	go srv.Serve(lis) //nolint:errcheck
+	t.Cleanup(srv.GracefulStop)
+	return lis.Addr().String()
+}
+
+// startGRPCServerNoReflection starts a gRPC server without the reflection service.
+func startGRPCServerNoReflection(t *testing.T) string {
+	t.Helper()
+	lis, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+	srv := grpc.NewServer()
+	hs := health.NewServer()
+	hs.SetServingStatus("", healthpb.HealthCheckResponse_SERVING)
+	healthpb.RegisterHealthServer(srv, hs)
+	// reflection NOT registered
+	go srv.Serve(lis) //nolint:errcheck
+	t.Cleanup(srv.GracefulStop)
+	return lis.Addr().String()
+}
+
+func TestGRPCStatusToHTTP(t *testing.T) {
+	cases := []struct {
+		code codes.Code
+		want int
+	}{
+		{codes.OK, 200},
+		{codes.InvalidArgument, 400},
+		{codes.OutOfRange, 400},
+		{codes.Unauthenticated, 401},
+		{codes.PermissionDenied, 403},
+		{codes.NotFound, 404},
+		{codes.AlreadyExists, 409},
+		{codes.ResourceExhausted, 429},
+		{codes.Unimplemented, 501},
+		{codes.Unavailable, 503},
+		{codes.DeadlineExceeded, 504},
+		{codes.Internal, 500},
+		{codes.Unknown, 500},
+		{codes.Canceled, 500},
+	}
+	for _, tc := range cases {
+		got := driver.GRPCStatusToHTTP(tc.code)
+		if got != tc.want {
+			t.Errorf("grpcStatusToHTTP(%v) = %d, want %d", tc.code, got, tc.want)
+		}
+	}
+}
+
+func TestGRPCDriver_HealthCheck(t *testing.T) {
+	addr := startGRPCServer(t)
+	drv := driver.NewGRPCDriver()
+	result := drv.Execute(context.Background(),
+		grpcTask("grpc://"+addr+"/grpc.health.v1.Health/Check",
+			config.GRPCConfig{Body: `{"service":""}`, TimeoutS: 5}))
+
+	if result.Error != nil {
+		t.Fatalf("unexpected error: %v", result.Error)
+	}
+	if result.StatusCode != 200 {
+		t.Errorf("StatusCode = %d, want 200", result.StatusCode)
+	}
+	if result.Duration <= 0 {
+		t.Errorf("Duration = %v, want > 0", result.Duration)
+	}
+}
+
+func TestGRPCDriver_EmptyBody(t *testing.T) {
+	addr := startGRPCServer(t)
+	drv := driver.NewGRPCDriver()
+	// No body — health Check accepts an empty HealthCheckRequest.
+	result := drv.Execute(context.Background(),
+		grpcTask("grpc://"+addr+"/grpc.health.v1.Health/Check",
+			config.GRPCConfig{TimeoutS: 5}))
+
+	if result.Error != nil {
+		t.Fatalf("unexpected error: %v", result.Error)
+	}
+	if result.StatusCode != 200 {
+		t.Errorf("StatusCode = %d, want 200", result.StatusCode)
+	}
+}
+
+func TestGRPCDriver_ConnectionReuse(t *testing.T) {
+	addr := startGRPCServer(t)
+	drv := driver.NewGRPCDriver()
+	for i := 0; i < 3; i++ {
+		result := drv.Execute(context.Background(),
+			grpcTask("grpc://"+addr+"/grpc.health.v1.Health/Check",
+				config.GRPCConfig{TimeoutS: 5}))
+		if result.StatusCode != 200 {
+			t.Errorf("call %d: StatusCode = %d, want 200", i, result.StatusCode)
+		}
+	}
+}
+
+func TestGRPCDriver_NonOKStatus(t *testing.T) {
+	addr := startGRPCServer(t)
+	drv := driver.NewGRPCDriver()
+	// Query a service name that the health server doesn't know — returns NOT_FOUND.
+	result := drv.Execute(context.Background(),
+		grpcTask("grpc://"+addr+"/grpc.health.v1.Health/Check",
+			config.GRPCConfig{Body: `{"service":"unknown.Service"}`, TimeoutS: 5}))
+
+	// Health server returns NOT_FOUND for unknown services — mapped to 404.
+	if result.Error != nil {
+		t.Fatalf("unexpected Go error (want gRPC status in StatusCode): %v", result.Error)
+	}
+	if result.StatusCode != 404 {
+		t.Errorf("StatusCode = %d, want 404 (NOT_FOUND)", result.StatusCode)
+	}
+}
+
+func TestGRPCDriver_UnknownMethod(t *testing.T) {
+	addr := startGRPCServer(t)
+	drv := driver.NewGRPCDriver()
+	result := drv.Execute(context.Background(),
+		grpcTask("grpc://"+addr+"/grpc.health.v1.Health/NoSuchMethod",
+			config.GRPCConfig{TimeoutS: 5}))
+
+	if result.Error == nil {
+		t.Errorf("expected error for unknown method, got StatusCode %d", result.StatusCode)
+	}
+}
+
+func TestGRPCDriver_NoReflection(t *testing.T) {
+	addr := startGRPCServerNoReflection(t)
+	drv := driver.NewGRPCDriver()
+	result := drv.Execute(context.Background(),
+		grpcTask("grpc://"+addr+"/grpc.health.v1.Health/Check",
+			config.GRPCConfig{TimeoutS: 5}))
+
+	// Should return an error because reflection is not available.
+	if result.Error == nil {
+		t.Errorf("expected error when reflection is not enabled, got StatusCode %d", result.StatusCode)
+	}
+}
+
+func TestGRPCDriver_InvalidURL(t *testing.T) {
+	drv := driver.NewGRPCDriver()
+	result := drv.Execute(context.Background(),
+		grpcTask("grpc://localhost:50051/OnlyOneComponent",
+			config.GRPCConfig{TimeoutS: 5}))
+
+	if result.Error == nil {
+		t.Errorf("expected error for invalid URL path, got StatusCode %d", result.StatusCode)
+	}
+}
+
+func TestGRPCDriver_Timeout(t *testing.T) {
+	addr := startGRPCServer(t)
+	drv := driver.NewGRPCDriver()
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel() // immediately cancelled
+
+	result := drv.Execute(ctx,
+		grpcTask("grpc://"+addr+"/grpc.health.v1.Health/Check",
+			config.GRPCConfig{TimeoutS: 5}))
+
+	// Cancelled context should produce a non-200 result (no Go error — gRPC maps it).
+	if result.StatusCode == 200 {
+		t.Errorf("StatusCode = 200 on cancelled context, want non-200")
+	}
+}
+
+// Ensure status.FromError is exercised to validate our status-mapping integration.
+func TestGRPCDriver_StatusMapping(t *testing.T) {
+	// Build a gRPC status error and verify FromError extracts the code.
+	st := status.New(codes.ResourceExhausted, "quota exceeded")
+	err := st.Err()
+	extracted, ok := status.FromError(err)
+	if !ok {
+		t.Fatal("status.FromError returned ok=false for a status error")
+	}
+	if extracted.Code() != codes.ResourceExhausted {
+		t.Errorf("code = %v, want ResourceExhausted", extracted.Code())
+	}
 }
 
 // --- Browser driver ---

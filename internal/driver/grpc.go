@@ -14,7 +14,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
-	reflectionpb "google.golang.org/grpc/reflection/grpc_reflection_v1alpha"
+	reflectionpb "google.golang.org/grpc/reflection/grpc_reflection_v1"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
@@ -240,8 +240,7 @@ func (d *GRPCDriver) fetchMethodInfo(ctx context.Context, conn *grpc.ClientConn,
 	fdr, ok := resp.MessageResponse.(*reflectionpb.ServerReflectionResponse_FileDescriptorResponse)
 	if !ok {
 		if errResp, ok2 := resp.MessageResponse.(*reflectionpb.ServerReflectionResponse_ErrorResponse); ok2 {
-			return grpcMethodInfo{}, fmt.Errorf("reflection error %d: %s",
-				errResp.ErrorResponse.ErrorCode, errResp.ErrorResponse.ErrorMessage)
+			return grpcMethodInfo{}, fmt.Errorf("reflection error: %s", errResp.ErrorResponse.ErrorMessage)
 		}
 		return grpcMethodInfo{}, fmt.Errorf("unexpected reflection response type: %T", resp.MessageResponse)
 	}

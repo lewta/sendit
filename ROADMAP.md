@@ -48,6 +48,7 @@ Features planned for future releases of sendit. Contributions are welcome — op
 - [v1.3.0 — Request templating](#v130--request-templating)
 - [v1.4.0 — Replay command](#v140--replay-command)
 - [v1.5.0 — HTTP version control](#v150--http-version-control)
+- [v1.6.0 — SFTP driver](#v160--sftp-driver)
 
 **Research**
 - [Non-standard traffic driver](#research--non-standard-traffic-driver)
@@ -746,6 +747,104 @@ targets:
     http:
       http_version: 2   # force HTTP/2; error if server does not support it
 ```
+
+---
+
+## v1.6.0 — SFTP driver
+
+Load test SFTP file transfer infrastructure with multiple users, configurable file sizes, SSH handshake policy enforcement, and optional EICAR upload for malware scanner testing.
+
+### New driver: `type: sftp`
+
+- **Operations** — `upload`, `download`, `list`; set via `sftp.operation` per target
+- **Auth** — `sftp.username` + `sftp.password` or `sftp.private_key` (file path or inline PEM string); multiple user targets with weights model realistic user-mix load
+- **Payload sizing** — for `upload`: `sftp.file_size_bytes` (fixed) or `sftp.file_size_min_bytes` / `sftp.file_size_max_bytes` (random per request); `BytesRead` in results reflects actual bytes transferred for both upload and download
+- **EICAR testing** — `sftp.eicar: true` uploads the 68-byte EICAR standard test string instead of random data; result status reflects what the server returns, enabling detection of async vs synchronous AV scanner blocking
+- **Connection caching** — `ssh.Client` cached per `(host:port, username)` with a `sync.Mutex`; stale connections detected on use and evicted/reconnected
+
+### SSH handshake metadata
+
+Four fields added to JSONL output via `task.Result.Meta` (a new `map[string]string` field, merged inline into JSONL records):
+
+| Field | Example | Source |
+|---|---|---|
+| `sftp_server_version` | `SSH-2.0-OpenSSH_8.9p1 Ubuntu-3` | `ssh.Conn.ServerVersion()` |
+| `sftp_host_key_type` | `ssh-ed25519` | `HostKeyCallback` |
+| `sftp_host_key_fp` | `SHA256:abc123...` | `HostKeyCallback` |
+| `sftp_auth_methods` | `publickey,password` | server auth challenge |
+
+For `list`, `sftp_entry_count` is also included in `Meta`.
+
+### Algorithm policy enforcement
+
+Restrict which SSH algorithms the client will accept. If the server cannot satisfy the restriction, the handshake fails and the result is `502`. Omit a field to accept all server-offered values.
+
+```yaml
+sftp:
+  allowed_ciphers: [aes256-gcm@openssh.com, chacha20-poly1305@openssh.com]
+  allowed_kex: [curve25519-sha256]
+  allowed_host_key_types: [ssh-ed25519]   # rejects RSA host keys → 502
+  allowed_macs: [hmac-sha2-256-etm@openssh.com]
+```
+
+This enables scheduled policy probes — e.g., alert if a host key rotates from Ed25519 to RSA.
+
+### Status code mapping
+
+| Condition | Code |
+|---|---|
+| Transfer success | 200 |
+| Auth failure | 401 |
+| Permission denied | 403 |
+| File not found (download) | 404 |
+| Host key rejected / policy mismatch | 502 |
+| SFTP protocol error | 502 |
+| Connection timeout | 504 |
+
+### Config example
+
+```yaml
+target_defaults:
+  sftp:
+    port: 22
+    operation: upload
+    timeout_s: 30
+    insecure: false
+
+targets:
+  - url: sftp://sftp.example.com/uploads/test.bin
+    type: sftp
+    weight: 10
+    sftp:
+      username: testuser
+      password: secret
+      file_size_min_bytes: 1024
+      file_size_max_bytes: 10485760
+
+  - url: sftp://sftp.example.com/uploads/eicar.txt
+    type: sftp
+    weight: 1
+    sftp:
+      username: testuser
+      password: secret
+      file_size_bytes: 68
+      eicar: true
+
+  - url: sftp://sftp.example.com/incoming
+    type: sftp
+    weight: 2
+    sftp:
+      username: auditor
+      private_key: /etc/sendit/audit_key
+      operation: list
+      allowed_host_key_types: [ssh-ed25519]
+      allowed_ciphers: [aes256-gcm@openssh.com, chacha20-poly1305@openssh.com]
+```
+
+### Dependencies
+
+- `github.com/pkg/sftp` — pure Go SFTP client, no CGO
+- `golang.org/x/crypto/ssh` — SSH transport (verify if already transitive before adding)
 
 ---
 

@@ -5,7 +5,7 @@ weight: 95
 description: "Direct dependencies, their purpose, and their licences."
 ---
 
-sendit has 16 direct runtime dependencies. All are permissive open-source licences
+sendit has 16 direct runtime dependencies and 1 direct test dependency. All are permissive open-source licences
 compatible with the project's [MIT licence](https://github.com/lewta/sendit/blob/main/LICENSE).
 
 The module graph is managed with `go mod tidy` and kept minimal — no dependency
@@ -31,6 +31,12 @@ appears that cannot be justified by the table below.
 | [`google.golang.org/grpc`](https://pkg.go.dev/google.golang.org/grpc) | v1.79.3 | Apache-2.0 | gRPC client and server — powers the `grpc` driver; includes reflection client and health service |
 | [`google.golang.org/genproto/googleapis/rpc`](https://pkg.go.dev/google.golang.org/genproto/googleapis/rpc) | v0.0.0-20251202 | Apache-2.0 | Generated gRPC status and error type definitions — transitive requirement of `google.golang.org/grpc` |
 | [`modernc.org/sqlite`](https://pkg.go.dev/modernc.org/sqlite) | v1.47.0 | BSD-3-Clause | Pure-Go SQLite driver (CGo-free) — used by `generate` to read Chrome/Firefox history and bookmark databases |
+
+## Test dependencies
+
+| Module | Version | Licence | Purpose |
+|--------|---------|---------|---------|
+| [`github.com/cucumber/godog`](https://github.com/cucumber/godog) | v0.15.1 | MIT | Cucumber/Gherkin BDD test framework — powers the `features/auth.feature` behavioural tests for the auth block |
 
 ## Alternatives considered
 

@@ -41,6 +41,12 @@ backoff:
 # or use inline targets for full control.
 target_defaults:
   weight: 1
+  # auth: applies shared credentials to all targets loaded from targets_file.
+  # Inline targets can override or omit auth entirely.
+  # auth:
+  #   type: bearer                 # bearer | basic | header | query
+  #   token_env: API_TOKEN         # env var holding the token (preferred over literal)
+  #   # token: "literal-secret"   # literal value — triggers a startup warning
   http:
     method: GET
     headers:
@@ -80,6 +86,34 @@ targets:
   #   grpc:
   #     body: '{"name": "world"}'
   #     timeout_s: 15
+  # Auth examples — token values resolved from env vars at dispatch time:
+  # - url: "https://api.example.com/data"
+  #   weight: 1
+  #   type: http
+  #   auth:
+  #     type: bearer
+  #     token_env: API_TOKEN
+  # - url: "https://api.example.com/search"
+  #   weight: 1
+  #   type: http
+  #   auth:
+  #     type: basic
+  #     username: alice
+  #     password_env: API_PASS
+  # - url: "https://api.example.com/v2/data"
+  #   weight: 1
+  #   type: http
+  #   auth:
+  #     type: header
+  #     header_name: X-API-Key
+  #     token_env: API_KEY
+  # - url: "https://api.example.com/v3/data"
+  #   weight: 1
+  #   type: http
+  #   auth:
+  #     type: query
+  #     param_name: api_key
+  #     token_env: API_KEY
 
   - url: "https://httpbin.org/get"
     weight: 10

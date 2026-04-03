@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/rs/zerolog/log"
 	"github.com/spf13/viper"
 )
 
@@ -37,6 +38,8 @@ func Load(path string) (*Config, error) {
 	if err := validate(&cfg); err != nil {
 		return nil, fmt.Errorf("invalid config: %w", err)
 	}
+
+	warnLiteralTokens(&cfg)
 
 	return &cfg, nil
 }
@@ -82,6 +85,23 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("target_defaults.websocket.duration_s", 30)
 }
 
+// warnLiteralTokens logs a warning for any target that has a literal token or
+// password in its auth config. Env-var references are preferred in production.
+func warnLiteralTokens(cfg *Config) {
+	for i, t := range cfg.Targets {
+		a := t.Auth
+		if a.Type == "" {
+			continue
+		}
+		if a.Token != "" {
+			log.Warn().Msgf("targets[%d]: auth.token is a literal value — consider using auth.token_env instead", i)
+		}
+		if a.Password != "" {
+			log.Warn().Msgf("targets[%d]: auth.password is a literal value — consider using auth.password_env instead", i)
+		}
+	}
+}
+
 // loadTargetsFile reads the file at cfg.TargetsFile and appends a TargetConfig
 // for each entry to cfg.Targets, applying cfg.TargetDefaults for all fields
 // not specified in the file.
@@ -100,7 +120,7 @@ func loadTargetsFile(cfg *Config) error {
 	defer f.Close()
 
 	d := cfg.TargetDefaults
-	validTypes := map[string]bool{"http": true, "browser": true, "dns": true, "websocket": true, "grpc": true}
+	validTypes := map[string]bool{"http": true, "browser": true, "dns": true, "websocket": true, "grpc": true, "sftp": true}
 
 	scanner := bufio.NewScanner(f)
 	lineNum := 0
@@ -139,6 +159,7 @@ func loadTargetsFile(cfg *Config) error {
 			URL:       url,
 			Weight:    weight,
 			Type:      typ,
+			Auth:      d.Auth,
 			HTTP:      d.HTTP,
 			Browser:   d.Browser,
 			DNS:       d.DNS,
@@ -222,7 +243,8 @@ func validate(cfg *Config) error {
 		errs = append(errs, "targets must have at least one entry (via 'targets' in config or 'targets_file')")
 	}
 
-	validTypes := map[string]bool{"http": true, "browser": true, "dns": true, "websocket": true, "grpc": true}
+	validTypes := map[string]bool{"http": true, "browser": true, "dns": true, "websocket": true, "grpc": true, "sftp": true}
+	validAuthTypes := map[string]bool{"bearer": true, "basic": true, "header": true, "query": true}
 	for i, t := range cfg.Targets {
 		if t.URL == "" {
 			errs = append(errs, fmt.Sprintf("targets[%d].url must not be empty", i))
@@ -235,6 +257,31 @@ func validate(cfg *Config) error {
 		}
 		if t.Type == "grpc" && !strings.HasPrefix(t.URL, "grpc://") && !strings.HasPrefix(t.URL, "grpcs://") {
 			errs = append(errs, fmt.Sprintf("targets[%d].url must start with grpc:// or grpcs:// for type grpc, got %q", i, t.URL))
+		}
+		if a := t.Auth; a.Type != "" {
+			if !validAuthTypes[a.Type] {
+				errs = append(errs, fmt.Sprintf("targets[%d].auth.type must be one of bearer|basic|header|query, got %q", i, a.Type))
+			}
+			switch a.Type {
+			case "bearer", "query":
+				if a.Token == "" && a.TokenEnv == "" {
+					errs = append(errs, fmt.Sprintf("targets[%d].auth: type %q requires token or token_env", i, a.Type))
+				}
+			case "header":
+				if a.HeaderName == "" {
+					errs = append(errs, fmt.Sprintf("targets[%d].auth: type \"header\" requires header_name", i))
+				}
+				if a.Token == "" && a.TokenEnv == "" {
+					errs = append(errs, fmt.Sprintf("targets[%d].auth: type \"header\" requires token or token_env", i))
+				}
+			case "basic":
+				if a.Username == "" && a.UsernameEnv == "" {
+					errs = append(errs, fmt.Sprintf("targets[%d].auth: type \"basic\" requires username or username_env", i))
+				}
+			}
+			if a.ParamName == "" && a.Type == "query" {
+				errs = append(errs, fmt.Sprintf("targets[%d].auth: type \"query\" requires param_name", i))
+			}
 		}
 	}
 

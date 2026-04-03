@@ -117,6 +117,7 @@ target_defaults:
 | `target_defaults` field | Default | Description |
 |---|---|---|
 | `weight` | `1` | Selection weight when omitted from the file |
+| `auth.type` | `""` | Auth type: `bearer` \| `basic` \| `header` \| `query` — see [Drivers](../drivers/#auth-block) |
 | `http.method` | `GET` | HTTP verb |
 | `http.timeout_s` | `15` | Request timeout (seconds) |
 | `browser.timeout_s` | `30` | Page load timeout (seconds) |

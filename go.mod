@@ -7,6 +7,7 @@ require (
 	github.com/charmbracelet/lipgloss v1.1.0
 	github.com/chromedp/chromedp v0.15.1
 	github.com/coder/websocket v1.8.14
+	github.com/cucumber/godog v0.15.1
 	github.com/miekg/dns v1.1.72
 	github.com/prometheus/client_golang v1.23.2
 	github.com/robfig/cron/v3 v3.0.1
@@ -32,6 +33,8 @@ require (
 	github.com/charmbracelet/x/term v0.2.1 // indirect
 	github.com/chromedp/cdproto v0.0.0-20260321001828-e3e3800016bc // indirect
 	github.com/chromedp/sysutil v1.1.0 // indirect
+	github.com/cucumber/gherkin/go/v26 v26.2.0 // indirect
+	github.com/cucumber/messages/go/v21 v21.0.1 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/erikgeiser/coninput v0.0.0-20211004153227-1c3628e74d0f // indirect
 	github.com/fsnotify/fsnotify v1.9.0 // indirect
@@ -41,7 +44,11 @@ require (
 	github.com/gobwas/httphead v0.1.0 // indirect
 	github.com/gobwas/pool v0.2.1 // indirect
 	github.com/gobwas/ws v1.4.0 // indirect
+	github.com/gofrs/uuid v4.3.1+incompatible // indirect
 	github.com/google/uuid v1.6.0 // indirect
+	github.com/hashicorp/go-immutable-radix v1.3.1 // indirect
+	github.com/hashicorp/go-memdb v1.3.4 // indirect
+	github.com/hashicorp/golang-lru v0.5.4 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/lucasb-eyer/go-colorful v1.2.0 // indirect
 	github.com/lufia/plan9stats v0.0.0-20211012122336-39d0f177ccd0 // indirect

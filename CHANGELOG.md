@@ -12,6 +12,13 @@ under the affected version with a reference to the CVE or advisory.
 
 ## [Unreleased]
 
+### Added
+- `auth` block per target: `bearer`, `basic`, `header`, and `query` authentication for `http` and `websocket` targets
+- Token values resolved at dispatch time from literal config values or environment variables (`token_env`, `username_env`, `password_env`)
+- Literal token/password in config triggers a startup warning log — use env-var references in production
+- `github.com/cucumber/godog` (Cucumber for Go) — BDD feature tests covering all four auth types, both literal and env-var token sources, and the error path for unset env vars
+- `auth` block supported in `target_defaults` to apply shared credentials to all file-loaded targets
+
 ---
 
 ## [1.1.1] - 2026-03-27

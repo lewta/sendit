@@ -19,6 +19,7 @@ type Config struct {
 // driver's own built-in defaults.
 type TargetDefaultsConfig struct {
 	Weight    int             `mapstructure:"weight"`
+	Auth      AuthConfig      `mapstructure:"auth"`
 	HTTP      HTTPConfig      `mapstructure:"http"`
 	Browser   BrowserConfig   `mapstructure:"browser"`
 	DNS       DNSConfig       `mapstructure:"dns"`
@@ -80,11 +81,28 @@ type TargetConfig struct {
 	URL       string          `mapstructure:"url"`
 	Weight    int             `mapstructure:"weight"`
 	Type      string          `mapstructure:"type"` // http | browser | dns | websocket | grpc
+	Auth      AuthConfig      `mapstructure:"auth"`
 	HTTP      HTTPConfig      `mapstructure:"http"`
 	Browser   BrowserConfig   `mapstructure:"browser"`
 	DNS       DNSConfig       `mapstructure:"dns"`
 	WebSocket WebSocketConfig `mapstructure:"websocket"`
 	GRPC      GRPCConfig      `mapstructure:"grpc"`
+}
+
+// AuthConfig defines optional authentication applied to a target request.
+// Supported types: bearer, basic, header, query.
+// Token values can be supplied as literals (token/username/password) or
+// resolved at dispatch time from environment variables (token_env etc.).
+type AuthConfig struct {
+	Type        string `mapstructure:"type"`      // bearer | basic | header | query
+	Token       string `mapstructure:"token"`     // literal token value
+	TokenEnv    string `mapstructure:"token_env"` // env var holding the token
+	Username    string `mapstructure:"username"`
+	UsernameEnv string `mapstructure:"username_env"`
+	Password    string `mapstructure:"password"`
+	PasswordEnv string `mapstructure:"password_env"`
+	HeaderName  string `mapstructure:"header_name"` // required for type: header
+	ParamName   string `mapstructure:"param_name"`  // required for type: query
 }
 
 // HTTPConfig holds HTTP-specific target settings.

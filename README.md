@@ -679,6 +679,9 @@ targets_file: "config/targets.txt"
 
 target_defaults:
   weight: 1                    # used when weight is omitted from the file
+  auth:                        # optional: apply shared credentials to all file-loaded targets
+    type: bearer
+    token_env: API_TOKEN       # resolved from env at dispatch time
   http:
     method: GET
     headers:
@@ -700,6 +703,7 @@ target_defaults:
 | `target_defaults` field | Default | Description |
 |-------------------------|---------|-------------|
 | `weight` | `1` | Selection weight for file targets with no explicit weight |
+| `auth.type` | `""` | Auth type: `bearer` \| `basic` \| `header` \| `query` |
 | `http.method` | `GET` | HTTP verb |
 | `http.timeout_s` | `15` | Request timeout in seconds |
 | `browser.timeout_s` | `30` | Page load timeout in seconds |
@@ -778,6 +782,39 @@ targets:
       timeout_s: 15
       # tls: false                # force TLS even when scheme is grpc://
       # insecure: false           # skip TLS certificate verification
+
+  # Auth — token values resolved from env vars at dispatch time.
+  # Supported types: bearer, basic, header, query.
+  - url: "https://api.example.com/data"
+    weight: 3
+    type: http
+    auth:
+      type: bearer
+      token_env: API_TOKEN        # export API_TOKEN=<value> before starting
+
+  - url: "https://api.example.com/search"
+    weight: 2
+    type: http
+    auth:
+      type: basic
+      username: alice
+      password_env: API_PASS
+
+  - url: "https://api.example.com/v2/items"
+    weight: 1
+    type: http
+    auth:
+      type: header
+      header_name: X-API-Key
+      token_env: API_KEY
+
+  - url: "https://api.example.com/v3/items"
+    weight: 1
+    type: http
+    auth:
+      type: query
+      param_name: api_key
+      token_env: API_KEY
 ```
 
 ### `output`
@@ -929,6 +966,8 @@ Integration tests spin up local HTTP, DNS, and WebSocket servers and exercise th
 | targets_file | Set `targets_file: "config/targets.txt"` in a config; `validate` checks the file, `start` loads all entries |
 | targets_file error | Point `targets_file` at a file with a bad line (e.g. `example.com ftp`) → `validate` prints the line number and error |
 | gRPC traffic | Add a `type: grpc` target pointing at a service with reflection enabled (e.g. a local gRPC health server); observe `type=grpc status=200` log lines |
+| Auth (bearer) | Add `auth: {type: bearer, token_env: MY_TOKEN}` to a target; `export MY_TOKEN=test`; observe `Authorization: Bearer test` in server logs |
+| Auth (env unset) | Set `token_env` to an unset variable; observe error result in output and no request reaching the server |
 | target_defaults | Omit `method` from `target_defaults.http`; confirm requests default to GET in logs |
 | Resource gate | Set `cpu_threshold_pct: 1` → logs show "resource monitor: over threshold, dispatch paused" |
 | Rate limiting | Set `default_rps: 0.1`, `max_workers: 1` → ~1 req/10s per domain observed |

@@ -59,6 +59,10 @@ func (d *HTTPDriver) Execute(ctx context.Context, t task.Task) task.Result {
 		req.Header.Set(k, v)
 	}
 
+	if err := applyAuth(req, t.Config.Auth); err != nil {
+		return task.Result{Task: t, Error: err}
+	}
+
 	start := time.Now()
 	resp, err := d.client.Do(req)
 	elapsed := time.Since(start)

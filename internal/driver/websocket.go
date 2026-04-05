@@ -32,7 +32,14 @@ func (d *WebSocketDriver) Execute(ctx context.Context, t task.Task) task.Result 
 
 	start := time.Now()
 
-	conn, _, err := websocket.Dial(connCtx, t.URL, nil)
+	dialOpts := &websocket.DialOptions{}
+	if hdrs, err := authHeaders(t.Config.Auth); err != nil {
+		return task.Result{Task: t, Duration: time.Since(start), Error: err}
+	} else if hdrs != nil {
+		dialOpts.HTTPHeader = hdrs
+	}
+
+	conn, _, err := websocket.Dial(connCtx, t.URL, dialOpts)
 	if err != nil {
 		return task.Result{Task: t, Duration: time.Since(start), Error: fmt.Errorf("dialing: %w", err)}
 	}

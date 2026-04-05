@@ -7,6 +7,53 @@ description: "HTTP, browser, DNS, WebSocket, and gRPC driver options and example
 
 A **driver** is responsible for executing a single request and returning a result. Each target in your config specifies a `type` that selects the driver. All drivers map their results to HTTP-like status codes so the engine's error classifier, backoff, and metrics work uniformly.
 
+## `auth` block
+
+Any target (or `target_defaults`) can include an `auth` block to attach credentials to each request. The `http` and `websocket` drivers honour it; other drivers silently ignore it.
+
+```yaml
+targets:
+  - url: "https://api.example.com/data"
+    type: http
+    auth:
+      type: bearer
+      token_env: API_TOKEN       # resolved from environment at dispatch time
+```
+
+| Field | Description |
+|---|---|
+| `type` | `bearer` \| `basic` \| `header` \| `query` |
+| `token` | Literal token value (triggers a startup warning — prefer `token_env` in production) |
+| `token_env` | Name of the environment variable holding the token |
+| `username` / `username_env` | Basic auth username (literal or env var) |
+| `password` / `password_env` | Basic auth password (literal or env var) — optional |
+| `header_name` | Header name for `type: header` (e.g. `X-API-Key`) |
+| `param_name` | Query parameter name for `type: query` (e.g. `api_key`) |
+
+**Auth types:**
+
+| Type | Effect |
+|---|---|
+| `bearer` | Adds `Authorization: Bearer <token>` header |
+| `basic` | Adds `Authorization: Basic <base64(user:pass)>` header |
+| `header` | Adds `<header_name>: <token>` header |
+| `query` | Appends `?<param_name>=<token>` to the URL |
+
+Token values are resolved **at dispatch time** — if the env var is unset when a request fires, the result carries an error and no request is made.
+
+**Shared credentials via `target_defaults`:**
+
+```yaml
+target_defaults:
+  auth:
+    type: bearer
+    token_env: API_TOKEN
+
+targets_file: "config/targets.txt"
+```
+
+All file-loaded targets inherit the shared auth. Inline targets can override or omit it.
+
 ## `http`
 
 Sends an HTTP/HTTPS request using Go's standard `net/http` client.

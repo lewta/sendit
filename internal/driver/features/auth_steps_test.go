@@ -50,11 +50,11 @@ func (s *scenarioState) aRunningHTTPServerThatRecordsRequestHeadersAndQueryParam
 // ── Env var helpers ───────────────────────────────────────────────────────────
 
 func (s *scenarioState) environmentVariableIsSetTo(name, value string) {
-	os.Setenv(name, value) //nolint:errcheck
+	os.Setenv(name, value) //nolint:errcheck,gosec
 }
 
 func (s *scenarioState) environmentVariableIsUnset(name string) {
-	os.Unsetenv(name) //nolint:errcheck
+	os.Unsetenv(name) //nolint:errcheck,gosec
 }
 
 // ── Target setup ─────────────────────────────────────────────────────────────

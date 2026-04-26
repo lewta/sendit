@@ -12,6 +12,23 @@ under the affected version with a reference to the CVE or advisory.
 
 ## [Unreleased]
 
+---
+
+## [1.2.1] - 2026-04-26
+
+### Changed
+- Bump `modernc.org/sqlite` from 1.48.1 to 1.50.0
+- Bump `golang.org/x/net` from 0.52.0 to 0.53.0
+- Bump `github.com/rs/zerolog` from 1.35.0 to 1.35.1
+- Bump `goreleaser/goreleaser-action` from 7.0.0 to 7.1.0
+- Bump `github/codeql-action` from 4.35.1 to 4.35.2
+- Bump `actions/create-github-app-token` from 3.0.0 to 3.1.1
+- Bump `actions/upload-artifact` from 7.0.0 to 7.0.1
+
+---
+
+## [1.2.0] - 2026-04-05
+
 ### Added
 - `auth` block per target: `bearer`, `basic`, `header`, and `query` authentication for `http` and `websocket` targets
 - Token values resolved at dispatch time from literal config values or environment variables (`token_env`, `username_env`, `password_env`)
@@ -543,7 +560,10 @@ landed on v0.11.2 (out-of-sequence due to unblocking prerequisites).
 
 ---
 
-[Unreleased]: https://github.com/lewta/sendit/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/lewta/sendit/compare/v1.2.1...HEAD
+[1.2.1]: https://github.com/lewta/sendit/compare/v1.2.0...v1.2.1
+[1.2.0]: https://github.com/lewta/sendit/compare/v1.1.1...v1.2.0
+[1.1.1]: https://github.com/lewta/sendit/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/lewta/sendit/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/lewta/sendit/compare/v0.15.3...v1.0.0
 [0.15.3]: https://github.com/lewta/sendit/compare/v0.15.0...v0.15.3

@@ -14,6 +14,15 @@ under the affected version with a reference to the CVE or advisory.
 
 ---
 
+## [1.2.2] - 2026-05-17
+
+### Changed
+- Bump `google.golang.org/grpc` from 1.80.0 to 1.81.1 — includes security fix for potential authorization bypass in xDS RBAC (see [grpc-go#9111](https://github.com/grpc/grpc-go/issues/9111))
+- Bump `modernc.org/sqlite` from 1.50.0 to 1.50.1 (SQLite 3.53.1)
+- Bump `golang.org/x/net` from 0.53.0 to 0.54.0 (QUIC and HTTP/2 bug fixes)
+
+---
+
 ## [1.2.1] - 2026-04-26
 
 ### Changed

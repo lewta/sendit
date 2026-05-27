@@ -14,6 +14,17 @@ under the affected version with a reference to the CVE or advisory.
 
 ---
 
+## [1.2.3] - 2026-05-27
+
+### Changed
+- Bump `golang.org/x/net` from 0.54.0 to 0.55.0 — security release patching 6 CVEs in the `html` parser (XSS in foreign-content handling, DoS via cubic-complexity tree construction) and `idna` (hostname-validation bypass). sendit uses `x/net/html` directly.
+- Bump `goreleaser/goreleaser-action` from 7.2.1 to 7.2.2 (internal CI deps update)
+- Bump `golangci/golangci-lint-action` from 9.2.0 to 9.2.1
+- Bump `codecov/codecov-action` from 6.0.0 to 6.0.1
+- Bump `github/codeql-action` from 4.35.5 to 4.36.0
+
+---
+
 ## [1.2.2] - 2026-05-17
 
 ### Changed
@@ -569,7 +580,9 @@ landed on v0.11.2 (out-of-sequence due to unblocking prerequisites).
 
 ---
 
-[Unreleased]: https://github.com/lewta/sendit/compare/v1.2.1...HEAD
+[Unreleased]: https://github.com/lewta/sendit/compare/v1.2.3...HEAD
+[1.2.3]: https://github.com/lewta/sendit/compare/v1.2.2...v1.2.3
+[1.2.2]: https://github.com/lewta/sendit/compare/v1.2.1...v1.2.2
 [1.2.1]: https://github.com/lewta/sendit/compare/v1.2.0...v1.2.1
 [1.2.0]: https://github.com/lewta/sendit/compare/v1.1.1...v1.2.0
 [1.1.1]: https://github.com/lewta/sendit/compare/v1.1.0...v1.1.1

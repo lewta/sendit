@@ -6,7 +6,7 @@ require (
 	github.com/charmbracelet/bubbletea v1.3.10
 	github.com/charmbracelet/lipgloss v1.1.0
 	github.com/chromedp/chromedp v0.15.1
-	github.com/coder/websocket v1.8.14
+	github.com/coder/websocket v1.8.15
 	github.com/cucumber/godog v0.15.1
 	github.com/miekg/dns v1.1.72
 	github.com/prometheus/client_golang v1.23.2

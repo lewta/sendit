@@ -12,6 +12,9 @@ under the affected version with a reference to the CVE or advisory.
 
 ## [Unreleased]
 
+### Changed
+- Bump `actions/attest-build-provenance` from 4.1.0 to 4.1.1 (CI/release: pinned SHA update for supply-chain integrity)
+
 ---
 
 ## [1.2.3] - 2026-05-27

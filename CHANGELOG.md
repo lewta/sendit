@@ -12,6 +12,9 @@ under the affected version with a reference to the CVE or advisory.
 
 ## [Unreleased]
 
+### Changed
+- Bump `actions/setup-go` from 6.4.0 to 6.5.0 (CI tooling update; used across all workflow files)
+
 ---
 
 ## [1.2.3] - 2026-05-27

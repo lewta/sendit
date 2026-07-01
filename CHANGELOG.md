@@ -13,6 +13,7 @@ under the affected version with a reference to the CVE or advisory.
 ## [Unreleased]
 
 ### Changed
+- Bump `actions/setup-go` from 6.4.0 to 6.5.0 (CI tooling update; used across all workflow files)
 - Bump `actions/attest-build-provenance` from 4.1.0 to 4.1.1 (CI/release: pinned SHA update for supply-chain integrity)
 - Bump `modernc.org/sqlite` from 1.52.0 to 1.53.0, with transitive bumps to `modernc.org/libc` (1.72.3 → 1.73.4), `cc/v4`, `ccgo/v4`, and `gc/v3` (routine upstream maintenance)
 

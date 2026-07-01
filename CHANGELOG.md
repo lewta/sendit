@@ -12,6 +12,10 @@ under the affected version with a reference to the CVE or advisory.
 
 ## [Unreleased]
 
+---
+
+## [1.2.5] - 2026-07-01
+
 ### Changed
 - Bump `actions/setup-go` from 6.4.0 to 6.5.0 (CI tooling update; used across all workflow files)
 - Bump `actions/attest-build-provenance` from 4.1.0 to 4.1.1 (CI/release: pinned SHA update for supply-chain integrity)

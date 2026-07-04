@@ -45,7 +45,7 @@ jobs:
         with:
           languages: go
 
-      - uses: github/codeql-action/autobuild@8aad20d150bbac5944a9f9d289da16a4b0d87c1e  # v4
+      - uses: github/codeql-action/autobuild@54f647b7e1bb85c95cddabcd46b0c578ec92bc1a  # v4
 
       # Starting April 2026, CodeQL skips file coverage on PRs for performance.
       # File coverage is still computed on push-to-main analyses.

@@ -13,6 +13,7 @@ under the affected version with a reference to the CVE or advisory.
 ## [Unreleased]
 
 ### Changed
+- Bump `dorny/paths-filter` from 4.0.1 to 4.0.2 (CI: pinned SHA update)
 - Bump `google.golang.org/grpc` from 1.81.1 to 1.82.0 (routine minor release; transitive bump to `google.golang.org/genproto/googleapis/rpc`)
 
 ---

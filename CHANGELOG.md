@@ -12,6 +12,9 @@ under the affected version with a reference to the CVE or advisory.
 
 ## [Unreleased]
 
+### Changed
+- Bump `google.golang.org/grpc` from 1.81.1 to 1.82.0 (routine minor release; transitive bump to `google.golang.org/genproto/googleapis/rpc`)
+
 ---
 
 ## [1.2.5] - 2026-07-01

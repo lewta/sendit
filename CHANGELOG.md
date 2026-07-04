@@ -12,6 +12,9 @@ under the affected version with a reference to the CVE or advisory.
 
 ## [Unreleased]
 
+### Changed
+- Bump `dorny/paths-filter` from 4.0.1 to 4.0.2 (CI: pinned SHA update)
+
 ---
 
 ## [1.2.5] - 2026-07-01

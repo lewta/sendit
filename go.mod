@@ -1,6 +1,6 @@
 module github.com/lewta/sendit
 
-go 1.26
+go 1.26.5
 
 require (
 	github.com/charmbracelet/bubbletea v1.3.10

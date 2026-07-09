@@ -44,6 +44,7 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: coverage.txt
           fail_ci_if_error: true
+          version: v11.2.8
 
       - uses: codecov/test-results-action@0fa95f0e1eeaafde2c782583b36b28ad0d8c77d3  # v1.2.1
         if: ${{ !cancelled() }}
@@ -71,6 +72,7 @@ jobs:
           files: integration-coverage.txt
           flags: integration
           fail_ci_if_error: true
+          version: v11.2.8
 
   goreleaser-check:
     runs-on: ubuntu-latest

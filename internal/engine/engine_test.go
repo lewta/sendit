@@ -1,10 +1,17 @@
 package engine
 
 import (
+	"context"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/lewta/sendit/internal/config"
 	"github.com/lewta/sendit/internal/metrics"
+	"github.com/lewta/sendit/internal/task"
 )
 
 func baseCfg(targets []config.TargetConfig) *config.Config {
@@ -108,6 +115,77 @@ func TestReload_SwapsBackoff(t *testing.T) {
 	bo := eng.backoff.Load()
 	if got := bo.MaxAttempts(); got != 5 {
 		t.Errorf("backoff MaxAttempts after reload = %d, want 5", got)
+	}
+}
+
+func TestDispatch_RateLimitsCrossHostRedirectDestination(t *testing.T) {
+	var dstRequests atomic.Int32
+	dst := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		dstRequests.Add(1)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer dst.Close()
+
+	src := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, dst.URL, http.StatusFound)
+	}))
+	defer src.Close()
+	srcURL, err := url.Parse(src.URL)
+	if err != nil {
+		t.Fatalf("parsing source URL: %v", err)
+	}
+	srcURL.Host = "localhost:" + srcURL.Port()
+
+	target := config.TargetConfig{
+		URL:    srcURL.String(),
+		Type:   "http",
+		Weight: 1,
+		HTTP: config.HTTPConfig{
+			AllowCrossHostRedirects: true,
+			TimeoutS:                1,
+		},
+	}
+	cfg := baseCfg([]config.TargetConfig{target})
+	cfg.RateLimits = config.RateLimitsConfig{
+		DefaultRPS: 100,
+		PerDomain: []config.DomainRateLimit{
+			{Domain: hostname(dst.URL), RPS: 0.001},
+		},
+	}
+
+	eng, err := New(cfg, metrics.Noop())
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+
+	// Consume the destination host's burst token. The redirected request must
+	// wait on that host's limiter and should time out before reaching dst.
+	if err := eng.rl.Load().Wait(context.Background(), hostname(dst.URL)); err != nil {
+		t.Fatalf("pre-consuming destination limiter: %v", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	defer cancel()
+	results := make(chan task.Result, 1)
+	eng.SetObserver(func(result task.Result) {
+		results <- result
+	})
+
+	if err := eng.pool.Acquire(ctx, target.Type); err != nil {
+		t.Fatalf("pool.Acquire: %v", err)
+	}
+	eng.dispatch(ctx, task.Task{URL: target.URL, Type: target.Type, Config: target})
+
+	select {
+	case result := <-results:
+		if result.Error == nil {
+			t.Fatal("result.Error = nil, want redirect destination rate-limit wait error")
+		}
+	default:
+		t.Fatal("observer did not receive dispatch result")
+	}
+	if dstRequests.Load() != 0 {
+		t.Errorf("redirect destination received %d requests, want 0", dstRequests.Load())
 	}
 }
 

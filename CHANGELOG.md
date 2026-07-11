@@ -12,6 +12,10 @@ under the affected version with a reference to the CVE or advisory.
 
 ## [Unreleased]
 
+### Security
+- Block HTTP redirects to a different host by default to avoid forwarding custom auth headers; set `http.allow_cross_host_redirects: true` to opt in to cross-host redirects.
+- Ensure opt-in cross-host HTTP redirects still pass through per-domain rate limiting before the redirected request is sent.
+
 ### Changed
 - Bump `dorny/paths-filter` from 4.0.1 to 4.0.2 (CI: pinned SHA update)
 - Bump `google.golang.org/grpc` from 1.81.1 to 1.82.0 (routine minor release; transitive bump to `google.golang.org/genproto/googleapis/rpc`)

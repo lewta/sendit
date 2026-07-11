@@ -52,6 +52,7 @@ target_defaults:
     headers:
       User-Agent: "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36"
     timeout_s: 15
+    # allow_cross_host_redirects: false  # opt in only when redirects to other hosts are expected
   browser:
     scroll: false
     timeout_s: 30

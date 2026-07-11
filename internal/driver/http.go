@@ -29,6 +29,16 @@ func NewHTTPDriver() *HTTPDriver {
 	}
 }
 
+func sameHostRedirectPolicy(req *http.Request, via []*http.Request) error {
+	if len(via) == 0 {
+		return nil
+	}
+	if !strings.EqualFold(req.URL.Host, via[len(via)-1].URL.Host) {
+		return http.ErrUseLastResponse
+	}
+	return nil
+}
+
 // Execute performs the HTTP request described by t.
 func (d *HTTPDriver) Execute(ctx context.Context, t task.Task) task.Result {
 	cfg := t.Config.HTTP
@@ -64,7 +74,13 @@ func (d *HTTPDriver) Execute(ctx context.Context, t task.Task) task.Result {
 	}
 
 	start := time.Now()
-	resp, err := d.client.Do(req)
+	client := d.client
+	if !cfg.AllowCrossHostRedirects {
+		clientCopy := *d.client
+		clientCopy.CheckRedirect = sameHostRedirectPolicy
+		client = &clientCopy
+	}
+	resp, err := client.Do(req)
 	elapsed := time.Since(start)
 
 	if err != nil {

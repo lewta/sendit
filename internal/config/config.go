@@ -79,6 +79,7 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("target_defaults.weight", 1)
 	v.SetDefault("target_defaults.http.method", "GET")
 	v.SetDefault("target_defaults.http.timeout_s", 15)
+	v.SetDefault("target_defaults.http.allow_cross_host_redirects", false)
 	v.SetDefault("target_defaults.browser.timeout_s", 30)
 	v.SetDefault("target_defaults.dns.resolver", "8.8.8.8:53")
 	v.SetDefault("target_defaults.dns.record_type", "A")

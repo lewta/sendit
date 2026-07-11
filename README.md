@@ -687,6 +687,7 @@ target_defaults:
     headers:
       User-Agent: "Mozilla/5.0 ..."
     timeout_s: 15
+    allow_cross_host_redirects: false
   browser:
     scroll: false
     timeout_s: 30
@@ -706,6 +707,7 @@ target_defaults:
 | `auth.type` | `""` | Auth type: `bearer` \| `basic` \| `header` \| `query` |
 | `http.method` | `GET` | HTTP verb |
 | `http.timeout_s` | `15` | Request timeout in seconds |
+| `http.allow_cross_host_redirects` | `false` | Follow redirects to a different host. Keep disabled when sending auth headers unless that forwarding is intended. |
 | `browser.timeout_s` | `30` | Page load timeout in seconds |
 | `dns.resolver` | `8.8.8.8:53` | DNS resolver address |
 | `dns.record_type` | `A` | DNS record type |

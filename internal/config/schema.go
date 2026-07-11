@@ -107,10 +107,11 @@ type AuthConfig struct {
 
 // HTTPConfig holds HTTP-specific target settings.
 type HTTPConfig struct {
-	Method   string            `mapstructure:"method"`
-	Headers  map[string]string `mapstructure:"headers"`
-	Body     string            `mapstructure:"body"`
-	TimeoutS int               `mapstructure:"timeout_s"`
+	Method                  string            `mapstructure:"method"`
+	Headers                 map[string]string `mapstructure:"headers"`
+	Body                    string            `mapstructure:"body"`
+	TimeoutS                int               `mapstructure:"timeout_s"`
+	AllowCrossHostRedirects bool              `mapstructure:"allow_cross_host_redirects"`
 }
 
 // BrowserConfig holds headless-browser target settings.

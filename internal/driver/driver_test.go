@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -123,6 +124,102 @@ func TestHTTPDriver_CustomHeaders(t *testing.T) {
 	}
 	if gotHeader != "sendit-test" {
 		t.Errorf("server received header %q, want sendit-test", gotHeader)
+	}
+}
+
+func TestHTTPDriver_CustomAuthHeader_NotForwardedToCrossHostRedirect(t *testing.T) {
+	var redirectedRequests atomic.Int32
+	var gotHeader string
+	dst := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		redirectedRequests.Add(1)
+		gotHeader = r.Header.Get("X-API-Key")
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer dst.Close()
+
+	src := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, dst.URL, http.StatusFound)
+	}))
+	defer src.Close()
+
+	drv := driver.NewHTTPDriver()
+	t1 := httpTask(src.URL, config.HTTPConfig{TimeoutS: 5})
+	t1.Config.Auth = config.AuthConfig{Type: "header", HeaderName: "X-API-Key", Token: "secret"}
+	result := drv.Execute(context.Background(), t1)
+
+	if result.Error != nil {
+		t.Fatalf("unexpected error: %v", result.Error)
+	}
+	if result.StatusCode != http.StatusFound {
+		t.Errorf("StatusCode = %d, want %d", result.StatusCode, http.StatusFound)
+	}
+	if redirectedRequests.Load() != 0 {
+		t.Errorf("redirect target received %d requests, want 0", redirectedRequests.Load())
+	}
+	if gotHeader != "" {
+		t.Errorf("redirect target received auth header %q, want empty", gotHeader)
+	}
+}
+
+func TestHTTPDriver_CustomAuthHeader_ForwardedToCrossHostRedirectWhenAllowed(t *testing.T) {
+	var redirectedRequests atomic.Int32
+	var gotHeader string
+	dst := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		redirectedRequests.Add(1)
+		gotHeader = r.Header.Get("X-API-Key")
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer dst.Close()
+
+	src := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, dst.URL, http.StatusFound)
+	}))
+	defer src.Close()
+
+	drv := driver.NewHTTPDriver()
+	t1 := httpTask(src.URL, config.HTTPConfig{TimeoutS: 5, AllowCrossHostRedirects: true})
+	t1.Config.Auth = config.AuthConfig{Type: "header", HeaderName: "X-API-Key", Token: "secret"}
+	result := drv.Execute(context.Background(), t1)
+
+	if result.Error != nil {
+		t.Fatalf("unexpected error: %v", result.Error)
+	}
+	if result.StatusCode != http.StatusOK {
+		t.Errorf("StatusCode = %d, want %d", result.StatusCode, http.StatusOK)
+	}
+	if redirectedRequests.Load() != 1 {
+		t.Errorf("redirect target received %d requests, want 1", redirectedRequests.Load())
+	}
+	if gotHeader != "secret" {
+		t.Errorf("redirect target received auth header %q, want secret", gotHeader)
+	}
+}
+
+func TestHTTPDriver_CustomAuthHeader_PreservedOnSameHostRedirect(t *testing.T) {
+	var gotHeader string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/start" {
+			http.Redirect(w, r, "/final", http.StatusFound)
+			return
+		}
+		gotHeader = r.Header.Get("X-API-Key")
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer srv.Close()
+
+	drv := driver.NewHTTPDriver()
+	t1 := httpTask(srv.URL+"/start", config.HTTPConfig{TimeoutS: 5})
+	t1.Config.Auth = config.AuthConfig{Type: "header", HeaderName: "X-API-Key", Token: "secret"}
+	result := drv.Execute(context.Background(), t1)
+
+	if result.Error != nil {
+		t.Fatalf("unexpected error: %v", result.Error)
+	}
+	if result.StatusCode != http.StatusOK {
+		t.Errorf("StatusCode = %d, want %d", result.StatusCode, http.StatusOK)
+	}
+	if gotHeader != "secret" {
+		t.Errorf("server received auth header %q, want secret", gotHeader)
 	}
 }
 

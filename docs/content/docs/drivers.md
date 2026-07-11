@@ -70,6 +70,7 @@ targets:
         Accept: "application/json"
       body: '{"key":"value"}'            # optional request body (string)
       timeout_s: 15                      # per-request timeout in seconds
+      allow_cross_host_redirects: false  # opt in to follow redirects to another host
 ```
 
 | Field | Default | Description |
@@ -78,6 +79,7 @@ targets:
 | `headers` | `{}` | Key-value map of request headers |
 | `body` | `""` | Optional request body |
 | `timeout_s` | `15` | Per-request timeout (seconds) |
+| `allow_cross_host_redirects` | `false` | Follow redirects to a different host. Keep disabled when sending auth headers unless that forwarding is intended. |
 
 > **Note:** HTTP header map keys are lowercased by the YAML parser (e.g. `User-Agent` is stored as `user-agent`). This is standard YAML behaviour.
 

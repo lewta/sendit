@@ -2,10 +2,12 @@ package driver_test
 
 import (
 	"context"
+	"errors"
 	"io"
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -164,19 +166,27 @@ func TestHTTPDriver_CustomAuthHeader_NotForwardedToCrossHostRedirect(t *testing.
 func TestHTTPDriver_CustomAuthHeader_ForwardedToCrossHostRedirectWhenAllowed(t *testing.T) {
 	var redirectedRequests atomic.Int32
 	var gotHeader string
+	var limitedHost string
 	dst := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		redirectedRequests.Add(1)
 		gotHeader = r.Header.Get("X-API-Key")
 		w.WriteHeader(http.StatusOK)
 	}))
 	defer dst.Close()
+	dstURL, err := url.Parse(dst.URL)
+	if err != nil {
+		t.Fatalf("parsing dst URL: %v", err)
+	}
 
 	src := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, dst.URL, http.StatusFound)
 	}))
 	defer src.Close()
 
-	drv := driver.NewHTTPDriver()
+	drv := driver.NewHTTPDriverWithRedirectLimiter(func(ctx context.Context, host string) error {
+		limitedHost = host
+		return nil
+	})
 	t1 := httpTask(src.URL, config.HTTPConfig{TimeoutS: 5, AllowCrossHostRedirects: true})
 	t1.Config.Auth = config.AuthConfig{Type: "header", HeaderName: "X-API-Key", Token: "secret"}
 	result := drv.Execute(context.Background(), t1)
@@ -190,8 +200,39 @@ func TestHTTPDriver_CustomAuthHeader_ForwardedToCrossHostRedirectWhenAllowed(t *
 	if redirectedRequests.Load() != 1 {
 		t.Errorf("redirect target received %d requests, want 1", redirectedRequests.Load())
 	}
+	if limitedHost != dstURL.Hostname() {
+		t.Errorf("redirect limiter saw host %q, want %q", limitedHost, dstURL.Hostname())
+	}
 	if gotHeader != "secret" {
 		t.Errorf("redirect target received auth header %q, want secret", gotHeader)
+	}
+}
+
+func TestHTTPDriver_CrossHostRedirectLimiterBlocksRedirect(t *testing.T) {
+	errLimited := errors.New("redirect host rate limited")
+	var redirectedRequests atomic.Int32
+	dst := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		redirectedRequests.Add(1)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer dst.Close()
+
+	src := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, dst.URL, http.StatusFound)
+	}))
+	defer src.Close()
+
+	drv := driver.NewHTTPDriverWithRedirectLimiter(func(ctx context.Context, host string) error {
+		return errLimited
+	})
+	t1 := httpTask(src.URL, config.HTTPConfig{TimeoutS: 5, AllowCrossHostRedirects: true})
+	result := drv.Execute(context.Background(), t1)
+
+	if !errors.Is(result.Error, errLimited) {
+		t.Fatalf("Error = %v, want %v", result.Error, errLimited)
+	}
+	if redirectedRequests.Load() != 0 {
+		t.Errorf("redirect target received %d requests, want 0", redirectedRequests.Load())
 	}
 }
 

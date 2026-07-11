@@ -11,14 +11,26 @@ import (
 	"github.com/lewta/sendit/internal/task"
 )
 
+// RedirectLimiter is called before the HTTP driver follows a redirect to a
+// different host.
+type RedirectLimiter func(ctx context.Context, host string) error
+
 // HTTPDriver executes HTTP requests.
 type HTTPDriver struct {
-	client *http.Client
+	client          *http.Client
+	redirectLimiter RedirectLimiter
 }
 
 // NewHTTPDriver creates an HTTPDriver with a shared transport.
 func NewHTTPDriver() *HTTPDriver {
+	return NewHTTPDriverWithRedirectLimiter(nil)
+}
+
+// NewHTTPDriverWithRedirectLimiter creates an HTTPDriver that asks
+// redirectLimiter for permission before following cross-host redirects.
+func NewHTTPDriverWithRedirectLimiter(redirectLimiter RedirectLimiter) *HTTPDriver {
 	return &HTTPDriver{
+		redirectLimiter: redirectLimiter,
 		client: &http.Client{
 			Transport: &http.Transport{
 				MaxIdleConns:        100,
@@ -29,14 +41,30 @@ func NewHTTPDriver() *HTTPDriver {
 	}
 }
 
-func sameHostRedirectPolicy(req *http.Request, via []*http.Request) error {
-	if len(via) == 0 {
-		return nil
+func (d *HTTPDriver) redirectPolicy(allowCrossHost bool) func(req *http.Request, via []*http.Request) error {
+	return func(req *http.Request, via []*http.Request) error {
+		if len(via) == 0 {
+			return nil
+		}
+
+		if strings.EqualFold(req.URL.Host, via[len(via)-1].URL.Host) {
+			return nil
+		}
+
+		if !allowCrossHost {
+			return http.ErrUseLastResponse
+		}
+
+		if d.redirectLimiter == nil {
+			return nil
+		}
+
+		host := req.URL.Hostname()
+		if host == "" {
+			return nil
+		}
+		return d.redirectLimiter(req.Context(), host)
 	}
-	if !strings.EqualFold(req.URL.Host, via[len(via)-1].URL.Host) {
-		return http.ErrUseLastResponse
-	}
-	return nil
 }
 
 // Execute performs the HTTP request described by t.
@@ -74,12 +102,9 @@ func (d *HTTPDriver) Execute(ctx context.Context, t task.Task) task.Result {
 	}
 
 	start := time.Now()
-	client := d.client
-	if !cfg.AllowCrossHostRedirects {
-		clientCopy := *d.client
-		clientCopy.CheckRedirect = sameHostRedirectPolicy
-		client = &clientCopy
-	}
+	clientCopy := *d.client
+	clientCopy.CheckRedirect = d.redirectPolicy(cfg.AllowCrossHostRedirects)
+	client := &clientCopy
 	resp, err := client.Do(req)
 	elapsed := time.Since(start)
 

@@ -56,13 +56,6 @@ func New(cfg *config.Config, m *metrics.Metrics) (*Engine, error) {
 		scheduler: NewScheduler(cfg.Pacing),
 		monitor:   resource.New(cfg.Limits.CPUThresholdPct, cfg.Limits.MemoryThresholdMB),
 		metrics:   m,
-		drivers: map[string]driver.Driver{
-			"http":      driver.NewHTTPDriver(),
-			"browser":   driver.NewBrowserDriver(),
-			"dns":       driver.NewDNSDriver(),
-			"websocket": driver.NewWebSocketDriver(),
-			"grpc":      driver.NewGRPCDriver(),
-		},
 	}
 
 	e.cfg.Store(cfg)
@@ -74,6 +67,15 @@ func New(cfg *config.Config, m *metrics.Metrics) (*Engine, error) {
 		cfg.Backoff.Multiplier,
 		cfg.Backoff.MaxAttempts,
 	))
+	e.drivers = map[string]driver.Driver{
+		"http": driver.NewHTTPDriverWithRedirectLimiter(func(ctx context.Context, host string) error {
+			return e.rl.Load().Wait(ctx, host)
+		}),
+		"browser":   driver.NewBrowserDriver(),
+		"dns":       driver.NewDNSDriver(),
+		"websocket": driver.NewWebSocketDriver(),
+		"grpc":      driver.NewGRPCDriver(),
+	}
 
 	if cfg.Output.Enabled {
 		w, err := output.New(cfg.Output)

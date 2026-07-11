@@ -196,9 +196,11 @@ func targetsFromCrawl(seedURL string, maxDepth, maxPages int, ignoreRobots bool)
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 
+	client := newCrawlHTTPClient(base, 10*time.Second)
+
 	var disallowed, sitemaps []string
 	if !ignoreRobots {
-		disallowed, sitemaps = fetchRobotsInfo(ctx, base)
+		disallowed, sitemaps = fetchRobotsInfo(ctx, newCrawlHTTPClient(base, 5*time.Second), base)
 	}
 
 	type queueItem struct {
@@ -207,15 +209,20 @@ func targetsFromCrawl(seedURL string, maxDepth, maxPages int, ignoreRobots bool)
 		sitemap bool // true: parse as sitemap XML, not an HTML crawl target
 	}
 
-	client := &http.Client{Timeout: 10 * time.Second}
 	visited := map[string]bool{base.String(): true}
 	queue := []queueItem{{base.String(), 0, false}}
 
 	// Seed sitemaps discovered from robots.txt.
 	for _, s := range sitemaps {
-		if !visited[s] {
-			visited[s] = true
-			queue = append(queue, queueItem{s, 0, true})
+		u, err := url.Parse(s)
+		if err != nil || u.Scheme != base.Scheme || u.Host != base.Host {
+			continue
+		}
+		normalizeCrawlURL(u)
+		sitemapURL := u.String()
+		if !visited[sitemapURL] {
+			visited[sitemapURL] = true
+			queue = append(queue, queueItem{sitemapURL, 0, true})
 		}
 	}
 
@@ -275,6 +282,18 @@ func targetsFromCrawl(seedURL string, maxDepth, maxPages int, ignoreRobots bool)
 		}
 	}
 	return targets, nil
+}
+
+func newCrawlHTTPClient(base *url.URL, timeout time.Duration) *http.Client {
+	return &http.Client{
+		Timeout: timeout,
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			if req.URL.Scheme != base.Scheme || req.URL.Host != base.Host {
+				return http.ErrUseLastResponse
+			}
+			return nil
+		},
+	}
 }
 
 // crawlPage fetches rawURL and returns in-domain links found on the page.
@@ -349,7 +368,7 @@ func normalizeCrawlURL(u *url.URL) {
 // fetchRobotsInfo downloads /robots.txt and returns the Disallow path prefixes
 // for the wildcard user-agent and any Sitemap: URLs declared in the file.
 // Returns nil slices on any error (fail open).
-func fetchRobotsInfo(ctx context.Context, base *url.URL) (disallowed, sitemaps []string) {
+func fetchRobotsInfo(ctx context.Context, client *http.Client, base *url.URL) (disallowed, sitemaps []string) {
 	robotsURL := &url.URL{Scheme: base.Scheme, Host: base.Host, Path: "/robots.txt"}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, robotsURL.String(), nil)
 	if err != nil {
@@ -357,7 +376,6 @@ func fetchRobotsInfo(ctx context.Context, base *url.URL) (disallowed, sitemaps [
 	}
 	req.Header.Set("User-Agent", generateUserAgent)
 
-	client := &http.Client{Timeout: 5 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil || resp.StatusCode != http.StatusOK {
 		return nil, nil

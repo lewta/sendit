@@ -281,7 +281,7 @@ The targets file format is `<url> <type> [weight]` per line — the same format 
 sendit generate --url https://example.com --depth 2 --max-pages 50 --output config/generated.yaml
 ```
 
-The crawler fetches the seed URL, parses `<a href>` links, and follows in-domain links breadth-first. `robots.txt` is respected by default; pass `--ignore-robots` to skip it.
+The crawler fetches the seed URL, parses `<a href>` links, and follows in-domain links breadth-first. `robots.txt` is respected by default; sitemap URLs and redirects discovered through robots.txt are only fetched when they stay on the seed origin. Pass `--ignore-robots` to skip robots.txt enforcement.
 
 ### From browser history
 

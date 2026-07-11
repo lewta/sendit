@@ -67,6 +67,8 @@ sendit generate --url https://example.com --depth 2 --output config/generated.ya
 sendit generate --url https://example.com --ignore-robots --output config/generated.yaml
 ```
 
+When crawling from a seed URL, page links are kept in-domain. `robots.txt` is respected by default, and sitemap URLs or redirects discovered through robots.txt are only fetched when they remain on the seed origin.
+
 ### Generate from browser history / bookmarks
 
 ```sh

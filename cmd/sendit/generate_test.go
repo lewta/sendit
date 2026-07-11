@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"github.com/lewta/sendit/internal/config"
@@ -1075,6 +1076,82 @@ func TestTargetsFromCrawl_SitemapViaRobots(t *testing.T) {
 	for u := range urls {
 		if strings.HasSuffix(u, ".xml") {
 			t.Errorf("sitemap XML file included as a target: %s", u)
+		}
+	}
+}
+
+func TestTargetsFromCrawl_RobotsCrossHostSitemapNotFetched(t *testing.T) {
+	var crossHostSitemapRequests atomic.Int32
+	crossHost := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		crossHostSitemapRequests.Add(1)
+		w.Header().Set("Content-Type", "application/xml")
+		_, _ = w.Write([]byte(`<?xml version="1.0"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">` +
+			"<url><loc>http://example.com/from-cross-host-sitemap</loc></url>" +
+			"</urlset>"))
+	}))
+	defer crossHost.Close()
+
+	seed := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/robots.txt":
+			w.Header().Set("Content-Type", "text/plain")
+			_, _ = w.Write([]byte("User-agent: *\nDisallow:\nSitemap: " + crossHost.URL + "/sitemap.xml\n"))
+		default:
+			w.Header().Set("Content-Type", "text/html")
+			_, _ = w.Write([]byte(`<html><body></body></html>`))
+		}
+	}))
+	defer seed.Close()
+
+	targets, err := targetsFromCrawl(seed.URL, 1, 50, false)
+	if err != nil {
+		t.Fatalf("targetsFromCrawl: %v", err)
+	}
+	if crossHostSitemapRequests.Load() != 0 {
+		t.Errorf("cross-host sitemap received %d requests, want 0", crossHostSitemapRequests.Load())
+	}
+	for _, tgt := range targets {
+		if strings.Contains(tgt.URL, "from-cross-host-sitemap") {
+			t.Errorf("cross-host sitemap URL included as target: %s", tgt.URL)
+		}
+	}
+}
+
+func TestTargetsFromCrawl_RobotsSitemapCrossHostRedirectNotFetched(t *testing.T) {
+	var crossHostSitemapRequests atomic.Int32
+	crossHost := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		crossHostSitemapRequests.Add(1)
+		w.Header().Set("Content-Type", "application/xml")
+		_, _ = w.Write([]byte(`<?xml version="1.0"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">` +
+			"<url><loc>http://example.com/from-redirected-sitemap</loc></url>" +
+			"</urlset>"))
+	}))
+	defer crossHost.Close()
+
+	seed := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/robots.txt":
+			w.Header().Set("Content-Type", "text/plain")
+			_, _ = w.Write([]byte("User-agent: *\nDisallow:\nSitemap: http://" + r.Host + "/sitemap.xml\n")) //nolint:gosec // test handler; r.Host is always 127.0.0.1:<port>
+		case "/sitemap.xml":
+			http.Redirect(w, r, crossHost.URL+"/sitemap.xml", http.StatusFound)
+		default:
+			w.Header().Set("Content-Type", "text/html")
+			_, _ = w.Write([]byte(`<html><body></body></html>`))
+		}
+	}))
+	defer seed.Close()
+
+	targets, err := targetsFromCrawl(seed.URL, 1, 50, false)
+	if err != nil {
+		t.Fatalf("targetsFromCrawl: %v", err)
+	}
+	if crossHostSitemapRequests.Load() != 0 {
+		t.Errorf("cross-host redirected sitemap received %d requests, want 0", crossHostSitemapRequests.Load())
+	}
+	for _, tgt := range targets {
+		if strings.Contains(tgt.URL, "from-redirected-sitemap") {
+			t.Errorf("cross-host redirected sitemap URL included as target: %s", tgt.URL)
 		}
 	}
 }

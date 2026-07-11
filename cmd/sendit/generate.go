@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -25,6 +26,11 @@ import (
 )
 
 const generateUserAgent = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36"
+
+const (
+	maxCrawlHTMLBytes    = 5 << 20
+	maxCrawlSitemapBytes = 1 << 20
+)
 
 // generateCmd returns the cobra command for 'sendit generate'.
 func generateCmd() *cobra.Command {
@@ -314,7 +320,12 @@ func crawlPage(ctx context.Context, client *http.Client, rawURL string, base *ur
 		return nil, nil // skip non-HTML responses
 	}
 
-	doc, err := html.Parse(resp.Body)
+	body, err := readLimitedResponseBody(resp.Body, maxCrawlHTMLBytes)
+	if err != nil {
+		return nil, err
+	}
+
+	doc, err := html.Parse(bytes.NewReader(body))
 	if err != nil {
 		return nil, err
 	}
@@ -435,6 +446,11 @@ func fetchSitemapLocs(ctx context.Context, client *http.Client, sitemapURL strin
 		return nil, nil
 	}
 
+	body, err := readLimitedResponseBody(resp.Body, maxCrawlSitemapBytes)
+	if err != nil {
+		return nil, err
+	}
+
 	// Both <urlset><url><loc> and <sitemapindex><sitemap><loc> use <loc>.
 	type locEntry struct {
 		Loc string `xml:"loc"`
@@ -443,7 +459,7 @@ func fetchSitemapLocs(ctx context.Context, client *http.Client, sitemapURL strin
 		URLs     []locEntry `xml:"url"`
 		Sitemaps []locEntry `xml:"sitemap"`
 	}
-	if err := xml.NewDecoder(resp.Body).Decode(&doc); err != nil {
+	if err := xml.NewDecoder(bytes.NewReader(body)).Decode(&doc); err != nil {
 		return nil, err
 	}
 
@@ -459,6 +475,17 @@ func fetchSitemapLocs(ctx context.Context, client *http.Client, sitemapURL strin
 		}
 	}
 	return locs, nil
+}
+
+func readLimitedResponseBody(r io.Reader, maxBytes int64) ([]byte, error) {
+	body, err := io.ReadAll(io.LimitReader(r, maxBytes+1))
+	if err != nil {
+		return nil, err
+	}
+	if int64(len(body)) > maxBytes {
+		return nil, fmt.Errorf("response body exceeds %d bytes", maxBytes)
+	}
+	return body, nil
 }
 
 // isHTMLURL returns true for URLs that are likely HTML pages. URLs with no

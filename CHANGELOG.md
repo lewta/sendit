@@ -18,6 +18,7 @@ under the affected version with a reference to the CVE or advisory.
 - Keep `sendit generate --url` robots.txt sitemap discovery within the seed origin, including sitemap redirects.
 - Bound `sendit generate --url` HTML and sitemap response parsing to prevent oversized crawl responses from exhausting local resources.
 - Bind the optional Prometheus metrics endpoint to loopback by default; set `metrics.bind_address` explicitly to expose it.
+- Keep scheduled pacing paused outside active cron windows instead of dispatching after each poll interval.
 
 ### Changed
 - Bump `dorny/paths-filter` from 4.0.1 to 4.0.2 (CI: pinned SHA update)

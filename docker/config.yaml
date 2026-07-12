@@ -30,6 +30,7 @@ targets:
 
 metrics:
   enabled: true
+  bind_address: "0.0.0.0"  # required for Docker port publishing / Prometheus container scraping
   prometheus_port: 9090
 
 daemon:

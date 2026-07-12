@@ -123,6 +123,9 @@ targets:
 	if cfg.RateLimits.DefaultRPS != 0.5 {
 		t.Errorf("default default_rps = %v, want 0.5", cfg.RateLimits.DefaultRPS)
 	}
+	if cfg.Metrics.BindAddress != "127.0.0.1" {
+		t.Errorf("default metrics.bind_address = %q, want 127.0.0.1", cfg.Metrics.BindAddress)
+	}
 	if cfg.Backoff.InitialMs != 1000 {
 		t.Errorf("default backoff.initial_ms = %d, want 1000", cfg.Backoff.InitialMs)
 	}

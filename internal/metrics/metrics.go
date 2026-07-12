@@ -3,6 +3,7 @@ package metrics
 import (
 	"context"
 	"fmt"
+	"net"
 	"net/http"
 	"net/url"
 	"time"
@@ -107,7 +108,7 @@ func domainOf(rawURL string) string {
 // Routes:
 //   - /metrics — Prometheus scrape endpoint
 //   - /healthz — liveness probe; always returns 200 {"status":"ok"}
-func (m *Metrics) ServeHTTP(ctx context.Context, port int) {
+func (m *Metrics) ServeHTTP(ctx context.Context, bindAddress string, port int) {
 	mux := http.NewServeMux()
 	mux.Handle("/metrics", promhttp.HandlerFor(m.registry, promhttp.HandlerOpts{}))
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) {
@@ -116,7 +117,7 @@ func (m *Metrics) ServeHTTP(ctx context.Context, port int) {
 	})
 
 	srv := &http.Server{
-		Addr:              fmt.Sprintf(":%d", port),
+		Addr:              listenAddr(bindAddress, port),
 		Handler:           mux,
 		ReadHeaderTimeout: 5 * time.Second,
 	}
@@ -137,4 +138,11 @@ func (m *Metrics) ServeHTTP(ctx context.Context, port int) {
 	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		log.Error().Err(err).Msg("metrics server error")
 	}
+}
+
+func listenAddr(bindAddress string, port int) string {
+	if bindAddress == "" {
+		bindAddress = "127.0.0.1"
+	}
+	return net.JoinHostPort(bindAddress, fmt.Sprintf("%d", port))
 }

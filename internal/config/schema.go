@@ -155,8 +155,9 @@ type OutputConfig struct {
 
 // MetricsConfig controls Prometheus metrics exposition.
 type MetricsConfig struct {
-	Enabled        bool `mapstructure:"enabled"`
-	PrometheusPort int  `mapstructure:"prometheus_port"`
+	Enabled        bool   `mapstructure:"enabled"`
+	BindAddress    string `mapstructure:"bind_address"`
+	PrometheusPort int    `mapstructure:"prometheus_port"`
 }
 
 // DaemonConfig holds daemon/process settings.

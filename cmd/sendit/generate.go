@@ -916,6 +916,7 @@ func formatConfig(w io.Writer, targets []config.TargetConfig) {
 	fmt.Fprintln(w)
 	fmt.Fprintln(w, "metrics:")
 	fmt.Fprintln(w, "  enabled: false")
+	fmt.Fprintln(w, "  bind_address: 127.0.0.1")
 	fmt.Fprintln(w, "  prometheus_port: 9090")
 	fmt.Fprintln(w)
 	fmt.Fprintln(w, "daemon:")

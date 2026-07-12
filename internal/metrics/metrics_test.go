@@ -146,7 +146,7 @@ func TestServeHTTP_HealthzRoute(t *testing.T) {
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		m.ServeHTTP(ctx, port)
+		m.ServeHTTP(ctx, "127.0.0.1", port)
 	}()
 
 	var resp *http.Response
@@ -187,7 +187,7 @@ func TestServeHTTP_MetricsRoute(t *testing.T) {
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		m.ServeHTTP(ctx, port)
+		m.ServeHTTP(ctx, "127.0.0.1", port)
 	}()
 
 	var resp *http.Response
@@ -210,6 +210,20 @@ func TestServeHTTP_MetricsRoute(t *testing.T) {
 
 	cancel()
 	<-done
+}
+
+func TestListenAddr_DefaultsToLoopback(t *testing.T) {
+	got := listenAddr("", 9090)
+	if got != "127.0.0.1:9090" {
+		t.Errorf("listenAddr empty bind = %q, want 127.0.0.1:9090", got)
+	}
+}
+
+func TestListenAddr_AllInterfacesWhenExplicit(t *testing.T) {
+	got := listenAddr("0.0.0.0", 9090)
+	if got != "0.0.0.0:9090" {
+		t.Errorf("listenAddr all interfaces = %q, want 0.0.0.0:9090", got)
+	}
 }
 
 // TestDomainOf verifies domain extraction from various URL formats.

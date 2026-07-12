@@ -14,6 +14,18 @@ sendit follows a rolling release model. Only the latest stable release receives 
 | Latest stable | ✓         |
 | All previous  | ✗         |
 
+## Latest security hardening release
+
+`v1.2.5` includes security hardening from the July 2026 Codex Security scan. The release keeps supported workflows intact while tightening several defaults:
+
+- Cross-host HTTP redirects are blocked by default; set `http.allow_cross_host_redirects: true` only when cross-host redirects are intentional.
+- Opt-in cross-host redirects still pass through per-domain rate limiting before the redirected request is sent.
+- `sendit generate --url` keeps robots.txt sitemap discovery within the seed origin and skips oversized HTML and sitemap responses.
+- The optional Prometheus metrics listener binds to loopback by default because metric labels include target domains; set `metrics.bind_address: 0.0.0.0` only when exposing metrics intentionally.
+- Scheduled pacing remains paused outside active cron windows instead of dispatching after each poll interval.
+
+No CVE has been assigned for this release. See the [v1.2.5 release notes](https://github.com/lewta/sendit/releases/tag/v1.2.5) for the full changelog and artifacts.
+
 ## Reporting a vulnerability
 
 **Do not open a public GitHub issue for security vulnerabilities.**

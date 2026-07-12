@@ -33,11 +33,19 @@ type Scheduler struct {
 	// startedAt records when the scheduler was created. Used by burst mode
 	// to compute the linear ramp-up delay.
 	startedAt time.Time
+
+	// scheduledRecheckEvery controls how often scheduled mode rechecks whether a
+	// cron window has opened while dispatch is paused.
+	scheduledRecheckEvery time.Duration
 }
 
 // NewScheduler creates a Scheduler from the pacing config.
 func NewScheduler(cfg config.PacingConfig) *Scheduler {
-	s := &Scheduler{cfg: cfg, startedAt: time.Now()}
+	s := &Scheduler{
+		cfg:                   cfg,
+		startedAt:             time.Now(),
+		scheduledRecheckEvery: 5 * time.Second,
+	}
 
 	s.minDelayMs.Store(int64(cfg.MinDelayMs))
 	s.maxDelayMs.Store(int64(cfg.MaxDelayMs))
@@ -172,14 +180,11 @@ func (s *Scheduler) rateLimitedWait(ctx context.Context) error {
 }
 
 func (s *Scheduler) scheduledWait(ctx context.Context) error {
-	// If outside a cron window, block until context cancels.
-	if !s.inWindow.Load() {
+	for !s.inWindow.Load() {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-		case <-time.After(5 * time.Second):
-			// Re-check window state.
-			return nil
+		case <-time.After(s.scheduledRecheckEvery):
 		}
 	}
 	return s.rateLimitedWait(ctx)

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/lewta/sendit/internal/config"
+	"golang.org/x/time/rate"
 )
 
 func humanCfg(minMs, maxMs int, jitter float64) config.PacingConfig {
@@ -133,18 +134,45 @@ func TestScheduler_Scheduled_OutsideWindow(t *testing.T) {
 		},
 	}
 	s := NewScheduler(cfg)
-	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
+	s.scheduledRecheckEvery = 10 * time.Millisecond
+	ctx, cancel := context.WithTimeout(context.Background(), 75*time.Millisecond)
 	defer cancel()
 
 	s.Start(ctx)
 
-	// Wait should return quickly (hits the 5s poll timer, but context expires first).
 	start := time.Now()
-	_ = s.Wait(ctx) // may return nil or ctx error depending on timing
+	err := s.Wait(ctx)
 	elapsed := time.Since(start)
 
-	if elapsed > 1*time.Second {
+	if err == nil {
+		t.Fatal("expected scheduled wait to block outside a window until context expires")
+	}
+	if elapsed < 50*time.Millisecond {
+		t.Errorf("Wait returned before context expiry while outside window: %v", elapsed)
+	}
+	if elapsed > 500*time.Millisecond {
 		t.Errorf("Wait in scheduled mode took too long: %v", elapsed)
+	}
+}
+
+// TestScheduler_Scheduled_InWindowDispatches verifies active scheduled windows
+// still use the rate limiter and permit dispatch.
+func TestScheduler_Scheduled_InWindowDispatches(t *testing.T) {
+	cfg := config.PacingConfig{
+		Mode:              "scheduled",
+		RequestsPerMinute: 60,
+	}
+	s := NewScheduler(cfg)
+	s.inWindow.Store(true)
+	s.limiter.Store(rate.NewLimiter(rate.Limit(10), 1))
+
+	ctx := context.Background()
+	start := time.Now()
+	if err := s.Wait(ctx); err != nil {
+		t.Fatalf("unexpected scheduled in-window wait error: %v", err)
+	}
+	if elapsed := time.Since(start); elapsed > 250*time.Millisecond {
+		t.Errorf("scheduled in-window wait took too long: %v", elapsed)
 	}
 }
 

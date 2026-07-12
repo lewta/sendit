@@ -17,6 +17,7 @@ under the affected version with a reference to the CVE or advisory.
 - Ensure opt-in cross-host HTTP redirects still pass through per-domain rate limiting before the redirected request is sent.
 - Keep `sendit generate --url` robots.txt sitemap discovery within the seed origin, including sitemap redirects.
 - Bound `sendit generate --url` HTML and sitemap response parsing to prevent oversized crawl responses from exhausting local resources.
+- Bind the optional Prometheus metrics endpoint to loopback by default; set `metrics.bind_address` explicitly to expose it.
 
 ### Changed
 - Bump `dorny/paths-filter` from 4.0.1 to 4.0.2 (CI: pinned SHA update)

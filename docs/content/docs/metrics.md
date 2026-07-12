@@ -12,8 +12,11 @@ sendit exposes a Prometheus scrape endpoint when `metrics.enabled` is `true`.
 ```yaml
 metrics:
   enabled: true
+  bind_address: 127.0.0.1
   prometheus_port: 9090
 ```
+
+The metrics listener binds to `127.0.0.1` by default because metric labels include target domains. Set `bind_address: 0.0.0.0` only when Prometheus runs on another host or container network that must scrape this process.
 
 Two endpoints are available on the configured port:
 

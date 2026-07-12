@@ -579,7 +579,7 @@ to pacing mode or resource limits (workers, cpu, memory) require a restart.`,
 			var m *metrics.Metrics
 			if cfg.Metrics.Enabled {
 				m = metrics.New()
-				go m.ServeHTTP(ctx, cfg.Metrics.PrometheusPort)
+				go m.ServeHTTP(ctx, cfg.Metrics.BindAddress, cfg.Metrics.PrometheusPort)
 			} else {
 				m = metrics.Noop()
 			}

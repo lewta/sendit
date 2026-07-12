@@ -386,7 +386,7 @@ func TestFormatConfig_ContainsRequiredSections(t *testing.T) {
 	var b bytes.Buffer
 	formatConfig(&b, nil)
 	got := b.String()
-	for _, section := range []string{"pacing:", "limits:", "rate_limits:", "backoff:", "targets:", "metrics:", "daemon:"} {
+	for _, section := range []string{"pacing:", "limits:", "rate_limits:", "backoff:", "targets:", "metrics:", "bind_address:", "daemon:"} {
 		if !strings.Contains(got, section) {
 			t.Errorf("formatConfig output missing section %q", section)
 		}

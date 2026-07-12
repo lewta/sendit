@@ -69,6 +69,7 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("output.append", false)
 
 	v.SetDefault("metrics.enabled", false)
+	v.SetDefault("metrics.bind_address", "127.0.0.1")
 	v.SetDefault("metrics.prometheus_port", 9090)
 
 	v.SetDefault("daemon.pid_file", "/tmp/sendit.pid")

@@ -69,6 +69,7 @@ output:
 
 metrics:
   enabled: true
+  bind_address: "127.0.0.1"
   prometheus_port: 9090
 
 daemon:

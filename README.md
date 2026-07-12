@@ -545,11 +545,14 @@ Mount your config at `/etc/sendit/config.yaml`. For container deployments, set:
 ```yaml
 metrics:
   enabled: true
+  bind_address: 0.0.0.0
   prometheus_port: 9090
 
 daemon:
   log_format: json   # friendlier for log aggregators
 ```
+
+Metrics bind to loopback by default because metric labels include target domains. Container deployments that publish the metrics port should explicitly set `bind_address: 0.0.0.0`.
 
 The `--foreground` flag is set in the image entrypoint — PID files are not useful inside containers.
 
@@ -848,8 +851,11 @@ Optional Prometheus exposition.
 ```yaml
 metrics:
   enabled: true
+  bind_address: 127.0.0.1
   prometheus_port: 9090     # GET http://localhost:9090/metrics
 ```
+
+Metrics bind to loopback by default because metric labels include target domains. Set `bind_address: 0.0.0.0` only when you intentionally expose `/metrics` to another host or container network.
 
 Exposed metrics:
 

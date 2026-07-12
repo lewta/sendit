@@ -147,15 +147,18 @@ Optional Prometheus exposition endpoint.
 ```yaml
 metrics:
   enabled: true
+  bind_address: 127.0.0.1
   prometheus_port: 9090
 ```
 
-When enabled, two endpoints are served on `prometheus_port`:
+When enabled, two endpoints are served on `bind_address:prometheus_port`:
 
 | Endpoint | Description |
 |---|---|
 | `GET /metrics` | Prometheus scrape endpoint |
 | `GET /healthz` | Liveness probe — always returns `200 {"status":"ok"}` |
+
+Metrics bind to loopback by default. Set `bind_address: 0.0.0.0` only when you intentionally expose the endpoint to another host or container network.
 
 See [Metrics](../metrics/) for the full metric reference and label descriptions.
 

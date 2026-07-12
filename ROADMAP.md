@@ -48,7 +48,7 @@ Features planned for future releases of sendit. Contributions are welcome — op
 - [v1.3.0 — Request templating](#v130--request-templating)
 - [v1.4.0 — Replay command](#v140--replay-command)
 - [v1.5.0 — HTTP version control](#v150--http-version-control)
-- [v1.6.0 — SFTP driver](#v160--sftp-driver)
+- [v1.6.0 — SFTP driver ✓](#v160--sftp-driver-)
 
 **Research**
 - [Non-standard traffic driver](#research--non-standard-traffic-driver)
@@ -750,7 +750,7 @@ targets:
 
 ---
 
-## v1.6.0 — SFTP driver
+## v1.6.0 — SFTP driver ✓
 
 Load test SFTP file transfer infrastructure with multiple users, configurable file sizes, SSH handshake policy enforcement, and optional EICAR upload for malware scanner testing.
 
@@ -760,7 +760,7 @@ Load test SFTP file transfer infrastructure with multiple users, configurable fi
 - **Auth** — `sftp.username` + `sftp.password` or `sftp.private_key` (file path or inline PEM string); multiple user targets with weights model realistic user-mix load
 - **Payload sizing** — for `upload`: `sftp.file_size_bytes` (fixed) or `sftp.file_size_min_bytes` / `sftp.file_size_max_bytes` (random per request); `BytesRead` in results reflects actual bytes transferred for both upload and download
 - **EICAR testing** — `sftp.eicar: true` uploads the 68-byte EICAR standard test string instead of random data; result status reflects what the server returns, enabling detection of async vs synchronous AV scanner blocking
-- **Connection caching** — `ssh.Client` cached per `(host:port, username)` with a `sync.Mutex`; stale connections detected on use and evicted/reconnected
+- **Connection caching** — `ssh.Client` cached per address, username, auth material, and SSH policy with a `sync.Mutex`; stale connections are evicted and reconnected
 
 ### SSH handshake metadata
 
@@ -771,7 +771,7 @@ Four fields added to JSONL output via `task.Result.Meta` (a new `map[string]stri
 | `sftp_server_version` | `SSH-2.0-OpenSSH_8.9p1 Ubuntu-3` | `ssh.Conn.ServerVersion()` |
 | `sftp_host_key_type` | `ssh-ed25519` | `HostKeyCallback` |
 | `sftp_host_key_fp` | `SHA256:abc123...` | `HostKeyCallback` |
-| `sftp_auth_methods` | `publickey,password` | server auth challenge |
+| `sftp_auth_methods` | `publickey` or `password` | configured auth method |
 
 For `list`, `sftp_entry_count` is also included in `Meta`.
 
@@ -788,6 +788,8 @@ sftp:
 ```
 
 This enables scheduled policy probes — e.g., alert if a host key rotates from Ed25519 to RSA.
+
+Host keys are verified against `~/.ssh/known_hosts` by default. Set `sftp.insecure: true` only for trusted lab or ephemeral hosts where host-key pinning is intentionally bypassed.
 
 ### Status code mapping
 
@@ -844,7 +846,7 @@ targets:
 ### Dependencies
 
 - `github.com/pkg/sftp` — pure Go SFTP client, no CGO
-- `golang.org/x/crypto/ssh` — SSH transport (verify if already transitive before adding)
+- `golang.org/x/crypto/ssh` — SSH transport and algorithm policy controls
 
 ---
 

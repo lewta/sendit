@@ -2,14 +2,14 @@
 title: "Drivers"
 linkTitle: "Drivers"
 weight: 4
-description: "HTTP, browser, DNS, WebSocket, and gRPC driver options and examples."
+description: "HTTP, browser, DNS, WebSocket, gRPC, and SFTP driver options and examples."
 ---
 
 A **driver** is responsible for executing a single request and returning a result. Each target in your config specifies a `type` that selects the driver. All drivers map their results to HTTP-like status codes so the engine's error classifier, backoff, and metrics work uniformly.
 
 ## `auth` block
 
-Any target (or `target_defaults`) can include an `auth` block to attach credentials to each request. The `http` and `websocket` drivers honour it; other drivers silently ignore it.
+Any target (or `target_defaults`) can include an `auth` block to attach credentials to each request. The `http` and `websocket` drivers honour it; SFTP uses credentials from its `sftp` block; other drivers silently ignore it.
 
 ```yaml
 targets:
@@ -250,3 +250,76 @@ targets:
     grpc:
       body: '{}'
 ```
+
+## `sftp`
+
+Executes SFTP operations over SSH using [github.com/pkg/sftp](https://github.com/pkg/sftp) and [golang.org/x/crypto/ssh](https://pkg.go.dev/golang.org/x/crypto/ssh).
+
+```yaml
+targets:
+  - url: sftp://sftp.example.com/uploads/test.bin
+    weight: 2
+    type: sftp
+    sftp:
+      username: testuser
+      password: secret
+      insecure: false
+      operation: upload
+      file_size_min_bytes: 1024
+      file_size_max_bytes: 1048576
+      allowed_host_key_types: [ssh-ed25519]
+```
+
+| Field | Default | Description |
+|---|---|---|
+| `port` | `22` | SSH port when the URL does not include one |
+| `operation` | `upload` | `upload`, `download`, or `list` |
+| `timeout_s` | `30` | Connection and operation timeout in seconds |
+| `insecure` | `false` | Skip `~/.ssh/known_hosts` host-key verification; use only for trusted test hosts |
+| `username` | `""` | SSH username; required |
+| `password` | `""` | Password authentication; mutually exclusive with `private_key` |
+| `private_key` | `""` | Private key file path or inline PEM string; mutually exclusive with `password` |
+| `file_size_bytes` | `0` | Fixed upload payload size; omit or leave 0 to use a range or the default |
+| `file_size_min_bytes` | `0` | Minimum random upload payload size |
+| `file_size_max_bytes` | `0` | Maximum random upload payload size |
+| `eicar` | `false` | Upload the EICAR test string instead of generated data; upload only |
+| `allowed_ciphers` | `[]` | SSH cipher allow-list; empty accepts the library defaults |
+| `allowed_kex` | `[]` | SSH key-exchange allow-list; empty accepts the library defaults |
+| `allowed_host_key_types` | `[]` | SSH host-key algorithm allow-list; empty accepts the library defaults |
+| `allowed_macs` | `[]` | SSH MAC allow-list; empty accepts the library defaults |
+
+**Operations:**
+
+| Operation | Effect |
+|---|---|
+| `upload` | Creates or truncates the remote path and writes generated payload bytes |
+| `download` | Reads the remote path and reports bytes transferred |
+| `list` | Lists the remote directory and adds `sftp_entry_count` to JSONL metadata |
+
+**Payload sizing:** set `file_size_bytes` for a fixed upload size, or set `file_size_min_bytes` and `file_size_max_bytes` for a random size chosen per request. If no size is set, uploads use a small default payload. Set `eicar: true` only when you intentionally want antivirus or malware-scanning infrastructure to see the EICAR standard test string.
+
+**Host keys:** by default, SFTP verifies host keys against `~/.ssh/known_hosts`. Set `insecure: true` only for trusted lab or ephemeral hosts where pinning is impractical.
+
+**Algorithm policy:** use the `allowed_*` lists to enforce SSH policy. If the server cannot negotiate an allowed algorithm, the result is mapped to `502`.
+
+```yaml
+sftp:
+  allowed_ciphers: [aes256-gcm@openssh.com, chacha20-poly1305@openssh.com]
+  allowed_kex: [curve25519-sha256]
+  allowed_host_key_types: [ssh-ed25519]
+  allowed_macs: [hmac-sha2-256-etm@openssh.com]
+```
+
+**SFTP status codes** are mapped to HTTP-like status codes:
+
+| Condition | HTTP equivalent | Effect |
+|---|---|---|
+| Success | 200 | success |
+| Auth failure | 401 | permanent skip |
+| Permission denied | 403 | permanent skip |
+| Missing download path | 404 | permanent skip |
+| Host key or algorithm policy mismatch | 502 | transient backoff |
+| SFTP protocol error | 502 | transient backoff |
+| Timeout | 504 | transient backoff |
+
+**JSONL metadata:** SFTP results include `sftp_server_version`, `sftp_host_key_type`, `sftp_host_key_fp`, and `sftp_auth_methods` when available. `list` results also include `sftp_entry_count`.

@@ -274,18 +274,135 @@ func TestValidate_LogLevel(t *testing.T) {
 }
 
 func TestValidate_AllTargetTypes(t *testing.T) {
-	types := []string{"http", "browser", "dns", "websocket"}
-	for _, typ := range types {
-		yaml := `
+	tests := []struct {
+		name string
+		yaml string
+	}{
+		{
+			name: "http",
+			yaml: `
 targets:
   - url: "https://example.com"
     weight: 1
-    type: ` + typ + `
-`
-		path := writeTemp(t, yaml)
+    type: http
+`,
+		},
+		{
+			name: "browser",
+			yaml: `
+targets:
+  - url: "https://example.com"
+    weight: 1
+    type: browser
+`,
+		},
+		{
+			name: "dns",
+			yaml: `
+targets:
+  - url: "example.com"
+    weight: 1
+    type: dns
+`,
+		},
+		{
+			name: "websocket",
+			yaml: `
+targets:
+  - url: "wss://example.com/feed"
+    weight: 1
+    type: websocket
+`,
+		},
+		{
+			name: "grpc",
+			yaml: `
+targets:
+  - url: "grpc://example.com:443/package.Service/Method"
+    weight: 1
+    type: grpc
+`,
+		},
+		{
+			name: "sftp",
+			yaml: `
+targets:
+  - url: "sftp://example.com/upload.bin"
+    weight: 1
+    type: sftp
+    sftp:
+      username: testuser
+      password: secret
+`,
+		},
+	}
+	for _, tt := range tests {
+		path := writeTemp(t, tt.yaml)
 		if _, err := Load(path); err != nil {
-			t.Errorf("type %q: unexpected error: %v", typ, err)
+			t.Errorf("type %q: unexpected error: %v", tt.name, err)
 		}
+	}
+}
+
+func TestValidate_SFTPRequiresAuth(t *testing.T) {
+	yaml := `
+targets:
+  - url: "sftp://example.com/upload.bin"
+    weight: 1
+    type: sftp
+    sftp:
+      username: testuser
+`
+	path := writeTemp(t, yaml)
+	_, err := Load(path)
+	if err == nil {
+		t.Fatal("expected error for sftp target without password or private_key")
+	}
+	if !strings.Contains(err.Error(), "password or private_key") {
+		t.Errorf("error should mention password or private_key, got: %v", err)
+	}
+}
+
+func TestValidate_SFTPRejectsMultipleAuthMethods(t *testing.T) {
+	yaml := `
+targets:
+  - url: "sftp://example.com/upload.bin"
+    weight: 1
+    type: sftp
+    sftp:
+      username: testuser
+      password: secret
+      private_key: /tmp/key
+`
+	path := writeTemp(t, yaml)
+	_, err := Load(path)
+	if err == nil {
+		t.Fatal("expected error for sftp target with password and private_key")
+	}
+	if !strings.Contains(err.Error(), "mutually exclusive") {
+		t.Errorf("error should mention mutually exclusive auth, got: %v", err)
+	}
+}
+
+func TestValidate_SFTPRejectsInvalidPayloadRange(t *testing.T) {
+	yaml := `
+targets:
+  - url: "sftp://example.com/upload.bin"
+    weight: 1
+    type: sftp
+    sftp:
+      username: testuser
+      password: secret
+      file_size_min_bytes: 2048
+      file_size_max_bytes: 1024
+`
+	path := writeTemp(t, yaml)
+	_, err := Load(path)
+	if err == nil {
+		t.Fatal("expected error for invalid sftp payload range")
+	}
+	if !strings.Contains(err.Error(), "file_size_max_bytes") {
+		t.Errorf("error should mention file_size_max_bytes, got: %v", err)
 	}
 }
 
@@ -490,15 +607,15 @@ func TestTargetsFile_InvalidFormat_MissingType(t *testing.T) {
 }
 
 func TestTargetsFile_InvalidFormat_BadType(t *testing.T) {
-	targetsPath := writeTempFile(t, "targets.txt", "https://example.com grpc\n")
+	targetsPath := writeTempFile(t, "targets.txt", "https://example.com ftp\n")
 	yaml := "targets_file: " + strconv.Quote(targetsPath) + "\n"
 	cfgPath := writeTemp(t, yaml)
 	_, err := Load(cfgPath)
 	if err == nil {
-		t.Fatal("expected error for unknown type 'grpc'")
+		t.Fatal("expected error for unknown type 'ftp'")
 	}
-	if !strings.Contains(err.Error(), "grpc") {
-		t.Errorf("error should mention 'grpc', got: %v", err)
+	if !strings.Contains(err.Error(), "ftp") {
+		t.Errorf("error should mention 'ftp', got: %v", err)
 	}
 }
 
@@ -524,26 +641,74 @@ func TestTargetsFile_InvalidFormat_ZeroWeight(t *testing.T) {
 
 func TestTargetsFile_AllTypes(t *testing.T) {
 	content := `
-https://a.com     http
-https://b.com     browser
-example.com       dns
-wss://c.com/feed  websocket
+https://a.com                                      http
+https://b.com                                      browser
+example.com                                        dns
+wss://c.com/feed                                   websocket
+grpc://grpc.example.com:443/pkg.Service/Method     grpc
+sftp://sftp.example.com/upload.bin                 sftp
 `
 	targetsPath := writeTempFile(t, "targets.txt", content)
-	yaml := "targets_file: " + strconv.Quote(targetsPath) + "\n"
+	yaml := `
+targets_file: ` + strconv.Quote(targetsPath) + `
+target_defaults:
+  sftp:
+    username: testuser
+    password: secret
+`
 	cfgPath := writeTemp(t, yaml)
 	cfg, err := Load(cfgPath)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if len(cfg.Targets) != 4 {
-		t.Fatalf("expected 4 targets, got %d", len(cfg.Targets))
+	if len(cfg.Targets) != 6 {
+		t.Fatalf("expected 6 targets, got %d", len(cfg.Targets))
 	}
-	types := []string{"http", "browser", "dns", "websocket"}
+	types := []string{"http", "browser", "dns", "websocket", "grpc", "sftp"}
 	for i, want := range types {
 		if cfg.Targets[i].Type != want {
 			t.Errorf("target[%d].Type = %q, want %q", i, cfg.Targets[i].Type, want)
 		}
+	}
+}
+
+func TestTargetsFile_SFTPDefaultsApplied(t *testing.T) {
+	targetsPath := writeTempFile(t, "targets.txt", "sftp://example.com/upload.bin sftp\n")
+	yaml := `
+targets_file: ` + strconv.Quote(targetsPath) + `
+target_defaults:
+  sftp:
+    username: testuser
+    password: secret
+    operation: upload
+    file_size_bytes: 2048
+`
+	cfgPath := writeTemp(t, yaml)
+	cfg, err := Load(cfgPath)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(cfg.Targets) != 1 {
+		t.Fatalf("expected 1 target, got %d", len(cfg.Targets))
+	}
+	got := cfg.Targets[0].SFTP
+	if got.Username != "testuser" {
+		t.Errorf("SFTP.Username = %q, want testuser", got.Username)
+	}
+	if got.Password != "secret" {
+		t.Errorf("SFTP.Password = %q, want secret", got.Password)
+	}
+	if got.Operation != "upload" {
+		t.Errorf("SFTP.Operation = %q, want upload", got.Operation)
+	}
+	if got.Port != 22 {
+		t.Errorf("SFTP.Port = %d, want 22", got.Port)
+	}
+	if got.TimeoutS != 30 {
+		t.Errorf("SFTP.TimeoutS = %d, want 30", got.TimeoutS)
+	}
+	if got.FileSizeBytes != 2048 {
+		t.Errorf("SFTP.FileSizeBytes = %d, want 2048", got.FileSizeBytes)
 	}
 }
 

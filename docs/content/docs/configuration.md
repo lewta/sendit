@@ -97,6 +97,7 @@ https://api.example.com         http      3
 example.com                     dns       2
 wss://ws.example.com            websocket
 grpc://svc.example.com:50051/helloworld.Greeter/SayHello   grpc   4
+sftp://sftp.example.com/uploads/test.bin                   sftp   2
 ```
 
 `target_defaults` supplies remaining fields for every file-loaded target:
@@ -112,6 +113,13 @@ target_defaults:
   dns:
     resolver: "8.8.8.8:53"
     record_type: A
+  sftp:
+    port: 22
+    operation: upload
+    timeout_s: 30
+    insecure: false
+    username: testuser
+    password: secret
 ```
 
 | `target_defaults` field | Default | Description |
@@ -126,6 +134,10 @@ target_defaults:
 | `dns.record_type` | `A` | DNS record type |
 | `websocket.duration_s` | `30` | How long to hold the connection open (seconds) |
 | `grpc.timeout_s` | `15` | Per-call timeout (seconds) |
+| `sftp.port` | `22` | SSH port when the URL omits one |
+| `sftp.operation` | `upload` | Operation: `upload` \| `download` \| `list` |
+| `sftp.timeout_s` | `30` | SFTP connection and operation timeout (seconds) |
+| `sftp.insecure` | `false` | Skip `~/.ssh/known_hosts` host-key verification; use only for trusted test hosts |
 
 ## `output`
 
@@ -138,7 +150,7 @@ Optional result export to a file for offline analysis.
 | `format` | string | `jsonl` | `jsonl` (one JSON object per line) \| `csv` |
 | `append` | bool | `false` | Append to an existing file instead of truncating on start |
 
-Each JSONL record contains: `ts`, `url`, `type`, `status`, `duration_ms`, `bytes`, `error`.
+Each JSONL record contains: `ts`, `url`, `type`, `status`, `duration_ms`, `bytes`, `error`. Drivers may add metadata fields; SFTP records include SSH handshake metadata and `sftp_entry_count` for list operations.
 
 ## `metrics`
 

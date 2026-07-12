@@ -66,6 +66,11 @@ target_defaults:
     timeout_s: 15
     # tls: false       # force TLS even when scheme is grpc://
     # insecure: false  # skip TLS certificate verification
+  sftp:
+    port: 22
+    operation: upload
+    timeout_s: 30
+    insecure: false
 
 targets:
   # Non-standard ports are specified directly in the URL:
@@ -87,6 +92,18 @@ targets:
   #   grpc:
   #     body: '{"name": "world"}'
   #     timeout_s: 15
+  # SFTP target — supports upload, download, and list operations:
+  # - url: "sftp://sftp.example.com/uploads/test.bin"
+  #   weight: 2
+  #   type: sftp
+  #   sftp:
+  #     username: testuser
+  #     password: secret
+  #     insecure: false
+  #     operation: upload
+  #     file_size_min_bytes: 1024
+  #     file_size_max_bytes: 1048576
+  #     allowed_host_key_types: [ssh-ed25519]
   # Auth examples — token values resolved from env vars at dispatch time:
   # - url: "https://api.example.com/data"
   #   weight: 1

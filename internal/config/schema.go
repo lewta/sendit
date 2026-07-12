@@ -25,6 +25,7 @@ type TargetDefaultsConfig struct {
 	DNS       DNSConfig       `mapstructure:"dns"`
 	WebSocket WebSocketConfig `mapstructure:"websocket"`
 	GRPC      GRPCConfig      `mapstructure:"grpc"`
+	SFTP      SFTPConfig      `mapstructure:"sftp"`
 }
 
 // PacingConfig controls how requests are spaced in time.
@@ -80,13 +81,14 @@ type BackoffConfig struct {
 type TargetConfig struct {
 	URL       string          `mapstructure:"url"`
 	Weight    int             `mapstructure:"weight"`
-	Type      string          `mapstructure:"type"` // http | browser | dns | websocket | grpc
+	Type      string          `mapstructure:"type"` // http | browser | dns | websocket | grpc | sftp
 	Auth      AuthConfig      `mapstructure:"auth"`
 	HTTP      HTTPConfig      `mapstructure:"http"`
 	Browser   BrowserConfig   `mapstructure:"browser"`
 	DNS       DNSConfig       `mapstructure:"dns"`
 	WebSocket WebSocketConfig `mapstructure:"websocket"`
 	GRPC      GRPCConfig      `mapstructure:"grpc"`
+	SFTP      SFTPConfig      `mapstructure:"sftp"`
 }
 
 // AuthConfig defines optional authentication applied to a target request.
@@ -142,6 +144,25 @@ type GRPCConfig struct {
 	TimeoutS int    `mapstructure:"timeout_s"` // per-call timeout in seconds (default 15)
 	TLS      bool   `mapstructure:"tls"`       // force TLS even when scheme is grpc://
 	Insecure bool   `mapstructure:"insecure"`  // skip TLS certificate verification
+}
+
+// SFTPConfig holds SFTP-specific target settings.
+type SFTPConfig struct {
+	Port                int      `mapstructure:"port"`
+	Operation           string   `mapstructure:"operation"` // upload | download | list
+	TimeoutS            int      `mapstructure:"timeout_s"`
+	Insecure            bool     `mapstructure:"insecure"`
+	Username            string   `mapstructure:"username"`
+	Password            string   `mapstructure:"password"`
+	PrivateKey          string   `mapstructure:"private_key"`
+	FileSizeBytes       int64    `mapstructure:"file_size_bytes"`
+	FileSizeMinBytes    int64    `mapstructure:"file_size_min_bytes"`
+	FileSizeMaxBytes    int64    `mapstructure:"file_size_max_bytes"`
+	EICAR               bool     `mapstructure:"eicar"`
+	AllowedCiphers      []string `mapstructure:"allowed_ciphers"`
+	AllowedKEX          []string `mapstructure:"allowed_kex"`
+	AllowedHostKeyTypes []string `mapstructure:"allowed_host_key_types"`
+	AllowedMACs         []string `mapstructure:"allowed_macs"`
 }
 
 // OutputConfig controls writing request results to a file.

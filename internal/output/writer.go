@@ -106,12 +106,34 @@ func toRecord(r task.Result) record {
 func (w *Writer) runJSONL(bw *bufio.Writer) {
 	enc := json.NewEncoder(bw)
 	for r := range w.ch {
-		if err := enc.Encode(toRecord(r)); err != nil {
+		if err := enc.Encode(toJSONLRecord(r)); err != nil {
 			log.Warn().Err(err).Msg("output writer: failed to encode result")
 			continue
 		}
 		_ = bw.Flush()
 	}
+}
+
+func toJSONLRecord(r task.Result) map[string]any {
+	rec := toRecord(r)
+	out := map[string]any{
+		"ts":          rec.TS,
+		"url":         rec.URL,
+		"type":        rec.Type,
+		"status":      rec.Status,
+		"duration_ms": rec.DurationMs,
+		"bytes":       rec.Bytes,
+	}
+	if rec.Error != "" {
+		out["error"] = rec.Error
+	}
+	for k, v := range r.Meta {
+		if _, reserved := out[k]; reserved {
+			continue
+		}
+		out[k] = v
+	}
+	return out
 }
 
 func (w *Writer) runCSV(bw *bufio.Writer, appendMode bool) {

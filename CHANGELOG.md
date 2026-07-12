@@ -12,6 +12,9 @@ under the affected version with a reference to the CVE or advisory.
 
 ## [Unreleased]
 
+### Added
+- `type: sftp` driver with upload, download, and list operations, password or private-key authentication, configurable upload payload sizes, optional EICAR upload payloads, SSH algorithm allow-lists, connection reuse, and SFTP metadata in JSONL output.
+
 ---
 
 ## [1.2.5] - 2026-07-12

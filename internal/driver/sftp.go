@@ -4,8 +4,6 @@ import (
 	"bytes"
 	"context"
 	cryptorand "crypto/rand"
-	"crypto/sha256"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -410,16 +408,16 @@ func populateCachedSFTPMetadata(conn *sftpConnection, cfg config.SFTPConfig, met
 }
 
 func sftpCacheKey(addr string, cfg config.SFTPConfig) string {
-	h := sha256.New()
-	writeCachePart(h, addr)
-	writeCachePart(h, cfg.Username)
-	writeCachePart(h, sftpAuthMethod(cfg))
-	writeCachePart(h, strconv.FormatBool(cfg.Insecure))
-	writeCachePart(h, strings.Join(cfg.AllowedCiphers, ","))
-	writeCachePart(h, strings.Join(cfg.AllowedKEX, ","))
-	writeCachePart(h, strings.Join(cfg.AllowedHostKeyTypes, ","))
-	writeCachePart(h, strings.Join(cfg.AllowedMACs, ","))
-	return hex.EncodeToString(h.Sum(nil))
+	var b strings.Builder
+	writeCachePart(&b, addr)
+	writeCachePart(&b, cfg.Username)
+	writeCachePart(&b, sftpAuthMethod(cfg))
+	writeCachePart(&b, strconv.FormatBool(cfg.Insecure))
+	writeCachePart(&b, strings.Join(cfg.AllowedCiphers, ","))
+	writeCachePart(&b, strings.Join(cfg.AllowedKEX, ","))
+	writeCachePart(&b, strings.Join(cfg.AllowedHostKeyTypes, ","))
+	writeCachePart(&b, strings.Join(cfg.AllowedMACs, ","))
+	return b.String()
 }
 
 func sftpAuthMethod(cfg config.SFTPConfig) string {

@@ -120,7 +120,7 @@ target_defaults:
 | `auth.type` | `""` | Auth type: `bearer` \| `basic` \| `header` \| `query` — see [Drivers](../drivers/#auth-block) |
 | `http.method` | `GET` | HTTP verb |
 | `http.timeout_s` | `15` | Request timeout (seconds) |
-| `http.allow_cross_host_redirects` | `false` | Follow redirects to a different host. Keep disabled when sending auth headers unless that forwarding is intended. |
+| `http.allow_cross_host_redirects` | `false` | Follow redirects to a different host. Redirected hosts still use per-domain rate limits. Keep disabled when sending auth headers unless that forwarding is intended. |
 | `browser.timeout_s` | `30` | Page load timeout (seconds) |
 | `dns.resolver` | `8.8.8.8:53` | DNS resolver address |
 | `dns.record_type` | `A` | DNS record type |

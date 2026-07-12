@@ -589,7 +589,7 @@ Controls how requests are spaced in time.
 
 - **`human`** — random delay per request uniformly sampled from `[min_delay_ms, max_delay_ms]`. `requests_per_minute` and `jitter_factor` are ignored in this mode.
 - **`rate_limited`** — token-bucket limiter at `requests_per_minute` plus a small random jitter after each token.
-- **`scheduled`** — cron expressions open active windows; within each window behaves like `rate_limited` at the window's own RPM. Dispatch is paused between windows.
+- **`scheduled`** — cron expressions open active windows; within each window behaves like `rate_limited` at the window's own RPM. Dispatch stays paused between windows; polling only checks whether a window has opened.
 - **`burst`** — fires requests as fast as worker slots allow with no inter-request delay. Intended for internal infrastructure testing. **Requires `--duration`** on `sendit start` — the engine refuses to run an unbounded burst session.
 
 ```yaml

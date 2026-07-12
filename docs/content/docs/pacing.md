@@ -34,7 +34,7 @@ At 30 RPM the dispatch loop fires roughly once every 2 seconds, plus a small jit
 
 ## `scheduled` mode
 
-Opens active windows defined by cron expressions. Within each window the mode behaves exactly like `rate_limited` at the window's own RPM. Between windows dispatch is paused (polling every 5 s).
+Opens active windows defined by cron expressions. Within each window the mode behaves exactly like `rate_limited` at the window's own RPM. Between windows dispatch stays paused; the scheduler polls every 5 s only to check whether a window has opened.
 
 ```yaml
 pacing:

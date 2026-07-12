@@ -12,6 +12,12 @@ under the affected version with a reference to the CVE or advisory.
 
 ## [Unreleased]
 
+---
+
+## [1.2.5] - 2026-07-12
+
+Patch release for the security hardening changes from the July 2026 Codex Security scan.
+
 ### Security
 - Block HTTP redirects to a different host by default to avoid forwarding custom auth headers; set `http.allow_cross_host_redirects: true` to opt in to cross-host redirects.
 - Ensure opt-in cross-host HTTP redirects still pass through per-domain rate limiting before the redirected request is sent.
@@ -24,12 +30,6 @@ under the affected version with a reference to the CVE or advisory.
 - Bump `dorny/paths-filter` from 4.0.1 to 4.0.2 (CI: pinned SHA update)
 - Bump `google.golang.org/grpc` from 1.81.1 to 1.82.0 (routine minor release; transitive bump to `google.golang.org/genproto/googleapis/rpc`)
 - Bump `golangci/golangci-lint-action` from 9.2.1 to 9.3.0 (CI: linter tooling update)
-
----
-
-## [1.2.5] - 2026-07-01
-
-### Changed
 - Bump `actions/setup-go` from 6.4.0 to 6.5.0 (CI tooling update; used across all workflow files)
 - Bump `actions/attest-build-provenance` from 4.1.0 to 4.1.1 (CI/release: pinned SHA update for supply-chain integrity)
 - Bump `modernc.org/sqlite` from 1.52.0 to 1.53.0, with transitive bumps to `modernc.org/libc` (1.72.3 → 1.73.4), `cc/v4`, `ccgo/v4`, and `gc/v3` (routine upstream maintenance)
@@ -602,7 +602,9 @@ landed on v0.11.2 (out-of-sequence due to unblocking prerequisites).
 
 ---
 
-[Unreleased]: https://github.com/lewta/sendit/compare/v1.2.3...HEAD
+[Unreleased]: https://github.com/lewta/sendit/compare/v1.2.5...HEAD
+[1.2.5]: https://github.com/lewta/sendit/compare/v1.2.4...v1.2.5
+[1.2.4]: https://github.com/lewta/sendit/compare/v1.2.3...v1.2.4
 [1.2.3]: https://github.com/lewta/sendit/compare/v1.2.2...v1.2.3
 [1.2.2]: https://github.com/lewta/sendit/compare/v1.2.1...v1.2.2
 [1.2.1]: https://github.com/lewta/sendit/compare/v1.2.0...v1.2.1

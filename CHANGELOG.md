@@ -16,6 +16,7 @@ under the affected version with a reference to the CVE or advisory.
 - Block HTTP redirects to a different host by default to avoid forwarding custom auth headers; set `http.allow_cross_host_redirects: true` to opt in to cross-host redirects.
 - Ensure opt-in cross-host HTTP redirects still pass through per-domain rate limiting before the redirected request is sent.
 - Keep `sendit generate --url` robots.txt sitemap discovery within the seed origin, including sitemap redirects.
+- Bound `sendit generate --url` HTML and sitemap response parsing to prevent oversized crawl responses from exhausting local resources.
 
 ### Changed
 - Bump `dorny/paths-filter` from 4.0.1 to 4.0.2 (CI: pinned SHA update)

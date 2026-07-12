@@ -1029,6 +1029,31 @@ func TestTargetsFromCrawl_FiltersNonHTML(t *testing.T) {
 	}
 }
 
+func TestTargetsFromCrawl_SkipsOversizedHTMLPage(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/robots.txt" {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		w.Header().Set("Content-Type", "text/html")
+		_, _ = w.Write([]byte("<html><body>" +
+			strings.Repeat(" ", maxCrawlHTMLBytes+1) +
+			`<a href="/after-limit">after limit</a>` +
+			"</body></html>"))
+	}))
+	defer srv.Close()
+
+	targets, err := targetsFromCrawl(srv.URL, 1, 50, true)
+	if err != nil {
+		t.Fatalf("targetsFromCrawl: %v", err)
+	}
+	for _, tgt := range targets {
+		if strings.HasSuffix(tgt.URL, "/after-limit") {
+			t.Errorf("oversized HTML page was parsed and discovered target: %s", tgt.URL)
+		}
+	}
+}
+
 // --- crawl: sitemap via robots.txt ---
 
 func TestTargetsFromCrawl_SitemapViaRobots(t *testing.T) {
@@ -1076,6 +1101,36 @@ func TestTargetsFromCrawl_SitemapViaRobots(t *testing.T) {
 	for u := range urls {
 		if strings.HasSuffix(u, ".xml") {
 			t.Errorf("sitemap XML file included as a target: %s", u)
+		}
+	}
+}
+
+func TestTargetsFromCrawl_SkipsOversizedSitemap(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/robots.txt":
+			w.Header().Set("Content-Type", "text/plain")
+			_, _ = w.Write([]byte("User-agent: *\nDisallow:\nSitemap: http://" + r.Host + "/sitemap.xml\n")) //nolint:gosec // test handler; r.Host is always 127.0.0.1:<port>
+		case "/sitemap.xml":
+			w.Header().Set("Content-Type", "application/xml")
+			_, _ = w.Write([]byte(`<?xml version="1.0"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">` +
+				strings.Repeat(" ", maxCrawlSitemapBytes+1) +
+				"<url><loc>http://example.com/after-limit-sitemap</loc></url>" +
+				"</urlset>"))
+		default:
+			w.Header().Set("Content-Type", "text/html")
+			_, _ = w.Write([]byte(`<html><body></body></html>`))
+		}
+	}))
+	defer srv.Close()
+
+	targets, err := targetsFromCrawl(srv.URL, 1, 50, false)
+	if err != nil {
+		t.Fatalf("targetsFromCrawl: %v", err)
+	}
+	for _, tgt := range targets {
+		if strings.HasSuffix(tgt.URL, "/after-limit-sitemap") {
+			t.Errorf("oversized sitemap was parsed and discovered target: %s", tgt.URL)
 		}
 	}
 }

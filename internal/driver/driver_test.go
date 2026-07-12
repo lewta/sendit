@@ -850,6 +850,39 @@ func TestSFTPDriver_EICARUpload(t *testing.T) {
 	}
 }
 
+func TestSFTPDriver_DoesNotReuseConnectionAcrossAuthMaterial(t *testing.T) {
+	root := t.TempDir()
+	addr := startSFTPServer(t, root)
+	drv := driver.NewSFTPDriver()
+	goodCfg := config.SFTPConfig{
+		Username:      "testuser",
+		Password:      "secret",
+		TimeoutS:      5,
+		Insecure:      true,
+		FileSizeBytes: 4,
+	}
+
+	firstPath := filepath.ToSlash(filepath.Join(root, "first.bin"))
+	first := drv.Execute(context.Background(), sftpTask("sftp://"+addr+firstPath, goodCfg))
+	if first.Error != nil {
+		t.Fatalf("first Error = %v", first.Error)
+	}
+	if first.StatusCode != 200 {
+		t.Fatalf("first StatusCode = %d, want 200", first.StatusCode)
+	}
+
+	badCfg := goodCfg
+	badCfg.Password = "wrong"
+	secondPath := filepath.ToSlash(filepath.Join(root, "second.bin"))
+	second := drv.Execute(context.Background(), sftpTask("sftp://"+addr+secondPath, badCfg))
+	if second.StatusCode == 200 {
+		t.Fatal("second StatusCode = 200, want authentication failure instead of cached connection reuse")
+	}
+	if _, err := os.Stat(filepath.Join(root, "second.bin")); !os.IsNotExist(err) {
+		t.Fatalf("second file exists or stat failed with unexpected error: %v", err)
+	}
+}
+
 func TestSFTPDriver_DownloadMissingFileMaps404(t *testing.T) {
 	root := t.TempDir()
 	addr := startSFTPServer(t, root)

@@ -3,12 +3,13 @@ package driver
 import (
 	"bytes"
 	"context"
+	cryptorand "crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
-	"math/rand/v2"
+	"math/big"
 	"net"
 	"net/url"
 	"os"
@@ -41,8 +42,9 @@ const (
 var SFTPErrorToHTTP = sftpErrorToHTTP
 
 type sftpConnection struct {
-	ssh    *ssh.Client
-	client *sftp.Client
+	ssh          *ssh.Client
+	client       *sftp.Client
+	authMaterial string
 }
 
 // SFTPDriver executes upload, download, and list operations over SFTP.
@@ -131,13 +133,25 @@ func (d *SFTPDriver) Execute(ctx context.Context, t task.Task) task.Result {
 }
 
 func (d *SFTPDriver) getConn(ctx context.Context, addr, cacheKey string, cfg config.SFTPConfig, meta map[string]string) (*sftpConnection, error) {
+	authMaterial := sftpAuthMaterial(cfg)
+	var stale *sftpConnection
+
 	d.mu.Lock()
 	if conn, ok := d.conns[cacheKey]; ok {
-		populateCachedSFTPMetadata(conn, cfg, meta)
-		d.mu.Unlock()
-		return conn, nil
+		if conn.authMaterial == authMaterial {
+			populateCachedSFTPMetadata(conn, cfg, meta)
+			d.mu.Unlock()
+			return conn, nil
+		}
+		stale = conn
+		delete(d.conns, cacheKey)
 	}
 	d.mu.Unlock()
+
+	if stale != nil {
+		_ = stale.client.Close()
+		_ = stale.ssh.Close()
+	}
 
 	sshCfg, err := sftpSSHConfig(cfg, meta)
 	if err != nil {
@@ -165,7 +179,7 @@ func (d *SFTPDriver) getConn(ctx context.Context, addr, cacheKey string, cfg con
 		return nil, err
 	}
 
-	conn := &sftpConnection{ssh: sshClient, client: sftpClient}
+	conn := &sftpConnection{ssh: sshClient, client: sftpClient, authMaterial: authMaterial}
 	d.mu.Lock()
 	d.conns[cacheKey] = conn
 	d.mu.Unlock()
@@ -337,7 +351,7 @@ func sftpPayload(cfg config.SFTPConfig) []byte {
 			}
 			size = minSize
 			if maxSize > minSize {
-				size += rand.Int64N(maxSize - minSize + 1)
+				size += secureInt64N(maxSize - minSize + 1)
 			}
 		}
 	}
@@ -350,6 +364,17 @@ func sftpPayload(cfg config.SFTPConfig) []byte {
 		payload[i] = byte('a' + (i % 26))
 	}
 	return payload
+}
+
+func secureInt64N(n int64) int64 {
+	if n <= 0 {
+		return 0
+	}
+	v, err := cryptorand.Int(cryptorand.Reader, big.NewInt(n))
+	if err != nil {
+		return 0
+	}
+	return v.Int64()
 }
 
 func sftpAddress(u *url.URL, cfgPort int) string {
@@ -388,14 +413,33 @@ func sftpCacheKey(addr string, cfg config.SFTPConfig) string {
 	h := sha256.New()
 	writeCachePart(h, addr)
 	writeCachePart(h, cfg.Username)
-	writeCachePart(h, cfg.Password)
-	writeCachePart(h, cfg.PrivateKey)
+	writeCachePart(h, sftpAuthMethod(cfg))
 	writeCachePart(h, strconv.FormatBool(cfg.Insecure))
 	writeCachePart(h, strings.Join(cfg.AllowedCiphers, ","))
 	writeCachePart(h, strings.Join(cfg.AllowedKEX, ","))
 	writeCachePart(h, strings.Join(cfg.AllowedHostKeyTypes, ","))
 	writeCachePart(h, strings.Join(cfg.AllowedMACs, ","))
 	return hex.EncodeToString(h.Sum(nil))
+}
+
+func sftpAuthMethod(cfg config.SFTPConfig) string {
+	if cfg.Password != "" {
+		return sftpAuthMethodPassword
+	}
+	if cfg.PrivateKey != "" {
+		return sftpAuthMethodKey
+	}
+	return ""
+}
+
+func sftpAuthMaterial(cfg config.SFTPConfig) string {
+	if cfg.Password != "" {
+		return sftpAuthMethodPassword + ":" + cfg.Password
+	}
+	if cfg.PrivateKey != "" {
+		return sftpAuthMethodKey + ":" + cfg.PrivateKey
+	}
+	return ""
 }
 
 func writeCachePart(w io.Writer, s string) {

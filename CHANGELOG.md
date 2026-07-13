@@ -14,6 +14,7 @@ under the affected version with a reference to the CVE or advisory.
 
 ### Fixed
 - Sync roadmap and contributor-facing architecture notes with the completed auth and SFTP releases.
+- Remove the retired Go Report Card badge from the README.
 
 ---
 

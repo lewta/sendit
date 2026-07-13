@@ -3,7 +3,6 @@
 [![CI](https://img.shields.io/github/actions/workflow/status/lewta/sendit/ci.yml?branch=main&label=tests)](https://github.com/lewta/sendit/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/lewta/sendit)](https://github.com/lewta/sendit/releases/latest)
 [![Go version](https://img.shields.io/badge/go-1.24+-00ADD8?logo=go&logoColor=white)](https://go.dev)
-[![Go Report Card](https://goreportcard.com/badge/github.com/lewta/sendit)](https://goreportcard.com/report/github.com/lewta/sendit)
 [![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/lewta/sendit/badge)](https://securityscorecards.dev/viewer/?uri=github.com/lewta/sendit)
 [![OpenSSF Best Practices](https://bestpractices.coreinfrastructure.org/projects/12213/badge)](https://bestpractices.coreinfrastructure.org/projects/12213)
 [![codecov](https://codecov.io/gh/lewta/sendit/graph/badge.svg)](https://codecov.io/gh/lewta/sendit)

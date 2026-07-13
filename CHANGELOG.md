@@ -12,6 +12,10 @@ under the affected version with a reference to the CVE or advisory.
 
 ## [Unreleased]
 
+---
+
+## [1.6.0] - 2026-07-13
+
 ### Added
 - `type: sftp` driver with upload, download, and list operations, password or private-key authentication, configurable upload payload sizes, optional EICAR upload payloads, SSH algorithm allow-lists, connection reuse, and SFTP metadata in JSONL output.
 
@@ -605,7 +609,8 @@ landed on v0.11.2 (out-of-sequence due to unblocking prerequisites).
 
 ---
 
-[Unreleased]: https://github.com/lewta/sendit/compare/v1.2.5...HEAD
+[Unreleased]: https://github.com/lewta/sendit/compare/v1.6.0...HEAD
+[1.6.0]: https://github.com/lewta/sendit/compare/v1.2.5...v1.6.0
 [1.2.5]: https://github.com/lewta/sendit/compare/v1.2.4...v1.2.5
 [1.2.4]: https://github.com/lewta/sendit/compare/v1.2.3...v1.2.4
 [1.2.3]: https://github.com/lewta/sendit/compare/v1.2.2...v1.2.3

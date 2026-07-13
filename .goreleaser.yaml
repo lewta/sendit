@@ -84,14 +84,14 @@ homebrew_casks:
       name: homebrew-tap
       token: "{{ .Env.GH_PAT }}"
     homepage: "https://github.com/lewta/sendit"
-    description: "Traffic generation tool for HTTP, DNS, WebSocket, and headless-browser targets."
+    description: "Traffic generation tool for HTTP, browser, DNS, WebSocket, gRPC, and SFTP targets."
     license: "MIT"
 
 nfpms:
   - package_name: sendit
     homepage: https://github.com/lewta/sendit
     maintainer: lewta <77890109+lewta@users.noreply.github.com>
-    description: Traffic generation tool for HTTP, DNS, WebSocket, and headless-browser targets.
+    description: Traffic generation tool for HTTP, browser, DNS, WebSocket, gRPC, and SFTP targets.
     license: MIT
     formats:
       - deb
@@ -119,13 +119,13 @@ scoops:
       name: scoop-bucket
       token: "{{ .Env.GH_PAT }}"
     homepage: https://github.com/lewta/sendit
-    description: Traffic generation tool for HTTP, DNS, WebSocket, and headless-browser targets.
+    description: Traffic generation tool for HTTP, browser, DNS, WebSocket, gRPC, and SFTP targets.
     license: MIT
 
 aurs:
   - name: sendit-bin
     homepage: "https://github.com/lewta/sendit"
-    description: "Traffic generation tool for HTTP, DNS, WebSocket, and headless-browser targets."
+    description: "Traffic generation tool for HTTP, browser, DNS, WebSocket, gRPC, and SFTP targets."
     maintainers:
       - "lewta <77890109+lewta@users.noreply.github.com>"
     license: MIT

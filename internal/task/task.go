@@ -22,6 +22,7 @@ type Result struct {
 	Duration   time.Duration
 	BytesRead  int64
 	Error      error
+	Meta       map[string]string
 }
 
 // Selector picks tasks by weight using the Vose alias method for O(1) selection.

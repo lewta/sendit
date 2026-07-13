@@ -5,7 +5,7 @@ hero:
   template: hero
 
   title: "sendit"
-  subtitle: A flexible traffic generator for **HTTP**, **browser**, **DNS**, and **WebSocket** targets. Polite by design — every request is paced, rate-limited, and resource-gated before dispatch.
+  subtitle: A flexible traffic generator for **HTTP**, **browser**, **DNS**, **WebSocket**, **gRPC**, and **SFTP** targets. Polite by design — every request is paced, rate-limited, and resource-gated before dispatch.
 
   ctaButton:
     icon: rocket_launch
@@ -25,12 +25,12 @@ featureGrid:
   template: feature grid
 
   title: Key features
-  subtitle: sendit runs across HTTP, browser, DNS, WebSocket, and gRPC targets with configurable pacing and built-in courtesy limits so it never hammers targets or the local machine.
+  subtitle: sendit runs across HTTP, browser, DNS, WebSocket, gRPC, and SFTP targets with configurable pacing and built-in courtesy limits so it never hammers targets or the local machine.
 
   items:
-    - title: Five driver types
+    - title: Six driver types
       icon: hub
-      description: Send real traffic over **HTTP/HTTPS**, headless **browser** (chromedp), **DNS** (miekg/dns), **WebSocket**, and **gRPC** — all from one config file.
+      description: Send real traffic over **HTTP/HTTPS**, headless **browser** (chromedp), **DNS** (miekg/dns), **WebSocket**, **gRPC**, and **SFTP** — all from one config file.
 
     - title: Four pacing modes
       icon: schedule

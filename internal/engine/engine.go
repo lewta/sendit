@@ -75,6 +75,7 @@ func New(cfg *config.Config, m *metrics.Metrics) (*Engine, error) {
 		"dns":       driver.NewDNSDriver(),
 		"websocket": driver.NewWebSocketDriver(),
 		"grpc":      driver.NewGRPCDriver(),
+		"sftp":      driver.NewSFTPDriver(),
 	}
 
 	if cfg.Output.Enabled {

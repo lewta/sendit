@@ -85,6 +85,9 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("target_defaults.dns.resolver", "8.8.8.8:53")
 	v.SetDefault("target_defaults.dns.record_type", "A")
 	v.SetDefault("target_defaults.websocket.duration_s", 30)
+	v.SetDefault("target_defaults.sftp.port", 22)
+	v.SetDefault("target_defaults.sftp.operation", "upload")
+	v.SetDefault("target_defaults.sftp.timeout_s", 30)
 }
 
 // warnLiteralTokens logs a warning for any target that has a literal token or
@@ -142,7 +145,7 @@ func loadTargetsFile(cfg *Config) error {
 		typ := strings.ToLower(fields[1])
 
 		if !validTypes[typ] {
-			return fmt.Errorf("line %d: unknown type %q (must be http|browser|dns|websocket|grpc)", lineNum, typ)
+			return fmt.Errorf("line %d: unknown type %q (must be http|browser|dns|websocket|grpc|sftp)", lineNum, typ)
 		}
 
 		weight := d.Weight
@@ -167,6 +170,7 @@ func loadTargetsFile(cfg *Config) error {
 			DNS:       d.DNS,
 			WebSocket: d.WebSocket,
 			GRPC:      d.GRPC,
+			SFTP:      d.SFTP,
 		})
 	}
 
@@ -255,10 +259,13 @@ func validate(cfg *Config) error {
 			errs = append(errs, fmt.Sprintf("targets[%d].weight must be > 0", i))
 		}
 		if !validTypes[t.Type] {
-			errs = append(errs, fmt.Sprintf("targets[%d].type must be one of http|browser|dns|websocket|grpc, got %q", i, t.Type))
+			errs = append(errs, fmt.Sprintf("targets[%d].type must be one of http|browser|dns|websocket|grpc|sftp, got %q", i, t.Type))
 		}
 		if t.Type == "grpc" && !strings.HasPrefix(t.URL, "grpc://") && !strings.HasPrefix(t.URL, "grpcs://") {
 			errs = append(errs, fmt.Sprintf("targets[%d].url must start with grpc:// or grpcs:// for type grpc, got %q", i, t.URL))
+		}
+		if t.Type == "sftp" {
+			errs = append(errs, validateSFTPTarget(i, t)...)
 		}
 		if a := t.Auth; a.Type != "" {
 			if !validAuthTypes[a.Type] {
@@ -311,4 +318,58 @@ func validate(cfg *Config) error {
 		return errors.New(strings.Join(errs, "; "))
 	}
 	return nil
+}
+
+func validateSFTPTarget(i int, t TargetConfig) []string {
+	var errs []string
+	s := t.SFTP
+	prefix := fmt.Sprintf("targets[%d].sftp", i)
+
+	if !strings.HasPrefix(t.URL, "sftp://") {
+		errs = append(errs, fmt.Sprintf("targets[%d].url must start with sftp:// for type sftp, got %q", i, t.URL))
+	}
+
+	if s.Port < 0 || s.Port > 65535 {
+		errs = append(errs, fmt.Sprintf("%s.port must be in [0, 65535]", prefix))
+	}
+	if s.TimeoutS < 0 {
+		errs = append(errs, fmt.Sprintf("%s.timeout_s must be >= 0", prefix))
+	}
+
+	switch s.Operation {
+	case "", "upload", "download", "list":
+	default:
+		errs = append(errs, fmt.Sprintf("%s.operation must be one of upload|download|list, got %q", prefix, s.Operation))
+	}
+
+	if s.Username == "" {
+		errs = append(errs, fmt.Sprintf("%s.username must not be empty", prefix))
+	}
+	if s.Password == "" && s.PrivateKey == "" {
+		errs = append(errs, fmt.Sprintf("%s requires password or private_key", prefix))
+	}
+	if s.Password != "" && s.PrivateKey != "" {
+		errs = append(errs, fmt.Sprintf("%s.password and private_key are mutually exclusive", prefix))
+	}
+
+	if s.FileSizeBytes < 0 {
+		errs = append(errs, fmt.Sprintf("%s.file_size_bytes must be >= 0", prefix))
+	}
+	if s.FileSizeMinBytes < 0 {
+		errs = append(errs, fmt.Sprintf("%s.file_size_min_bytes must be >= 0", prefix))
+	}
+	if s.FileSizeMaxBytes < 0 {
+		errs = append(errs, fmt.Sprintf("%s.file_size_max_bytes must be >= 0", prefix))
+	}
+	if s.FileSizeBytes > 0 && (s.FileSizeMinBytes > 0 || s.FileSizeMaxBytes > 0) {
+		errs = append(errs, fmt.Sprintf("%s.file_size_bytes cannot be combined with file_size_min_bytes or file_size_max_bytes", prefix))
+	}
+	if s.FileSizeMaxBytes > 0 && s.FileSizeMinBytes > s.FileSizeMaxBytes {
+		errs = append(errs, fmt.Sprintf("%s.file_size_max_bytes must be >= file_size_min_bytes", prefix))
+	}
+	if s.EICAR && s.Operation != "" && s.Operation != "upload" {
+		errs = append(errs, fmt.Sprintf("%s.eicar is only valid for upload operations", prefix))
+	}
+
+	return errs
 }

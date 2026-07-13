@@ -9,7 +9,7 @@
 [![codecov](https://codecov.io/gh/lewta/sendit/graph/badge.svg)](https://codecov.io/gh/lewta/sendit)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
-A Go CLI tool that simulates realistic user web traffic across HTTP, headless browser, DNS, WebSocket, and gRPC protocols. Designed to blend into normal traffic baselines while being polite to both the local machine and target servers.
+A Go CLI tool that simulates realistic user web traffic across HTTP, headless browser, DNS, WebSocket, gRPC, and SFTP protocols. Designed to blend into normal traffic baselines while being polite to both the local machine and target servers.
 
 Key properties:
 
@@ -661,8 +661,8 @@ Instead of (or in addition to) listing targets inline, you can point `targets_fi
 <url> <type> [weight]
 ```
 
-- `url` — full URL (`https://`, `wss://`, `grpc://`) or a bare hostname for DNS targets
-- `type` — one of `http` | `browser` | `dns` | `websocket` | `grpc`
+- `url` — full URL (`https://`, `wss://`, `grpc://`, `sftp://`) or a bare hostname for DNS targets
+- `type` — one of `http` | `browser` | `dns` | `websocket` | `grpc` | `sftp`
 - `weight` — optional positive integer; defaults to `target_defaults.weight` when omitted
 - Lines starting with `#` and blank lines are ignored
 
@@ -673,6 +673,7 @@ https://api.example.com                                      http      3
 example.com                                                  dns       2
 wss://ws.example.com                                         websocket
 grpc://svc.example.com:50051/helloworld.Greeter/SayHello    grpc      4
+sftp://sftp.example.com/uploads/test.bin                    sftp      2
 ```
 
 **`target_defaults`** supplies the remaining fields (driver settings, default weight) for every target loaded from the file. Inline targets are unaffected and use whatever fields they specify directly.
@@ -702,6 +703,13 @@ target_defaults:
     expect_messages: 0
   grpc:
     timeout_s: 15
+  sftp:
+    port: 22
+    operation: upload
+    timeout_s: 30
+    insecure: false
+    username: testuser
+    password: secret
 ```
 
 | `target_defaults` field | Default | Description |
@@ -716,6 +724,10 @@ target_defaults:
 | `dns.record_type` | `A` | DNS record type |
 | `websocket.duration_s` | `30` | How long to hold the connection open |
 | `grpc.timeout_s` | `15` | Per-call timeout in seconds |
+| `sftp.port` | `22` | SSH port when the URL omits one |
+| `sftp.operation` | `upload` | Operation: `upload` \| `download` \| `list` |
+| `sftp.timeout_s` | `30` | SFTP connection and operation timeout in seconds |
+| `sftp.insecure` | `false` | Skip `~/.ssh/known_hosts` host-key verification; use only for trusted test hosts |
 
 > **Note:** HTTP header map keys are lowercased by the YAML parser (e.g. `User-Agent` is stored as `user-agent`). This applies to both inline targets and `target_defaults`.
 
@@ -788,6 +800,18 @@ targets:
       # tls: false                # force TLS even when scheme is grpc://
       # insecure: false           # skip TLS certificate verification
 
+  - url: "sftp://sftp.example.com/uploads/test.bin"
+    weight: 2
+    type: sftp
+    sftp:
+      username: testuser
+      password: secret
+      insecure: false
+      operation: upload            # upload | download | list
+      file_size_min_bytes: 1024
+      file_size_max_bytes: 1048576
+      allowed_host_key_types: [ssh-ed25519]
+
   # Auth — token values resolved from env vars at dispatch time.
   # Supported types: bearer, basic, header, query.
   - url: "https://api.example.com/data"
@@ -841,7 +865,7 @@ output:
   append: false
 ```
 
-Each JSONL record contains: `ts`, `url`, `type`, `status`, `duration_ms`, `bytes`, `error`.
+Each JSONL record contains: `ts`, `url`, `type`, `status`, `duration_ms`, `bytes`, `error`. Drivers may add metadata fields; SFTP records include SSH handshake and list metadata when available.
 CSV output writes a header row when `append: false`.
 
 ### `metrics`
@@ -903,7 +927,7 @@ internal/config/                YAML loader, defaults, validator, targets_file p
 internal/task/                  Task & Result types; Vose alias weighted selector
 internal/ratelimit/             Per-domain token-bucket registry; decorrelated jitter backoff
 internal/resource/              gopsutil CPU/RAM monitor with Admit() gate
-internal/driver/                HTTP · headless browser (chromedp) · DNS (miekg) · WebSocket · gRPC (reflection-based)
+internal/driver/                HTTP · headless browser (chromedp) · DNS (miekg) · WebSocket · gRPC (reflection-based) · SFTP
 internal/engine/                Worker pool · scheduler · dispatch loop
 internal/metrics/               Prometheus counters & histograms
 internal/output/                JSONL / CSV result writer (non-blocking, goroutine-backed)
@@ -950,6 +974,22 @@ Executes unary gRPC calls using server reflection — no `.proto` files required
 
 URL format: `grpc://host:port/Service/Method` (plaintext) or `grpcs://host:port/Service/Method` (TLS). The target server must have the [gRPC server reflection service](https://grpc.io/docs/guides/reflection/) enabled.
 
+### SFTP driver
+
+Executes SFTP `upload`, `download`, and `list` operations over SSH. By default, host keys are verified against `~/.ssh/known_hosts`; set `sftp.insecure: true` only for trusted lab or ephemeral hosts. Connections are cached per address, username, auth material, and SSH policy so targets with stricter algorithm settings do not reuse weaker sessions.
+
+| SFTP condition | HTTP equivalent | Effect |
+|----------------|----------------|--------|
+| Success | 200 | success |
+| Auth failure | 401 | permanent skip |
+| Permission denied | 403 | permanent skip |
+| Missing download path | 404 | permanent skip |
+| Host key or algorithm policy mismatch | 502 | transient backoff |
+| SFTP protocol error | 502 | transient backoff |
+| Timeout | 504 | transient backoff |
+
+JSONL output includes SFTP metadata when available: `sftp_server_version`, `sftp_host_key_type`, `sftp_host_key_fp`, `sftp_auth_methods`, and `sftp_entry_count` for list operations.
+
 ---
 
 ## Running Tests
@@ -960,7 +1000,7 @@ go test -race ./...                                       # with race detector
 go test -tags integration -race -v ./internal/engine/... # full pipeline integration tests
 ```
 
-Integration tests spin up local HTTP, DNS, and WebSocket servers and exercise the complete dispatch pipeline including backoff, graceful shutdown, and the resource gate.
+Integration tests spin up local HTTP, DNS, WebSocket, gRPC, and SFTP servers and exercise the complete dispatch pipeline including backoff, graceful shutdown, and the resource gate.
 
 ---
 

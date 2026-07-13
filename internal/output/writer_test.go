@@ -81,6 +81,62 @@ func TestWriter_JSONL_ErrorField(t *testing.T) {
 	}
 }
 
+func TestWriter_JSONL_MetaFields(t *testing.T) {
+	f := t.TempDir() + "/out.jsonl"
+	w, err := New(config.OutputConfig{File: f, Format: "jsonl"})
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	r := makeResult("sftp://example.com/file.txt", "sftp", 200, time.Millisecond, 42, nil)
+	r.Meta = map[string]string{
+		"sftp_host_key_type": "ssh-ed25519",
+		"sftp_entry_count":   "3",
+	}
+	w.Send(r)
+	w.Close()
+
+	data, _ := os.ReadFile(f)
+	var rec map[string]any
+	if err := json.Unmarshal([]byte(strings.TrimRight(string(data), "\n")), &rec); err != nil {
+		t.Fatalf("json.Unmarshal: %v", err)
+	}
+
+	if rec["sftp_host_key_type"] != "ssh-ed25519" {
+		t.Errorf("sftp_host_key_type = %v, want ssh-ed25519", rec["sftp_host_key_type"])
+	}
+	if rec["sftp_entry_count"] != "3" {
+		t.Errorf("sftp_entry_count = %v, want 3", rec["sftp_entry_count"])
+	}
+}
+
+func TestWriter_JSONL_MetaCannotOverwriteReservedFields(t *testing.T) {
+	f := t.TempDir() + "/out.jsonl"
+	w, err := New(config.OutputConfig{File: f, Format: "jsonl"})
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	r := makeResult("sftp://example.com/file.txt", "sftp", 200, time.Millisecond, 42, nil)
+	r.Meta = map[string]string{
+		"url":    "sftp://evil.example.com/other.txt",
+		"status": "500",
+	}
+	w.Send(r)
+	w.Close()
+
+	data, _ := os.ReadFile(f)
+	var rec map[string]any
+	if err := json.Unmarshal([]byte(strings.TrimRight(string(data), "\n")), &rec); err != nil {
+		t.Fatalf("json.Unmarshal: %v", err)
+	}
+
+	if rec["url"] != "sftp://example.com/file.txt" {
+		t.Errorf("url = %v, want original URL", rec["url"])
+	}
+	if rec["status"] != float64(200) {
+		t.Errorf("status = %v, want 200", rec["status"])
+	}
+}
+
 func TestWriter_CSV(t *testing.T) {
 	f := t.TempDir() + "/out.csv"
 	w, err := New(config.OutputConfig{File: f, Format: "csv", Append: false})

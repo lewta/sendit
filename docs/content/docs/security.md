@@ -16,7 +16,7 @@ sendit follows a rolling release model. Only the latest stable release receives 
 
 ## Latest security hardening release
 
-`v1.2.5` includes security hardening from the July 2026 Codex Security scan. The release keeps supported workflows intact while tightening several defaults:
+The latest stable release is `v1.6.0`. Security hardening from the July 2026 Codex Security scan shipped in `v1.2.5` and remains included in current releases. That hardening keeps supported workflows intact while tightening several defaults:
 
 - Cross-host HTTP redirects are blocked by default; set `http.allow_cross_host_redirects: true` only when cross-host redirects are intentional.
 - Opt-in cross-host redirects still pass through per-domain rate limiting before the redirected request is sent.

@@ -59,7 +59,7 @@ Backoff and per-domain rate-limit waits happen **inside** the goroutine so a slo
 | `internal/config` | Viper-backed YAML loader. `schema.go` defines all struct types. Validates on load; `targets_file` is parsed here too. |
 | `internal/task` | `Task`/`Result` types. `Selector` uses the Vose alias method for O(1) weighted random picks. |
 | `internal/ratelimit` | `Registry` — per-domain `x/time/rate` token buckets. `BackoffRegistry` — decorrelated jitter backoff (AWS-style); shared by all domains, keyed by hostname. `ClassifyError`/`ClassifyStatusCode` unify error handling across all driver types. |
-| `internal/driver` | `Driver` interface with five implementations: `http`, `browser` (chromedp), `dns` (miekg/dns), `websocket` (coder/websocket), `grpc` (google.golang.org/grpc + reflection). DNS RCODEs and gRPC status codes are mapped to HTTP-like status codes so the engine's error classifier works uniformly. |
+| `internal/driver` | `Driver` interface with six implementations: `http`, `browser` (chromedp), `dns` (miekg/dns), `websocket` (coder/websocket), `grpc` (google.golang.org/grpc + reflection), and `sftp` (pkg/sftp over x/crypto/ssh). DNS RCODEs, gRPC status codes, and SFTP outcomes are mapped to HTTP-like status codes so the engine's error classifier works uniformly. |
 | `internal/resource` | gopsutil CPU/RAM poller. `Admit()` blocks dispatch when either threshold is exceeded. |
 | `internal/metrics` | Prometheus counters/histograms. `Noop()` returns a no-op implementation when metrics are disabled — avoids nil checks everywhere. |
 | `internal/output` | JSONL/CSV result writer. A dedicated goroutine drains results non-blocking to the dispatch loop. |

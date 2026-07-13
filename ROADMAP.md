@@ -42,13 +42,13 @@ Features planned for future releases of sendit. Contributions are welcome — op
 - [v0.15.3 — Docs audit + fuzz CI fix ✓](#v0153--docs-audit--fuzz-ci-fix)
 - [v1.0.0 — TUI + stable API ✓](#v100--tui--stable-api)
 - [v1.1.0 — gRPC driver ✓](#v110--grpc-driver)
+- [v1.2.0 — Auth support ✓](#v120--auth-support-)
+- [v1.6.0 — SFTP driver ✓](#v160--sftp-driver-)
 
 **Planned**
-- [v1.2.0 — Auth support](#v120--auth-support)
-- [v1.3.0 — Request templating](#v130--request-templating)
-- [v1.4.0 — Replay command](#v140--replay-command)
-- [v1.5.0 — HTTP version control](#v150--http-version-control)
-- [v1.6.0 — SFTP driver ✓](#v160--sftp-driver-)
+- [Request templating](#future--request-templating)
+- [Replay command](#future--replay-command)
+- [HTTP version control](#future--http-version-control)
 
 **Research**
 - [Non-standard traffic driver](#research--non-standard-traffic-driver)
@@ -664,7 +664,7 @@ targets:
 
 ---
 
-## v1.2.0 — Auth support
+## v1.2.0 — Auth support ✓
 
 Per-target authentication so sendit can generate traffic against protected endpoints without manual header management.
 
@@ -674,7 +674,7 @@ Per-target authentication so sendit can generate traffic against protected endpo
 - `header`: arbitrary header name + value (covers API keys, `X-Api-Key`, etc.)
 - `query`: appends a key/value pair to the request URL query string
 - Auth config is redacted from `--dry-run` output and logs
-- Applies to `http`, `grpc`, and `websocket` drivers; ignored silently on `dns` and `browser`
+- Applies to `http` and `websocket` drivers; SFTP uses credentials from its own `sftp` block; other drivers ignore it
 
 ```yaml
 targets:
@@ -688,7 +688,7 @@ targets:
 
 ---
 
-## v1.3.0 — Request templating
+## Future — Request templating
 
 Variable substitution in target URLs and request bodies so a single target definition can generate varied traffic without duplicating config entries.
 
@@ -709,7 +709,7 @@ targets:
 
 ---
 
-## v1.4.0 — Replay command
+## Future — Replay command
 
 A `sendit replay` subcommand that reads a JSONL result file produced by `--output` and re-issues the same requests as live traffic — useful for reproducing a traffic pattern, debugging a failure sequence, or warming a cache.
 
@@ -727,7 +727,7 @@ sendit replay --input results.jsonl --filter status=5xx --rate 0.5
 
 ---
 
-## v1.5.0 — HTTP version control
+## Future — HTTP version control
 
 Explicit HTTP version selection for `http` targets. Today the driver uses Go's standard `http.Transport`, which automatically negotiates HTTP/2 over TLS via ALPN but provides no way to force or observe the negotiated protocol. HTTP/3 (QUIC) is not supported at all.
 

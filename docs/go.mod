@@ -1,6 +1,6 @@
 module github.com/lewta/sendit/docs
 
-go 1.24
+go 1.26.5
 
 require github.com/colinwilson/lotusdocs v0.2.0
 

@@ -21,7 +21,7 @@ jobs:
 
       - uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a  # v9
         with:
-          version: latest
+          version: v2.12.2
 
   test:
     runs-on: ubuntu-latest
@@ -34,7 +34,7 @@ jobs:
           cache: true
 
       - name: Install gotestsum
-        run: go install gotest.tools/gotestsum@latest
+        run: go install gotest.tools/gotestsum@v1.13.0
 
       - name: Test
         run: gotestsum --junitfile junit.xml -- -race -coverprofile=coverage.txt -covermode=atomic ./...

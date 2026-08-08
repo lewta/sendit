@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 # ── builder ──────────────────────────────────────────────────────────────────
-FROM golang:1.24-alpine@sha256:8bee1901f1e530bfb4a7850aa7a479d17ae3a18beb6e09064ed54cfd245b7191 AS builder
+FROM golang:1.26.5-alpine3.24@sha256:0178a641fbb4858c5f1b48e34bdaabe0350a330a1b1149aabd498d0699ff5fb2 AS builder
 
 WORKDIR /src
 COPY go.mod go.sum ./

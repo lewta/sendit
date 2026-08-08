@@ -1,4 +1,6 @@
 ## [Unreleased]
+
+## [1.6.1] - 2026-08-08
 ### Changed
 - Aligned local development, documentation, and the pinned Docker builder on Go 1.26.5; added canonical Make targets, tool-neutral contributor guidance, and reproducible CI tool versions.
 - Split the Cobra CLI implementation into focused command files without changing command behavior.

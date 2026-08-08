@@ -921,7 +921,7 @@ This ordering ensures that slow or rate-limited domains do not consume worker sl
 ## Architecture
 
 ```
-cmd/sendit/main.go          cobra CLI
+cmd/sendit/                    Cobra CLI, split into focused command files
 internal/config/                YAML loader, defaults, validator, targets_file parser
 internal/task/                  Task & Result types; Vose alias weighted selector
 internal/ratelimit/             Per-domain token-bucket registry; decorrelated jitter backoff

@@ -11,8 +11,12 @@
 *.out
 coverage.txt
 
-# Claude Code local settings
+# Local agent settings
 .claude/
+.codex/
+
+# Generated Graphify knowledge graph
+graphify-out/
 
 # Hugo docs build output (docs/ subdirectory)
 docs/public/
@@ -26,4 +30,3 @@ public/
 .idea/
 .vscode/
 *.swp
-

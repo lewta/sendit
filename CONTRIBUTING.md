@@ -19,19 +19,21 @@ Thanks for your interest in contributing. This document covers everything you ne
 
 ## Prerequisites
 
-- **Go 1.24+**
+- **Go 1.26.5+**
 - **Chrome or Chromium** — only required if you work on or test the `browser` driver
 
 ```sh
 # Verify your Go version
-go version  # should print go1.24 or later
+go version  # should print go1.26.5 or later
 ```
 
 ---
 
 ## Development workflow
 
-sendit follows a standard **fork → branch → PR** model.
+`main` is protected. Every change, including documentation and maintenance work,
+must be made on a branch and merged through a pull request. sendit follows a
+standard **fork → branch → PR** model.
 
 1. **Fork** the repository on GitHub.
 2. **Clone** your fork locally:
@@ -129,16 +131,19 @@ go test -fuzz=FuzzWriteRecord   -fuzztime=30s ./internal/pcap/
 
 ```sh
 # Unit tests
-go test ./...
+make test
 
 # Unit tests with race detector (required before opening a PR)
-go test -race ./...
+make test-race
 
 # Integration tests (spins up local HTTP, DNS, and WebSocket servers)
-go test -tags integration -race -v ./internal/engine/...
+make integration
 
 # Linter (golangci-lint v2)
-golangci-lint run ./...
+make lint
+
+# Canonical pre-PR verification (build, lint, race tests, integration tests)
+make verify
 
 # Validate a config file
 ./sendit validate --config config/example.yaml
@@ -147,7 +152,7 @@ golangci-lint run ./...
 If `golangci-lint` is not installed:
 
 ```sh
-go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest
+go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.12.2
 ```
 
 ---

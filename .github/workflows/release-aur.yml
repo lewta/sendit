@@ -28,11 +28,16 @@ jobs:
           go-version-file: go.mod
           cache: true
 
+      - name: Load recovery configuration from main
+        run: |
+          git fetch --no-tags origin main --depth=1
+          git show FETCH_HEAD:.goreleaser.yaml > "${RUNNER_TEMP}/goreleaser.yaml"
+
       - name: Publish existing release to AUR
         uses: goreleaser/goreleaser-action@f06c13b6b1a9625abc9e6e439d9c05a8f2190e94  # v7
         with:
           version: "~> v2"
-          args: release --clean --skip=homebrew,scoop,notarize
+          args: release --config ${{ runner.temp }}/goreleaser.yaml --clean --skip=homebrew,scoop,notarize
         env:
           GITHUB_TOKEN: ${{ github.token }}
           GORELEASER_CURRENT_TAG: ${{ inputs.tag }}

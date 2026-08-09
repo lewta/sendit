@@ -131,18 +131,18 @@ aurs:
     license: MIT
     private_key: "{{ .Env.AUR_SSH_KEY }}"
     git_url: "ssh://aur@aur.archlinux.org/sendit-bin.git"
+    url_template: "https://github.com/lewta/sendit/releases/download/{{ .Tag }}/{{ .ArtifactName }}"
     package: |-
       install -Dm755 "./sendit" "${pkgdir}/usr/bin/sendit"
       install -Dm644 "./completions/sendit.bash" "${pkgdir}/usr/share/bash-completion/completions/sendit"
       install -Dm644 "./completions/sendit.zsh" "${pkgdir}/usr/share/zsh/site-functions/_sendit"
       install -Dm644 "./completions/sendit.fish" "${pkgdir}/usr/share/fish/vendor_completions.d/sendit.fish"
 
-# SKIP_GH_RELEASE=true skips artifact uploads and keeps the existing release
-# unchanged. Used by release-taps.yml: GoReleaser reads the existing release
-# to compute download URLs for the homebrew cask and scoop manifest, then
-# pushes those to the tap/bucket repos — without touching the release itself.
+# SKIP_GH_RELEASE=true disables only the SCM release publisher so recovery
+# workflows can publish to other destinations without touching an existing
+# immutable GitHub release.
 release:
-  skip_upload: '{{ if eq .Env.SKIP_GH_RELEASE "true" }}true{{ else }}false{{ end }}'
+  disable: '{{ if eq .Env.SKIP_GH_RELEASE "true" }}true{{ else }}false{{ end }}'
   mode: keep-existing
 
 checksum:

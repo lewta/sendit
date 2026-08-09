@@ -2,6 +2,7 @@
 
 ### Changed
 - Added a manual AUR-only recovery workflow for releases whose GitHub artifacts are already published and immutable.
+- Prevented AUR recovery from attempting to modify an existing immutable GitHub release.
 
 ## [1.6.1] - 2026-08-08
 ### Changed

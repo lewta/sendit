@@ -1,5 +1,8 @@
 ## [Unreleased]
 
+### Changed
+- Added a manual AUR-only recovery workflow for releases whose GitHub artifacts are already published and immutable.
+
 ## [1.6.1] - 2026-08-08
 ### Changed
 - Aligned local development, documentation, and the pinned Docker builder on Go 1.26.5; added canonical Make targets, tool-neutral contributor guidance, and reproducible CI tool versions.

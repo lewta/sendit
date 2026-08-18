@@ -2,7 +2,7 @@
 
 [![CI](https://img.shields.io/github/actions/workflow/status/lewta/sendit/ci.yml?branch=main&label=tests)](https://github.com/lewta/sendit/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/lewta/sendit)](https://github.com/lewta/sendit/releases/latest)
-[![Go version](https://img.shields.io/badge/go-1.26.5+-00ADD8?logo=go&logoColor=white)](https://go.dev)
+[![Go version](https://img.shields.io/badge/go-1.26.6+-00ADD8?logo=go&logoColor=white)](https://go.dev)
 [![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/lewta/sendit/badge)](https://securityscorecards.dev/viewer/?uri=github.com/lewta/sendit)
 [![OpenSSF Best Practices](https://bestpractices.coreinfrastructure.org/projects/12213/badge)](https://bestpractices.coreinfrastructure.org/projects/12213)
 [![codecov](https://codecov.io/gh/lewta/sendit/graph/badge.svg)](https://codecov.io/gh/lewta/sendit)
@@ -95,7 +95,7 @@ go build -o sendit ./cmd/sendit
 
 ### Prerequisites
 
-- Go 1.26.5+ (build from source only)
+- Go 1.26.6+ (build from source only)
 - Chrome/Chromium (only required for `type: browser` targets)
 
 ### Test an endpoint without a config file
@@ -559,7 +559,7 @@ The `--foreground` flag is set in the image entrypoint — PID files are not use
 
 | File | Description |
 |------|-------------|
-| `docker/Dockerfile` | Multi-stage build (`golang:1.26.5-alpine3.24` → `alpine`) |
+| `docker/Dockerfile` | Multi-stage build (`golang:1.26.6-alpine3.24` → `alpine`) |
 | `docker/docker-compose.yml` | sendit + optional Prometheus/Grafana via `--profile observability` |
 | `docker/config.yaml` | Docker-ready example config (metrics enabled, JSON logs) |
 | `docker/prometheus.yml` | Prometheus scrape config targeting `sendit:9090` |

@@ -54,7 +54,7 @@ Download the pre-built archive for your platform from the [releases page](https:
 
 ### Build from source
 
-Requires **Go 1.26.5+**.
+Requires **Go 1.26.6+**.
 
 ```sh
 git clone https://github.com/lewta/sendit

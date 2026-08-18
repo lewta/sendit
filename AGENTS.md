@@ -13,7 +13,7 @@ This file is the tool-neutral source of truth for contributors and coding agents
 
 ## Toolchain and verification
 
-- Go 1.26.5 or newer is required. `.mise.toml` is the canonical local toolchain declaration.
+- Go 1.26.6 or newer is required. `.mise.toml` is the canonical local toolchain declaration.
 - Chrome or Chromium is only required for browser-driver work.
 - Run `make verify` before opening or updating a pull request. It builds, lints, runs race-enabled tests, and runs integration tests.
 - Use narrower Make targets during development: `make test`, `make test-race`, `make integration`, and `make lint`.

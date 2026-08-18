@@ -1,6 +1,7 @@
 ## [Unreleased]
 
 ### Changed
+- Upgraded Go to 1.26.6 and aligned the golang.org/x module-tooling dependency chain around x/mod 0.40.0 to fix transparency-log verification vulnerabilities GO-2026-6179 and GO-2026-6180.
 - Added a manual AUR-only recovery workflow for releases whose GitHub artifacts are already published and immutable.
 - Prevented AUR recovery from attempting to modify an existing immutable GitHub release.
 - Made AUR recovery use the current recovery configuration while building the selected release tag.

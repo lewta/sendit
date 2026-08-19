@@ -6,6 +6,7 @@
 - Prevented AUR recovery from attempting to modify an existing immutable GitHub release.
 - Made AUR recovery use the current recovery configuration while building the selected release tag.
 - Bumped google.golang.org/protobuf from 1.36.11 to 1.36.12 (semver-patch) for upstream bug fixes
+- Bumped actions/attest-build-provenance from 4.1.1 to 4.2.2 (semver-minor) for upstream fixes
 
 ## [1.6.1] - 2026-08-08
 ### Changed

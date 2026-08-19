@@ -5,6 +5,7 @@
 - Added a manual AUR-only recovery workflow for releases whose GitHub artifacts are already published and immutable.
 - Prevented AUR recovery from attempting to modify an existing immutable GitHub release.
 - Made AUR recovery use the current recovery configuration while building the selected release tag.
+- Bumped google.golang.org/protobuf from 1.36.11 to 1.36.12 (semver-patch) for upstream bug fixes
 
 ## [1.6.1] - 2026-08-08
 ### Changed

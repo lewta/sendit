@@ -5,6 +5,7 @@
 - Added a manual AUR-only recovery workflow for releases whose GitHub artifacts are already published and immutable.
 - Prevented AUR recovery from attempting to modify an existing immutable GitHub release.
 - Made AUR recovery use the current recovery configuration while building the selected release tag.
+- Bumped actions/attest-build-provenance from 4.1.1 to 4.2.2 (semver-minor) for upstream fixes
 
 ## [1.6.1] - 2026-08-08
 ### Changed

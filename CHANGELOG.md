@@ -1,6 +1,7 @@
 ## [Unreleased]
 
 ### Changed
+- Bumped github.com/miekg/dns from 1.1.72 to 1.1.73 (semver-patch) for upstream bug fixes
 - Bumped github/codeql-action group (init/autobuild/analyze/upload-sarif) from v4.37.6 to v4.37.7 for upstream fixes
 
 ## [1.6.2] - 2026-08-19

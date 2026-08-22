@@ -1,5 +1,8 @@
 ## [Unreleased]
 
+### Changed
+- Bumped github.com/miekg/dns from 1.1.72 to 1.1.73 (semver-patch) for upstream bug fixes
+
 ## [1.6.2] - 2026-08-19
 
 ### Changed

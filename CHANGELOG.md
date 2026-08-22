@@ -1,5 +1,8 @@
 ## [Unreleased]
 
+### Changed
+- Bumped github/codeql-action group (init/autobuild/analyze/upload-sarif) from v4.37.6 to v4.37.7 for upstream fixes
+
 ## [1.6.2] - 2026-08-19
 
 ### Changed

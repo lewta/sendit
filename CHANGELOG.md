@@ -1,5 +1,8 @@
 ## [Unreleased]
 
+### Changed
+- Bumped modernc.org/sqlite from 1.56.0 to 1.57.0 (semver-minor) for upstream bug fixes
+
 ## [1.6.3] - 2026-08-22
 
 ### Changed

@@ -1,5 +1,8 @@
 ## [Unreleased]
 
+### Changed
+- Bumped google.golang.org/grpc from 1.83.0 to 1.83.2 (semver-patch) for upstream bug fixes
+
 ## [1.6.3] - 2026-08-22
 
 ### Changed

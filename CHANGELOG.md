@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+## [1.6.4] - 2026-08-29
+
 ### Changed
 - Bumped modernc.org/sqlite from 1.56.0 to 1.57.0 (semver-minor) for upstream bug fixes
 - Bumped google.golang.org/grpc from 1.83.0 to 1.83.2 (semver-patch) for upstream bug fixes

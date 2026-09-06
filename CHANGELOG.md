@@ -1,5 +1,8 @@
 ## [Unreleased]
 
+### Fixed
+- Upgraded golang.org/x/crypto from 0.55.0 to 0.56.0 to prevent malicious SSH peers from deadlocking SFTP connections (GO-2026-6354 and GO-2026-6355).
+
 ## [1.6.4] - 2026-08-29
 
 ### Changed

@@ -27,7 +27,7 @@ appears that cannot be justified by the table below.
 | [`github.com/shirou/gopsutil/v3`](https://github.com/shirou/gopsutil) | v3.24.5 | BSD-3-Clause | Cross-platform CPU and memory utilisation polling — powers the resource admission gate |
 | [`github.com/spf13/cobra`](https://github.com/spf13/cobra) | v1.10.2 | Apache-2.0 | CLI framework — commands, flags, and shell completion generation |
 | [`github.com/spf13/viper`](https://github.com/spf13/viper) | v1.21.0 | MIT | Config file loading with environment variable overlay and `mapstructure` unmarshalling |
-| [`golang.org/x/crypto`](https://pkg.go.dev/golang.org/x/crypto) | v0.54.0 | BSD-3-Clause | `ssh` subpackage — SSH transport and algorithm policy controls for the `sftp` driver |
+| [`golang.org/x/crypto`](https://pkg.go.dev/golang.org/x/crypto) | v0.56.0 | BSD-3-Clause | `ssh` subpackage — SSH transport and algorithm policy controls for the `sftp` driver |
 | [`golang.org/x/net`](https://pkg.go.dev/golang.org/x/net) | v0.57.0 | BSD-3-Clause | `html` subpackage — HTML parser used by the `generate` command to extract links |
 | [`golang.org/x/time`](https://pkg.go.dev/golang.org/x/time) | v0.15.0 | BSD-3-Clause | `rate` subpackage — token-bucket rate limiter used by `rate_limited` and `scheduled` pacing |
 | [`google.golang.org/grpc`](https://pkg.go.dev/google.golang.org/grpc) | v1.82.0 | Apache-2.0 | gRPC client and server — powers the `grpc` driver; includes reflection client and health service |

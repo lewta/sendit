@@ -33,7 +33,7 @@ appears that cannot be justified by the table below.
 | [`google.golang.org/grpc`](https://pkg.go.dev/google.golang.org/grpc) | v1.82.0 | Apache-2.0 | gRPC client and server — powers the `grpc` driver; includes reflection client and health service |
 | [`google.golang.org/protobuf`](https://pkg.go.dev/google.golang.org/protobuf) | v1.36.11 | BSD-3-Clause | Dynamic protobuf messages and JSON/protobuf marshaling for the reflection-based `grpc` driver |
 | [`howett.net/plist`](https://pkg.go.dev/howett.net/plist) | v1.0.1 | BSD-2-Clause | Property-list parser used by `generate` to read Safari bookmarks |
-| [`modernc.org/sqlite`](https://pkg.go.dev/modernc.org/sqlite) | v1.53.0 | BSD-3-Clause | Pure-Go SQLite driver (CGo-free) — used by `generate` to read Chrome/Firefox history and bookmark databases |
+| [`modernc.org/sqlite`](https://pkg.go.dev/modernc.org/sqlite) | v1.58.0 | BSD-3-Clause | Pure-Go SQLite driver (CGo-free) — used by `generate` to read Chrome/Firefox history and bookmark databases |
 
 ## Test dependencies
 

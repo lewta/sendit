@@ -1,0 +1,4 @@
+[[IgnoredVulns]]
+id = "GO-2026-5932"
+ignoreUntil = 2026-12-06
+reason = "Sendit imports golang.org/x/crypto only for ssh and ssh/knownhosts. It does not import or call the affected openpgp packages. Confirmed by govulncheck with zero reachable vulnerabilities."

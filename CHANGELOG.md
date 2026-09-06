@@ -1,14 +1,14 @@
 ## [Unreleased]
 
-### Fixed
-- Upgraded golang.org/x/crypto from 0.55.0 to 0.56.0 to prevent malicious SSH peers from deadlocking SFTP connections (GO-2026-6354 and GO-2026-6355).
-
-## [1.6.4] - 2026-08-29
+## [1.6.4] - 2026-09-06
 
 ### Changed
 - Bumped modernc.org/sqlite from 1.56.0 to 1.57.0 (semver-minor) for upstream bug fixes
 - Bumped google.golang.org/grpc from 1.83.0 to 1.83.2 (semver-patch) for upstream bug fixes
 - Bumped github/codeql-action group (init/autobuild/analyze/upload-sarif) from v4.37.7 to v4.37.9 for upstream fixes
+
+### Fixed
+- Upgraded golang.org/x/crypto from 0.55.0 to 0.56.0 to prevent malicious SSH peers from deadlocking SFTP connections (GO-2026-6354 and GO-2026-6355).
 
 ## [1.6.3] - 2026-08-22
 

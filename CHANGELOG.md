@@ -5,6 +5,7 @@
 - Bumped modernc.org/sqlite from 1.57.0 to 1.58.0 (semver-minor) for upstream bug fixes.
 - Documented the GO-2026-5932 OSV exception because Sendit uses `golang.org/x/crypto` for SSH but does not import the affected OpenPGP packages.
 - Bumped golang.org/x/crypto from 0.56.0 to 0.57.0 (semver-patch) for upstream bug fixes
+- Bumped golang.org/x/net from 0.58.0 to 0.59.0 (semver-minor) for upstream bug fixes
 - Bumped github/codeql-action group (init/autobuild/analyze/upload-sarif) from v4.37.9 to v4.38.0 for upstream fixes
 
 ## [1.6.4] - 2026-09-06

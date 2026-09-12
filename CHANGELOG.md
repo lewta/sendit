@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+## [1.6.5] - 2026-09-12
+
 ### Changed
 - Bumped actions/deploy-pages from v5.0.0 to v5.0.1 to add capped backoff and jitter to GitHub Pages deployment polling.
 - Bumped modernc.org/sqlite from 1.57.0 to 1.58.0 (semver-minor) for upstream bug fixes.

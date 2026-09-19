@@ -2,6 +2,7 @@
 
 ### Changed
 - Bumped codecov/codecov-action from 7.0.0 to 7.1.1 (semver-minor) for upstream fixes
+- Bumped modernc.org/sqlite from 1.58.0 to 1.59.0 (semver-minor) for upstream bug fixes
 - Bumped actions/deploy-pages from v5.0.0 to v5.0.1 to add capped backoff and jitter to GitHub Pages deployment polling.
 - Bumped modernc.org/sqlite from 1.57.0 to 1.58.0 (semver-minor) for upstream bug fixes.
 - Documented the GO-2026-5932 OSV exception because Sendit uses `golang.org/x/crypto` for SSH but does not import the affected OpenPGP packages.

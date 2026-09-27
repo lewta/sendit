@@ -41,14 +41,14 @@ jobs:
           go-version-file: go.mod
           cache: true
 
-      - uses: github/codeql-action/init@b96794f015dfd88f77b49b1c93e0fa7110f94c63  # v4
+      - uses: github/codeql-action/init@1c5b675653bb5c22dbe9b12b556ec555138e09fd  # v4
         with:
           languages: go
 
-      - uses: github/codeql-action/autobuild@b96794f015dfd88f77b49b1c93e0fa7110f94c63  # v4
+      - uses: github/codeql-action/autobuild@1c5b675653bb5c22dbe9b12b556ec555138e09fd  # v4
 
       # Starting April 2026, CodeQL skips file coverage on PRs for performance.
       # File coverage is still computed on push-to-main analyses.
       # Accepted as default — Codecov covers per-file coverage on PRs.
       # To opt out: set CODEQL_ACTION_FILE_COVERAGE_ON_PRS=true in env.
-      - uses: github/codeql-action/analyze@b96794f015dfd88f77b49b1c93e0fa7110f94c63  # v4
+      - uses: github/codeql-action/analyze@1c5b675653bb5c22dbe9b12b556ec555138e09fd  # v4

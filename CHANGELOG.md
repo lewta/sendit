@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+## [1.6.5] - 2026-09-12
+
 ### Changed
 - Bumped codecov/codecov-action from 7.0.0 to 7.1.1 (semver-minor) for upstream fixes
 - Bumped modernc.org/sqlite from 1.58.0 to 1.59.0 (semver-minor) for upstream bug fixes

@@ -193,6 +193,7 @@ func TestRecord_ClassifiesErrors(t *testing.T) {
 		{name: "cancellation", result: makeResult("http", 0, time.Millisecond, 0, context.Canceled)},
 		{name: "wrapped cancellation", result: makeResult("http", 0, time.Millisecond, 0, fmt.Errorf("request: %w", context.Canceled))},
 		{name: "deadline", result: makeResult("http", 0, time.Millisecond, 0, context.DeadlineExceeded)},
+		{name: "wrapped deadline", result: makeResult("http", 0, time.Millisecond, 0, fmt.Errorf("request: %w", context.DeadlineExceeded))},
 	}
 
 	for _, tc := range tests {

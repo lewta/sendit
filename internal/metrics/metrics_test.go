@@ -2,6 +2,7 @@ package metrics
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -29,6 +30,73 @@ func makeResult(typ string, status int, dur time.Duration, bytesRead int64, err 
 		BytesRead:  bytesRead,
 		Error:      err,
 	}
+}
+
+func gatheredCounter(
+	t *testing.T,
+	m *Metrics,
+	name string,
+	labels map[string]string,
+) (float64, bool) {
+	t.Helper()
+	families, err := m.registry.Gather()
+	if err != nil {
+		t.Fatalf("gather metrics: %v", err)
+	}
+	for _, family := range families {
+		if family.GetName() != name {
+			continue
+		}
+		for _, metric := range family.GetMetric() {
+			if len(metric.GetLabel()) != len(labels) {
+				continue
+			}
+			matched := true
+			for _, pair := range metric.GetLabel() {
+				want, ok := labels[pair.GetName()]
+				if !ok || want != pair.GetValue() {
+					matched = false
+					break
+				}
+			}
+			if matched && metric.GetCounter() != nil {
+				return metric.GetCounter().GetValue(), true
+			}
+		}
+	}
+	return 0, false
+}
+
+func assertCounter(
+	t *testing.T,
+	m *Metrics,
+	name string,
+	labels map[string]string,
+	want float64,
+	wantPresent bool,
+) {
+	t.Helper()
+	got, present := gatheredCounter(t, m, name, labels)
+	if present != wantPresent {
+		t.Fatalf("%s labels %v present = %v, want %v", name, labels, present, wantPresent)
+	}
+	if present && got != want {
+		t.Errorf("%s labels %v = %v, want %v", name, labels, got, want)
+	}
+}
+
+func metricFamilyPresent(t *testing.T, m *Metrics, name string) bool {
+	t.Helper()
+	families, err := m.registry.Gather()
+	if err != nil {
+		t.Fatalf("gather metrics: %v", err)
+	}
+	for _, family := range families {
+		if family.GetName() == name {
+			return true
+		}
+	}
+	return false
 }
 
 // TestNoop_DoesNotPanic verifies the no-op metrics instance handles all cases.
@@ -106,6 +174,53 @@ func TestRecord_AllDriverTypes(t *testing.T) {
 	for _, typ := range types {
 		r := makeResult(typ, 200, 100*time.Millisecond, 512, nil)
 		m.Record(r) // must not panic
+	}
+}
+
+func TestRecord_ClassifiesErrors(t *testing.T) {
+	tests := []struct {
+		name           string
+		result         task.Result
+		wantRequest    bool
+		wantStatus     string
+		wantErrorClass string
+	}{
+		{name: "success", result: makeResult("http", 200, time.Millisecond, 0, nil), wantRequest: true, wantStatus: "200"},
+		{name: "websocket upgrade", result: makeResult("websocket", 101, time.Millisecond, 0, nil), wantRequest: true, wantStatus: "101"},
+		{name: "transient status", result: makeResult("http", 429, time.Millisecond, 0, nil), wantRequest: true, wantStatus: "429", wantErrorClass: "transient"},
+		{name: "permanent status", result: makeResult("http", 404, time.Millisecond, 0, nil), wantRequest: true, wantStatus: "404", wantErrorClass: "permanent"},
+		{name: "transport error", result: makeResult("http", 0, time.Millisecond, 0, errors.New("connection reset")), wantErrorClass: "transient"},
+		{name: "cancellation", result: makeResult("http", 0, time.Millisecond, 0, context.Canceled)},
+		{name: "wrapped cancellation", result: makeResult("http", 0, time.Millisecond, 0, fmt.Errorf("request: %w", context.Canceled))},
+		{name: "deadline", result: makeResult("http", 0, time.Millisecond, 0, context.DeadlineExceeded)},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			m := New()
+			m.Record(tc.result)
+			typeLabel := tc.result.Task.Type
+			requestLabels := map[string]string{
+				"type": typeLabel, "domain": "example.com", "status_code": tc.wantStatus,
+			}
+			if tc.wantRequest {
+				assertCounter(t, m, "sendit_requests_total", requestLabels, 1, true)
+			} else if metricFamilyPresent(t, m, "sendit_requests_total") {
+				t.Error("sendit_requests_total was emitted for a transport error")
+			}
+
+			if tc.wantErrorClass != "" {
+				assertCounter(t, m, "sendit_errors_total", map[string]string{
+					"type": typeLabel, "domain": "example.com", "error_class": tc.wantErrorClass,
+				}, 1, true)
+			} else if metricFamilyPresent(t, m, "sendit_errors_total") {
+				t.Error("sendit_errors_total was emitted for a non-error or fatal cancellation")
+			}
+
+			assertCounter(t, m, "sendit_errors_total", map[string]string{
+				"type": typeLabel, "domain": "example.com", "error_class": "error",
+			}, 0, false)
+		})
 	}
 }
 

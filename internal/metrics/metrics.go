@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/lewta/sendit/internal/ratelimit"
 	"github.com/lewta/sendit/internal/task"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -78,18 +79,33 @@ func (m *Metrics) Record(r task.Result) {
 	t := r.Task.Type
 	d := domainOf(r.Task.URL)
 	m.durationSeconds.WithLabelValues(t, d).Observe(r.Duration.Seconds())
-
 	if r.BytesRead > 0 {
 		m.bytesRead.WithLabelValues(t).Add(float64(r.BytesRead))
 	}
 
+	var class ratelimit.ErrorClass
 	if r.Error != nil {
-		m.errorsTotal.WithLabelValues(t, d, "error").Inc()
-		return
+		class = ratelimit.ClassifyError(r.Error)
+	} else {
+		code := fmt.Sprintf("%d", r.StatusCode)
+		m.requestsTotal.WithLabelValues(t, d, code).Inc()
+		class = ratelimit.ClassifyStatusCode(r.StatusCode)
 	}
 
-	code := fmt.Sprintf("%d", r.StatusCode)
-	m.requestsTotal.WithLabelValues(t, d, code).Inc()
+	if label := metricErrorClass(class); label != "" {
+		m.errorsTotal.WithLabelValues(t, d, label).Inc()
+	}
+}
+
+func metricErrorClass(class ratelimit.ErrorClass) string {
+	switch class {
+	case ratelimit.ErrorClassTransient:
+		return "transient"
+	case ratelimit.ErrorClassPermanent:
+		return "permanent"
+	default:
+		return ""
+	}
 }
 
 // domainOf extracts the hostname from a URL string.

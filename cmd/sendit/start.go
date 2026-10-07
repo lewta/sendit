@@ -19,6 +19,26 @@ import (
 
 // --- start ---
 
+func runTUI(
+	ctx context.Context,
+	runEngine func(context.Context),
+	runUI func(context.Context) error,
+) error {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	engineDone := make(chan struct{})
+	go func() {
+		defer close(engineDone)
+		runEngine(ctx)
+	}()
+
+	uiErr := runUI(ctx)
+	cancel()
+	<-engineDone
+	return uiErr
+}
+
 func startCmd() *cobra.Command {
 	var (
 		cfgPath     string
@@ -147,8 +167,9 @@ to pacing mode or resource limits (workers, cpu, memory) require a restart.`,
 					zerolog.SetGlobalLevel(zerolog.Disabled)
 					st := tui.NewState()
 					eng.SetObserver(st.Record)
-					go eng.Run(ctx)
-					return tui.Run(ctx, st, cfg)
+					return runTUI(ctx, eng.Run, func(ctx context.Context) error {
+						return tui.Run(ctx, st, cfg)
+					})
 				}
 				log.Warn().Msg("--tui: stdout is not a terminal, falling back to plain output")
 			}

@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -119,6 +120,144 @@ func TestReloadCmd_SendsSIGHUP(t *testing.T) {
 	want := fmt.Sprintf("Sent reload signal to pid %d\n", pid)
 	if got := out.String(); got != want {
 		t.Errorf("output = %q, want %q", got, want)
+	}
+}
+
+func TestRunTUI_UIReturnCancelsEngine(t *testing.T) {
+	var engineErr error
+
+	err := runTUI(context.Background(), func(ctx context.Context) {
+		<-ctx.Done()
+		engineErr = ctx.Err()
+	}, func(context.Context) error {
+		return nil
+	})
+
+	if err != nil {
+		t.Fatalf("runTUI returned error: %v", err)
+	}
+	if !errors.Is(engineErr, context.Canceled) {
+		t.Fatalf("engine context error = %v, want context.Canceled", engineErr)
+	}
+}
+
+func TestRunTUI_WaitsForEngine(t *testing.T) {
+	engineCanceled := make(chan struct{})
+	releaseEngine := make(chan struct{})
+	result := make(chan error, 1)
+
+	go func() {
+		result <- runTUI(context.Background(), func(ctx context.Context) {
+			<-ctx.Done()
+			close(engineCanceled)
+			<-releaseEngine
+		}, func(context.Context) error {
+			return nil
+		})
+	}()
+
+	select {
+	case <-engineCanceled:
+	case <-time.After(time.Second):
+		t.Fatal("engine did not observe cancellation")
+	}
+	select {
+	case err := <-result:
+		t.Fatalf("runTUI returned before engine completed: %v", err)
+	default:
+	}
+
+	close(releaseEngine)
+	select {
+	case err := <-result:
+		if err != nil {
+			t.Fatalf("runTUI returned error: %v", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("runTUI did not return after engine completed")
+	}
+}
+
+func TestRunTUI_ReturnsUIErrorAfterEngineShutdown(t *testing.T) {
+	wantErr := errors.New("ui failed")
+	engineDone := make(chan struct{})
+
+	err := runTUI(context.Background(), func(ctx context.Context) {
+		<-ctx.Done()
+		close(engineDone)
+	}, func(context.Context) error {
+		return wantErr
+	})
+
+	if !errors.Is(err, wantErr) {
+		t.Fatalf("runTUI error = %v, want %v", err, wantErr)
+	}
+	select {
+	case <-engineDone:
+	default:
+		t.Fatal("runTUI returned before engine shutdown")
+	}
+}
+
+func TestRunTUI_AlreadyCanceledContextDoesNotDeadlock(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	result := make(chan error, 1)
+	go func() {
+		result <- runTUI(ctx, func(ctx context.Context) {
+			<-ctx.Done()
+		}, func(ctx context.Context) error {
+			<-ctx.Done()
+			return nil
+		})
+	}()
+
+	select {
+	case err := <-result:
+		if err != nil {
+			t.Fatalf("runTUI returned error: %v", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("runTUI deadlocked with an already canceled context")
+	}
+}
+
+func TestRunTUI_ParentCancellationStopsBoth(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	engineDone := make(chan struct{})
+	uiDone := make(chan struct{})
+	result := make(chan error, 1)
+
+	go func() {
+		result <- runTUI(ctx, func(ctx context.Context) {
+			<-ctx.Done()
+			close(engineDone)
+		}, func(ctx context.Context) error {
+			<-ctx.Done()
+			close(uiDone)
+			return nil
+		})
+	}()
+	cancel()
+
+	select {
+	case err := <-result:
+		if err != nil {
+			t.Fatalf("runTUI returned error: %v", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("runTUI did not return after parent cancellation")
+	}
+	select {
+	case <-engineDone:
+	default:
+		t.Fatal("engine did not stop")
+	}
+	select {
+	case <-uiDone:
+	default:
+		t.Fatal("UI did not stop")
 	}
 }
 

@@ -19,6 +19,26 @@ import (
 
 // --- start ---
 
+func runTUI(
+	ctx context.Context,
+	runEngine func(context.Context),
+	runUI func(context.Context) error,
+) error {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	engineDone := make(chan struct{})
+	go func() {
+		defer close(engineDone)
+		runEngine(ctx)
+	}()
+
+	uiErr := runUI(ctx)
+	cancel()
+	<-engineDone
+	return uiErr
+}
+
 func startCmd() *cobra.Command {
 	var (
 		cfgPath     string
@@ -53,8 +73,9 @@ Example targets_file:
 Default field values for file-loaded targets (method, timeout, resolver,
 etc.) are configured under 'target_defaults:' in the YAML.
 
-The engine shuts down gracefully on SIGINT or SIGTERM, waiting for all
-in-flight requests to complete before exiting.
+On SIGINT, SIGTERM, duration expiry, or TUI quit, sendit stops dispatch,
+waits for in-flight workers to exit, and flushes output before returning.
+Active network requests receive the canceled context and may abort.
 
 Send SIGHUP to reload the config without restarting. Targets, rate limits,
 backoff, and pacing are updated atomically with no dropped requests. Changes
@@ -147,8 +168,9 @@ to pacing mode or resource limits (workers, cpu, memory) require a restart.`,
 					zerolog.SetGlobalLevel(zerolog.Disabled)
 					st := tui.NewState()
 					eng.SetObserver(st.Record)
-					go eng.Run(ctx)
-					return tui.Run(ctx, st, cfg)
+					return runTUI(ctx, eng.Run, func(ctx context.Context) error {
+						return tui.Run(ctx, st, cfg)
+					})
 				}
 				log.Warn().Msg("--tui: stdout is not a terminal, falling back to plain output")
 			}

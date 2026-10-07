@@ -15,7 +15,7 @@ Key properties:
 - Stays polite by default — all pacing is delay-gated before acquiring worker slots; `mode: burst` is available for internal infrastructure testing but requires an explicit time-bounded run (`--duration`) to start
 - Per-domain token-bucket rate limits with decorrelated jitter backoff on transient errors
 - Pauses dispatch when local CPU or RAM exceeds configurable thresholds
-- Graceful shutdown: waits for all in-flight requests to complete on SIGINT/SIGTERM
+- On SIGINT, SIGTERM, duration expiry, or TUI quit, sendit stops dispatch, waits for in-flight workers to exit, and flushes output before returning. Active network requests receive the canceled context and may abort.
 
 ---
 
@@ -1024,7 +1024,7 @@ Integration tests spin up local HTTP, DNS, WebSocket, gRPC, and SFTP servers and
 | Resource gate | Set `cpu_threshold_pct: 1` → logs show "resource monitor: over threshold, dispatch paused" |
 | Rate limiting | Set `default_rps: 0.1`, `max_workers: 1` → ~1 req/10s per domain observed |
 | Backoff | Point a target at a URL returning 429; observe exponential `backoff=` delay in WRN logs |
-| Graceful shutdown | Send SIGTERM during active requests → process logs "engine stopped" after in-flight tasks finish |
+| Graceful shutdown | Send SIGTERM during active requests → requests receive cancellation; process logs "engine stopped" after workers exit and output flushes |
 | Dry-run | `sendit start --config config/example.yaml --dry-run` → prints target table, pacing, and limits then exits 0 |
 | Result export | Set `output.enabled: true`, run briefly, inspect the output file for JSONL records |
 | PCAP capture | `sendit start --config config/example.yaml --capture session.pcap` → stop after a few requests → open `session.pcap` in Wireshark; packets should appear with LINKTYPE_USER0 (147) |

@@ -109,7 +109,7 @@ func (d *HTTPDriver) Execute(ctx context.Context, t task.Task) task.Result {
 	elapsed := time.Since(start)
 
 	if err != nil {
-		return task.Result{Task: t, Duration: elapsed, Error: err}
+		return task.Result{Task: t, Duration: elapsed, Error: redactQueryAuthError(err, req.URL.String(), t.Config.Auth)}
 	}
 	defer resp.Body.Close()
 

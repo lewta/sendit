@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strings"
 
 	"github.com/lewta/sendit/internal/config"
 )
@@ -86,6 +87,31 @@ func authQueryURL(urlStr string, cfg config.AuthConfig) (string, error) {
 	q.Set(cfg.ParamName, token)
 	u.RawQuery = q.Encode()
 	return u.String(), nil
+}
+
+type queryAuthError struct {
+	err     error
+	message string
+}
+
+func (e *queryAuthError) Error() string { return e.message }
+func (e *queryAuthError) Unwrap() error { return e.err }
+
+func redactQueryAuthError(err error, authenticatedURL string, cfg config.AuthConfig) error {
+	if err == nil || cfg.Type != "query" {
+		return err
+	}
+	u, parseErr := url.Parse(authenticatedURL)
+	if parseErr != nil {
+		return err
+	}
+	token := u.Query().Get(cfg.ParamName)
+	if token == "" {
+		return err
+	}
+	message := strings.ReplaceAll(err.Error(), url.QueryEscape(token), "[REDACTED]")
+	message = strings.ReplaceAll(message, token, "[REDACTED]")
+	return &queryAuthError{err: err, message: message}
 }
 
 // resolveValue returns literal if non-empty, otherwise looks up envVar in the

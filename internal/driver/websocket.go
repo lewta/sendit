@@ -45,7 +45,8 @@ func (d *WebSocketDriver) Execute(ctx context.Context, t task.Task) task.Result 
 
 	conn, _, err := websocket.Dial(connCtx, dialURL, dialOpts)
 	if err != nil {
-		return task.Result{Task: t, Duration: time.Since(start), Error: fmt.Errorf("dialing: %w", err)}
+		err = redactQueryAuthError(fmt.Errorf("dialing: %w", err), dialURL, t.Config.Auth)
+		return task.Result{Task: t, Duration: time.Since(start), Error: err}
 	}
 	defer conn.CloseNow() //nolint:errcheck
 

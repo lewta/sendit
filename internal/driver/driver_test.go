@@ -118,6 +118,30 @@ func TestHTTPDriver_Timeout(t *testing.T) {
 	}
 }
 
+func TestHTTPDriver_QueryAuthFailedRequestDoesNotLeakToken(t *testing.T) {
+	srv := httptest.NewServer(nil)
+	srv.Close()
+
+	task := httpTask(srv.URL, config.HTTPConfig{TimeoutS: 1})
+	task.Config.Auth = config.AuthConfig{
+		Type:      "query",
+		ParamName: "api_key",
+		Token:     "resolved-request-value",
+	}
+
+	result := driver.NewHTTPDriver().Execute(context.Background(), task)
+	if result.Error == nil {
+		t.Fatal("expected request error")
+	}
+	if strings.Contains(result.Error.Error(), "resolved-request-value") {
+		t.Errorf("error leaked resolved token: %q", result.Error)
+	}
+	var urlErr *url.Error
+	if !errors.As(result.Error, &urlErr) {
+		t.Errorf("error does not unwrap to *url.Error: %v", result.Error)
+	}
+}
+
 func TestHTTPDriver_CustomHeaders(t *testing.T) {
 	var gotHeader string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -493,6 +517,30 @@ func TestWebSocketDriver_QueryAuthMissingEnvDoesNotHandshake(t *testing.T) {
 	}
 	if got := handshakes.Load(); got != 0 {
 		t.Errorf("handshakes = %d, want 0", got)
+	}
+}
+
+func TestWebSocketDriver_QueryAuthFailedDialDoesNotLeakToken(t *testing.T) {
+	srv := httptest.NewServer(nil)
+	srv.Close()
+
+	task := wsTask("ws://"+srv.Listener.Addr().String(), config.WebSocketConfig{DurationS: 1})
+	task.Config.Auth = config.AuthConfig{
+		Type:      "query",
+		ParamName: "api_key",
+		Token:     "resolved-dial-value",
+	}
+
+	result := driver.NewWebSocketDriver().Execute(context.Background(), task)
+	if result.Error == nil {
+		t.Fatal("expected dial error")
+	}
+	if strings.Contains(result.Error.Error(), "resolved-dial-value") {
+		t.Errorf("error leaked resolved token: %q", result.Error)
+	}
+	var urlErr *url.Error
+	if !errors.As(result.Error, &urlErr) {
+		t.Errorf("error does not unwrap to *url.Error: %v", result.Error)
 	}
 }
 

@@ -54,6 +54,27 @@ func wsTask(url string, cfg config.WebSocketConfig) task.Task {
 	return task.Task{URL: url, Type: "websocket", Config: c}
 }
 
+func assertErrorChainDoesNotContain(t *testing.T, err error, token string) {
+	t.Helper()
+	for current := err; current != nil; current = errors.Unwrap(current) {
+		for _, value := range []string{token, url.QueryEscape(token)} {
+			if strings.Contains(current.Error(), value) {
+				t.Errorf("error layer %T leaked token %q: %q", current, value, current)
+			}
+		}
+	}
+
+	var urlErr *url.Error
+	if !errors.As(err, &urlErr) {
+		t.Fatalf("error does not unwrap to *url.Error: %v", err)
+	}
+	for _, value := range []string{token, url.QueryEscape(token)} {
+		if strings.Contains(urlErr.URL, value) {
+			t.Errorf("url error leaked token %q: %q", value, urlErr.URL)
+		}
+	}
+}
+
 // sftpTask builds a minimal sftp task.
 func sftpTask(rawURL string, cfg config.SFTPConfig) task.Task {
 	c := config.TargetConfig{URL: rawURL, Type: "sftp", SFTP: cfg}
@@ -116,6 +137,25 @@ func TestHTTPDriver_Timeout(t *testing.T) {
 	if result.Error == nil {
 		t.Errorf("expected timeout error, got nil")
 	}
+}
+
+func TestHTTPDriver_QueryAuthFailedRequestDoesNotLeakToken(t *testing.T) {
+	srv := httptest.NewServer(nil)
+	srv.Close()
+	const token = "resolved request/value+?"
+
+	task := httpTask(srv.URL, config.HTTPConfig{TimeoutS: 1})
+	task.Config.Auth = config.AuthConfig{
+		Type:      "query",
+		ParamName: "api_key",
+		Token:     token,
+	}
+
+	result := driver.NewHTTPDriver().Execute(context.Background(), task)
+	if result.Error == nil {
+		t.Fatal("expected request error")
+	}
+	assertErrorChainDoesNotContain(t, result.Error, token)
 }
 
 func TestHTTPDriver_CustomHeaders(t *testing.T) {
@@ -420,6 +460,99 @@ func TestWebSocketDriver_Connect(t *testing.T) {
 	if result.Duration <= 0 {
 		t.Errorf("Duration = %v, want > 0", result.Duration)
 	}
+}
+
+func TestWebSocketDriver_QueryAuth(t *testing.T) {
+	receivedQuery := make(chan url.Values, 1)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		receivedQuery <- r.URL.Query()
+		conn, err := websocket.Accept(w, r, &websocket.AcceptOptions{InsecureSkipVerify: true})
+		if err != nil {
+			return
+		}
+		defer conn.CloseNow() //nolint:errcheck
+	}))
+	defer srv.Close()
+
+	originalURL := "ws://" + srv.Listener.Addr().String() +
+		"?existing=preserved&api_key=old-placeholder"
+	task := wsTask(originalURL, config.WebSocketConfig{DurationS: 1})
+	task.Config.Auth = config.AuthConfig{
+		Type:      "query",
+		ParamName: "api_key",
+		Token:     "literal-secret",
+	}
+
+	result := driver.NewWebSocketDriver().Execute(context.Background(), task)
+	if result.Error != nil {
+		t.Fatalf("unexpected error: %v", result.Error)
+	}
+
+	got := <-receivedQuery
+	if got.Get("existing") != "preserved" {
+		t.Errorf("existing query value = %q, want preserved", got.Get("existing"))
+	}
+	if got.Get("api_key") != "literal-secret" {
+		t.Errorf("api_key = %q, want literal-secret", got.Get("api_key"))
+	}
+	if values := got["api_key"]; len(values) != 1 {
+		t.Errorf("api_key values = %q, want one replacement value", values)
+	}
+	if result.Task.URL != originalURL {
+		t.Errorf("result URL = %q, want original %q", result.Task.URL, originalURL)
+	}
+	if strings.Contains(result.Task.URL, "literal-secret") {
+		t.Errorf("result URL leaked resolved token: %q", result.Task.URL)
+	}
+}
+
+func TestWebSocketDriver_QueryAuthMissingEnvDoesNotHandshake(t *testing.T) {
+	const envName = "SENDIT_TEST_MISSING_WS_QUERY_TOKEN"
+	t.Setenv(envName, "")
+
+	var handshakes atomic.Int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		handshakes.Add(1)
+		http.Error(w, "unexpected handshake", http.StatusInternalServerError)
+	}))
+	defer srv.Close()
+
+	task := wsTask("ws://"+srv.Listener.Addr().String(), config.WebSocketConfig{DurationS: 1})
+	task.Config.Auth = config.AuthConfig{
+		Type:      "query",
+		ParamName: "api_key",
+		TokenEnv:  envName,
+	}
+
+	result := driver.NewWebSocketDriver().Execute(context.Background(), task)
+	if result.Error == nil {
+		t.Fatal("expected missing environment variable error")
+	}
+	if !strings.Contains(result.Error.Error(), envName) {
+		t.Errorf("error = %q, want it to mention %q", result.Error, envName)
+	}
+	if got := handshakes.Load(); got != 0 {
+		t.Errorf("handshakes = %d, want 0", got)
+	}
+}
+
+func TestWebSocketDriver_QueryAuthFailedDialDoesNotLeakToken(t *testing.T) {
+	srv := httptest.NewServer(nil)
+	srv.Close()
+	const token = "resolved dial/value+?"
+
+	task := wsTask("ws://"+srv.Listener.Addr().String(), config.WebSocketConfig{DurationS: 1})
+	task.Config.Auth = config.AuthConfig{
+		Type:      "query",
+		ParamName: "api_key",
+		Token:     token,
+	}
+
+	result := driver.NewWebSocketDriver().Execute(context.Background(), task)
+	if result.Error == nil {
+		t.Fatal("expected dial error")
+	}
+	assertErrorChainDoesNotContain(t, result.Error, token)
 }
 
 func TestWebSocketDriver_ServerClosesEarly(t *testing.T) {

@@ -1,10 +1,12 @@
 package driver
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
 	"os"
+	"strings"
 
 	"github.com/lewta/sendit/internal/config"
 )
@@ -86,6 +88,40 @@ func authQueryURL(urlStr string, cfg config.AuthConfig) (string, error) {
 	q.Set(cfg.ParamName, token)
 	u.RawQuery = q.Encode()
 	return u.String(), nil
+}
+
+type queryAuthError struct {
+	err     error
+	message string
+}
+
+func (e *queryAuthError) Error() string { return e.message }
+func (e *queryAuthError) Unwrap() error { return e.err }
+
+func redactQueryAuthError(err error, authenticatedURL string, cfg config.AuthConfig) error {
+	if err == nil || cfg.Type != "query" {
+		return err
+	}
+	u, parseErr := url.Parse(authenticatedURL)
+	if parseErr != nil {
+		return err
+	}
+	token := u.Query().Get(cfg.ParamName)
+	if token == "" {
+		return err
+	}
+	redact := func(value string) string {
+		value = strings.ReplaceAll(value, url.QueryEscape(token), "[REDACTED]")
+		return strings.ReplaceAll(value, token, "[REDACTED]")
+	}
+
+	var urlErr *url.Error
+	if !errors.As(err, &urlErr) {
+		return &queryAuthError{message: redact(err.Error())}
+	}
+	sanitized := *urlErr
+	sanitized.URL = redact(sanitized.URL)
+	return &queryAuthError{err: &sanitized, message: redact(err.Error())}
 }
 
 // resolveValue returns literal if non-empty, otherwise looks up envVar in the

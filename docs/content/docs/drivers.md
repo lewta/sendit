@@ -37,9 +37,9 @@ targets:
 | `bearer` | Adds `Authorization: Bearer <token>` header |
 | `basic` | Adds `Authorization: Basic <base64(user:pass)>` header |
 | `header` | Adds `<header_name>: <token>` header |
-| `query` | Appends `?<param_name>=<token>` to the URL |
+| `query` | Adds or replaces `<param_name>` while preserving other query values |
 
-Token values are resolved **at dispatch time** — if the env var is unset when a request fires, the result carries an error and no request is made.
+Authentication applies to HTTP and WebSocket targets. Query authentication adds or replaces the configured parameter while preserving other query values. Environment-backed tokens are resolved at dispatch time. Results and exported output retain the configured URL, not the credential-bearing dial URL. If an environment variable is unset when a request fires, the result carries an error and no request is made.
 
 **Shared credentials via `target_defaults`:**
 

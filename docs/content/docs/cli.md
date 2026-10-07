@@ -28,7 +28,7 @@ sendit completion <shell>
 | `probe` | Test a single HTTP, DNS, or WebSocket endpoint in a loop (like ping). No config file needed. |
 | `pinch` | Check whether a TCP or UDP port is open on a remote host, repeating on an interval. No config file needed. |
 | `export` | Convert a JSONL results file to PCAP format for analysis in Wireshark or tshark. |
-| `stop` | Send SIGTERM to the running instance via its PID file. Waits for in-flight requests to finish. |
+| `stop` | Send SIGTERM to the running instance via its PID file. Cancels active requests, then waits for workers to exit and output to flush. |
 | `reload` | Send SIGHUP to the running instance via its PID file to hot-reload config atomically. |
 | `status` | Report whether the process in the PID file is still alive. |
 | `validate` | Parse and validate a config file. Exits 0 on success, non-zero with a message on error. |

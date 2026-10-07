@@ -312,7 +312,7 @@ Add an explicit opt-in `burst` pacing mode for internal infrastructure testing a
 
 - **`mode: burst`** in the `pacing:` config block — fires requests as fast as worker slots allow with no inter-request delay; `min_delay_ms` / `max_delay_ms` / `requests_per_minute` are ignored
 - **`ramp_up_s`** — optional field in the `pacing:` block; linearly increases active workers from 1 to `max_workers` over the specified number of seconds; applies to `burst` mode only; prevents a cold-start spike against the target
-- **`--duration <duration>`** on `sendit start` — auto-stops the engine after the specified wall-clock time (e.g. `--duration 5m`, `--duration 30s`); **required when `mode: burst`**, optional otherwise; on expiry the engine performs a graceful shutdown (drains in-flight requests) identical to SIGTERM
+- **`--duration <duration>`** on `sendit start` — auto-stops the engine after the specified wall-clock time (e.g. `--duration 5m`, `--duration 30s`); **required when `mode: burst`**, optional otherwise; on expiry the engine cancels active requests, then waits for workers to exit and output to flush, identical to SIGTERM
 - **Config validation** — `config.Load` returns an error if `mode: burst` and `--duration` was not passed; enforced at startup, not silently defaulted
 - **README key properties** — update "Never bursts aggressively" to reflect the opt-in design
 - **Docs** — burst mode documented in `docs/content/docs/pacing.md` with an explicit "internal use" callout; `--duration` flag documented in `docs/content/docs/cli.md`

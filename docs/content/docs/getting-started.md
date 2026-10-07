@@ -180,7 +180,7 @@ By default `start` writes a PID file to `/tmp/sendit.pid` so you can manage the 
 ```sh
 ./sendit status   # is it alive?
 ./sendit reload   # hot-reload config without restart
-./sendit stop     # send SIGTERM, wait for in-flight requests to finish
+./sendit stop     # cancel active requests, wait for workers and output
 ```
 
 Use `--foreground` to skip the PID file (useful in containers or CI).

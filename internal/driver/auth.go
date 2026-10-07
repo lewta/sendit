@@ -1,6 +1,7 @@
 package driver
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -109,9 +110,18 @@ func redactQueryAuthError(err error, authenticatedURL string, cfg config.AuthCon
 	if token == "" {
 		return err
 	}
-	message := strings.ReplaceAll(err.Error(), url.QueryEscape(token), "[REDACTED]")
-	message = strings.ReplaceAll(message, token, "[REDACTED]")
-	return &queryAuthError{err: err, message: message}
+	redact := func(value string) string {
+		value = strings.ReplaceAll(value, url.QueryEscape(token), "[REDACTED]")
+		return strings.ReplaceAll(value, token, "[REDACTED]")
+	}
+
+	var urlErr *url.Error
+	if !errors.As(err, &urlErr) {
+		return &queryAuthError{message: redact(err.Error())}
+	}
+	sanitized := *urlErr
+	sanitized.URL = redact(sanitized.URL)
+	return &queryAuthError{err: &sanitized, message: redact(err.Error())}
 }
 
 // resolveValue returns literal if non-empty, otherwise looks up envVar in the

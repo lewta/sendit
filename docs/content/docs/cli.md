@@ -121,7 +121,7 @@ Latency   avg 45ms · p95 118ms
           ▁▂▂▃▄▄▅▆▇▆▅▄▃▃▂▃▄▅▆▇▆▅▄▅▆▇█▇▆▅▄▃▂▁▂▃▄
 ```
 
-The sparkline shows the last 128 successful request latencies, scaled from `▁` (fastest) to `█` (slowest). Press `q` or `ctrl-c` to stop — the engine shuts down gracefully, waiting for in-flight requests to complete.
+The sparkline shows the last 128 successful request latencies, scaled from `▁` (fastest) to `█` (slowest). On SIGINT, SIGTERM, duration expiry, or TUI quit, sendit stops dispatch, waits for in-flight workers to exit, and flushes output before returning. Active network requests receive the canceled context and may abort.
 
 When stdout is not a TTY (pipe, redirect, Docker, CI), `--tui` is silently ignored and plain zerolog output continues unchanged.
 

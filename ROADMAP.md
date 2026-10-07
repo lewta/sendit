@@ -46,6 +46,7 @@ Features planned for future releases of sendit. Contributions are welcome — op
 - [v1.6.0 — SFTP driver ✓](#v160--sftp-driver-)
 
 **Planned**
+- [v1.7.0 - Reliability contract fixes](#v170---reliability-contract-fixes)
 - [Request templating](#future--request-templating)
 - [Replay command](#future--replay-command)
 - [HTTP version control](#future--http-version-control)
@@ -685,6 +686,16 @@ targets:
       type: bearer
       token_env: API_TOKEN
 ```
+
+---
+
+## v1.7.0 - Reliability contract fixes
+
+- [x] TUI lifecycle
+- [ ] WebSocket query authentication
+- [ ] Prometheus metrics contract
+- [ ] Configuration validation
+- [ ] Residual documentation reconciliation
 
 ---
 

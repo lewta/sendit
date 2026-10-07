@@ -205,7 +205,7 @@ Latency   avg 142ms · p95 380ms
           ▁▁▂▃▄▅▄▃▂▁▂▃▄▅▆▇█▇▆▅▄▃▂▁▁▂▃▄▅▆▅▄
 ```
 
-Press `q` or `ctrl-c` to stop — the engine finishes any in-flight requests before exiting. When stdout is not a TTY (pipe, redirect, CI), `--tui` is silently ignored and plain logging continues.
+On SIGINT, SIGTERM, duration expiry, or TUI quit, sendit stops dispatch, waits for in-flight workers to exit, and flushes output before returning. Active network requests receive the canceled context and may abort. When stdout is not a TTY (pipe, redirect, CI), `--tui` is silently ignored and plain logging continues.
 
 ## Run with Docker
 

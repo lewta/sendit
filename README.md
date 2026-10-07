@@ -15,7 +15,7 @@ Key properties:
 - Stays polite by default — all pacing is delay-gated before acquiring worker slots; `mode: burst` is available for internal infrastructure testing but requires an explicit time-bounded run (`--duration`) to start
 - Per-domain token-bucket rate limits with decorrelated jitter backoff on transient errors
 - Pauses dispatch when local CPU or RAM exceeds configurable thresholds
-- Graceful shutdown: waits for all in-flight requests to complete on SIGINT/SIGTERM
+- On SIGINT, SIGTERM, duration expiry, or TUI quit, sendit stops dispatch, waits for in-flight workers to exit, and flushes output before returning. Active network requests receive the canceled context and may abort.
 
 ---
 

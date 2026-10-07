@@ -22,7 +22,7 @@ Latency   avg 45ms · p95 118ms
           ▁▂▂▃▄▄▅▆▇▆▅▄▃▃▂▃▄▅▆▇▆▅▄▅▆▇█▇▆▅▄▃▂▁▂▃▄
 ```
 
-The sparkline shows the latency distribution of the last 128 requests. Press `q` or `ctrl-c` to stop — the engine shuts down gracefully. Falls back to plain log output automatically when stdout is not a TTY (Docker, CI, pipes). See the [CLI Reference](cli/#terminal-ui---tui) for details.
+The sparkline shows the latency distribution of the last 128 requests. On SIGINT, SIGTERM, duration expiry, or TUI quit, sendit stops dispatch, waits for in-flight workers to exit, and flushes output before returning. Active network requests receive the canceled context and may abort. Falls back to plain log output automatically when stdout is not a TTY (Docker, CI, pipes). See the [CLI Reference](cli/#terminal-ui---tui) for details.
 
 ## Quick tools — no config required
 

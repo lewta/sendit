@@ -73,8 +73,9 @@ Example targets_file:
 Default field values for file-loaded targets (method, timeout, resolver,
 etc.) are configured under 'target_defaults:' in the YAML.
 
-The engine shuts down gracefully on SIGINT or SIGTERM, waiting for all
-in-flight requests to complete before exiting.
+On SIGINT, SIGTERM, duration expiry, or TUI quit, sendit stops dispatch,
+waits for in-flight workers to exit, and flushes output before returning.
+Active network requests receive the canceled context and may abort.
 
 Send SIGHUP to reload the config without restarting. Targets, rate limits,
 backoff, and pacing are updated atomically with no dropped requests. Changes

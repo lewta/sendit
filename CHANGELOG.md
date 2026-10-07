@@ -6,6 +6,7 @@
 
 ### Fixed
 - Made TUI exit cancel the engine and wait for engine shutdown and output flushing before `sendit start` returns.
+- Applied query authentication to WebSocket handshakes while keeping resolved credentials out of result URLs.
 
 ## [1.6.5] - 2026-09-12
 

@@ -845,6 +845,8 @@ targets:
       token_env: API_KEY
 ```
 
+Authentication applies to HTTP and WebSocket targets. Query authentication adds or replaces the configured parameter while preserving other query values. Environment-backed tokens are resolved at dispatch time. Results and exported output retain the configured URL, not the credential-bearing dial URL.
+
 ### `output`
 
 Optional result export to a file for offline analysis.

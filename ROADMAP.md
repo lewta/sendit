@@ -692,7 +692,7 @@ targets:
 ## v1.7.0 - Reliability contract fixes
 
 - [x] TUI lifecycle
-- [ ] WebSocket query authentication
+- [x] WebSocket query authentication
 - [ ] Prometheus metrics contract
 - [ ] Configuration validation
 - [ ] Residual documentation reconciliation

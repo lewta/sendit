@@ -891,6 +891,10 @@ Exposed metrics:
 | `sendit_request_duration_seconds` | Histogram | `type`, `domain` |
 | `sendit_bytes_read_total` | Counter | `type` |
 
+`sendit_errors_total` uses only `transient` and `permanent` `error_class` values. Classified failure statuses increment both `sendit_requests_total` and `sendit_errors_total`. Cancellation and deadline errors do not increment the error counter. WebSocket `101 Switching Protocols` is a successful request status.
+
+Dashboards and alert rules matching the undocumented `error_class="error"` value must update their selectors to match `transient`, `permanent`, or both.
+
 ### `daemon`
 
 ```yaml

@@ -6,9 +6,11 @@ import (
 	"fmt"
 	"math"
 	"os"
+	"reflect"
 	"strconv"
 	"strings"
 
+	"github.com/go-viper/mapstructure/v2"
 	"github.com/robfig/cron/v3"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/viper"
@@ -34,7 +36,11 @@ func Load(path string) (*Config, error) {
 	}
 
 	var cfg Config
-	if err := v.Unmarshal(&cfg); err != nil {
+	if err := v.Unmarshal(&cfg, viper.DecodeHook(mapstructure.ComposeDecodeHookFunc(
+		rejectFractionalIntegerHook,
+		mapstructure.StringToTimeDurationHookFunc(),
+		mapstructure.StringToSliceHookFunc(","),
+	))); err != nil {
 		return nil, fmt.Errorf("unmarshalling config: %w", err)
 	}
 
@@ -51,6 +57,15 @@ func Load(path string) (*Config, error) {
 	warnLiteralTokens(&cfg)
 
 	return &cfg, nil
+}
+
+func rejectFractionalIntegerHook(from, to reflect.Type, data any) (any, error) {
+	if from.Kind() == reflect.Float64 && to.Kind() >= reflect.Int && to.Kind() <= reflect.Uint64 {
+		if value := data.(float64); math.Trunc(value) != value {
+			return nil, errors.New("must be an integer")
+		}
+	}
+	return data, nil
 }
 
 func setDefaults(v *viper.Viper) {

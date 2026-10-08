@@ -39,6 +39,12 @@ targets:
 	f.Add([]byte(`pacing:`))
 	// Non-YAML garbage.
 	f.Add([]byte(`\x00\x01\x02`))
+	// Valid request template.
+	f.Add([]byte(`targets: [{url: "https://example.com/{{user}}", type: http, weight: 1, vars: {user: [alice]}}]`))
+	// Unmatched template delimiter.
+	f.Add([]byte(`targets: [{url: "https://example.com/{{user", type: http, weight: 1}]`))
+	// Template values with Unicode and escaped JSON.
+	f.Add([]byte(`targets: [{url: "https://example.com", type: http, weight: 1, vars: {name: ["世界"]}, http: {body: "{\"name\":\"{{name}}\"}"}}]`))
 
 	f.Fuzz(func(t *testing.T, data []byte) {
 		dir, err := os.MkdirTemp("", "fuzz-config-*")

@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -868,5 +869,350 @@ func TestTargetsFile_DefaultWeight_FallsBackToOne(t *testing.T) {
 	}
 	if cfg.Targets[0].Weight != 1 {
 		t.Errorf("default weight = %d, want 1", cfg.Targets[0].Weight)
+	}
+}
+
+func TestLoadTemplateVariables(t *testing.T) {
+	dir := t.TempDir()
+	valuesPath := filepath.Join(dir, "regions.txt")
+	if err := os.WriteFile(valuesPath, []byte(" us-east \n\neu-west\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	configPath := filepath.Join(dir, "config.yaml")
+	yaml := `
+targets:
+  - url: https://{{region}}.example.com/users/{{user_id}}
+    type: http
+    weight: 1
+    vars:
+      user_id: [alice, bob]
+    vars_file:
+      region: regions.txt
+`
+	if err := os.WriteFile(configPath, []byte(yaml), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := cfg.Targets[0].Vars["region"]; !slices.Equal(got, []string{"us-east", "eu-west"}) {
+		t.Fatalf("region values = %v", got)
+	}
+	if got := cfg.Targets[0].Vars["user_id"]; !slices.Equal(got, []string{"alice", "bob"}) {
+		t.Fatalf("user_id values = %v", got)
+	}
+}
+
+func TestLoadTemplateVariablesAbsolutePath(t *testing.T) {
+	valuesPath := writeTempFile(t, "users.txt", "alice\nbob\n")
+	path := writeTemp(t, `
+targets:
+  - url: https://example.com/{{user}}
+    type: http
+    weight: 1
+    vars_file:
+      user: `+strconv.Quote(valuesPath)+`
+`)
+
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := cfg.Targets[0].Vars["user"]; !slices.Equal(got, []string{"alice", "bob"}) {
+		t.Fatalf("user values = %v", got)
+	}
+}
+
+func TestLoadTemplateVariablesFromConfigDirectory(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "users.txt"), []byte("alice\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	configPath := filepath.Join(dir, "config.yaml")
+	if err := os.WriteFile(configPath, []byte(`
+targets:
+  - url: https://example.com/{{user}}
+    type: http
+    weight: 1
+    vars_file:
+      user: users.txt
+`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	oldWD, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chdir(t.TempDir()); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chdir(oldWD) })
+
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := cfg.Targets[0].Vars["user"]; !slices.Equal(got, []string{"alice"}) {
+		t.Fatalf("user values = %v", got)
+	}
+}
+
+func TestLoadTemplateVariablesFromTargetDefaults(t *testing.T) {
+	dir := t.TempDir()
+	targetsPath := filepath.Join(dir, "targets.txt")
+	if err := os.WriteFile(targetsPath, []byte("https://example.com/{{user}} http\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "users.txt"), []byte("alice\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	configPath := filepath.Join(dir, "config.yaml")
+	yaml := `
+targets_file: ` + strconv.Quote(targetsPath) + `
+target_defaults:
+  vars:
+    role: [admin]
+  vars_file:
+    user: users.txt
+`
+	if err := os.WriteFile(configPath, []byte(yaml), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := cfg.Targets[0].Vars["user"]; !slices.Equal(got, []string{"alice"}) {
+		t.Fatalf("user values = %v", got)
+	}
+	if got := cfg.Targets[0].Vars["role"]; !slices.Equal(got, []string{"admin"}) {
+		t.Fatalf("role values = %v", got)
+	}
+}
+
+func TestLoadTemplateVariableFileErrors(t *testing.T) {
+	tests := []struct {
+		name     string
+		file     string
+		vars     string
+		wantText string
+	}{
+		{name: "missing", vars: "missing.txt", wantText: "targets[0].vars_file.user"},
+		{name: "blank", file: " \n\n", vars: "values.txt", wantText: "contains no values"},
+		{name: "empty path", vars: "", wantText: "path must not be empty"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := t.TempDir()
+			if tt.file != "" {
+				if err := os.WriteFile(filepath.Join(dir, "values.txt"), []byte(tt.file), 0o600); err != nil {
+					t.Fatal(err)
+				}
+			}
+			configPath := filepath.Join(dir, "config.yaml")
+			yaml := `
+targets:
+  - url: https://example.com/{{user}}
+    type: http
+    weight: 1
+    vars_file:
+      user: ` + strconv.Quote(tt.vars) + `
+`
+			if err := os.WriteFile(configPath, []byte(yaml), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			_, err := Load(configPath)
+			if err == nil || !strings.Contains(err.Error(), tt.wantText) {
+				t.Fatalf("Load() error = %v, want text %q", err, tt.wantText)
+			}
+		})
+	}
+}
+
+func TestValidateTemplateVariables(t *testing.T) {
+	tests := []struct {
+		name     string
+		target   string
+		wantText string
+	}{
+		{
+			name: "duplicate inline and file",
+			target: `url: https://example.com/{{user}}
+    type: http
+    weight: 1
+    vars: {user: [alice]}
+    vars_file: {user: users.txt}`,
+			wantText: "defined in both vars and vars_file",
+		},
+		{
+			name: "invalid name",
+			target: `url: https://example.com
+    type: http
+    weight: 1
+    vars: {bad-name: [value]}`,
+			wantText: "targets[0].vars.bad-name",
+		},
+		{
+			name: "reserved name",
+			target: `url: https://example.com/{{uuid}}
+    type: http
+    weight: 1
+    vars: {uuid: [value]}`,
+			wantText: "reserved built-in",
+		},
+		{
+			name: "empty candidates",
+			target: `url: https://example.com
+    type: http
+    weight: 1
+    vars: {user: []}`,
+			wantText: "must contain at least one value",
+		},
+		{
+			name: "empty candidate",
+			target: `url: https://example.com
+    type: http
+    weight: 1
+    vars: {user: [""]}`,
+			wantText: "targets[0].vars.user[0] must not be empty",
+		},
+		{
+			name: "malformed URL template",
+			target: `url: https://example.com/{{user
+    type: http
+    weight: 1
+    vars: {user: [alice]}`,
+			wantText: "targets[0].url",
+		},
+		{
+			name: "unknown URL variable",
+			target: `url: https://example.com/{{missing}}
+    type: http
+    weight: 1`,
+			wantText: `targets[0].url references unknown variable "missing"`,
+		},
+		{
+			name: "unknown HTTP body variable",
+			target: `url: https://example.com
+    type: http
+    weight: 1
+    http: {body: "{{missing}}"}`,
+			wantText: `targets[0].http.body references unknown variable "missing"`,
+		},
+		{
+			name: "unknown gRPC body variable",
+			target: `url: grpc://example.com/pkg.Service/Method
+    type: grpc
+    weight: 1
+    grpc: {body: "{{missing}}"}`,
+			wantText: `targets[0].grpc.body references unknown variable "missing"`,
+		},
+		{
+			name: "unknown WebSocket message variable",
+			target: `url: wss://example.com
+    type: websocket
+    weight: 1
+    websocket: {send_messages: ["{{missing}}"]}`,
+			wantText: `targets[0].websocket.send_messages[0] references unknown variable "missing"`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := t.TempDir()
+			if err := os.WriteFile(filepath.Join(dir, "users.txt"), []byte("alice\n"), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			path := filepath.Join(dir, "config.yaml")
+			if err := os.WriteFile(path, []byte("targets:\n  - "+tt.target+"\n"), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			_, err := Load(path)
+			if err == nil || !strings.Contains(err.Error(), tt.wantText) {
+				t.Fatalf("Load() error = %v, want text %q", err, tt.wantText)
+			}
+		})
+	}
+}
+
+func TestValidateTemplateVariablesRejectsUppercaseRawKeys(t *testing.T) {
+	tests := []struct {
+		name string
+		yaml string
+	}{
+		{name: "inline target", yaml: "targets:\n  - url: https://example.com\n    type: http\n    weight: 1\n    vars:\n      UserName: [alice]\n"},
+		{name: "target file variable", yaml: "targets:\n  - url: https://example.com\n    type: http\n    weight: 1\n    vars_file:\n      UserName: users.txt\n"},
+		{name: "target defaults", yaml: "target_defaults:\n  vars:\n    UserName: [alice]\ntargets:\n  - url: https://example.com\n    type: http\n    weight: 1\n"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := t.TempDir()
+			if err := os.WriteFile(filepath.Join(dir, "users.txt"), []byte("alice\n"), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			path := filepath.Join(dir, "config.yaml")
+			if err := os.WriteFile(path, []byte(tt.yaml), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			_, err := Load(path)
+			if err == nil || !strings.Contains(err.Error(), "UserName") {
+				t.Fatalf("Load() error = %v, want uppercase variable name", err)
+			}
+		})
+	}
+}
+
+func TestLoadNestedJSONTemplateSurfaces(t *testing.T) {
+	tests := []struct {
+		name string
+		body string
+	}{
+		{name: "plain", body: `{"user":{"id":1}}`},
+		{name: "templated", body: `{"user":{"id":"{{uuid}}"}}`},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			yaml := strings.ReplaceAll(`
+targets:
+  - url: https://example.com
+    type: http
+    weight: 1
+    http:
+      body: 'BODY'
+  - url: grpc://example.com/pkg.Service/Method
+    type: grpc
+    weight: 1
+    grpc:
+      body: 'BODY'
+  - url: wss://example.com
+    type: websocket
+    weight: 1
+    websocket:
+      send_messages: ['BODY']
+`, "BODY", tt.body)
+			if _, err := Load(writeTemp(t, yaml)); err != nil {
+				t.Fatal(err)
+			}
+		})
+	}
+}
+
+func TestTemplateExpansionIsLiteralAndSinglePass(t *testing.T) {
+	names, err := TemplateVariables("{{first}}/{{second}}/{{first}}")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(names, []string{"first", "second"}) {
+		t.Fatalf("TemplateVariables() = %v", names)
+	}
+	got := ExpandTemplate("{{first}}/{{second}}/{{first}}", map[string]string{
+		"first":  `a$\\{{second}}`,
+		"second": "世界",
+	})
+	if want := `a$\\{{second}}/世界/a$\\{{second}}`; got != want {
+		t.Fatalf("ExpandTemplate() = %q, want %q", got, want)
 	}
 }

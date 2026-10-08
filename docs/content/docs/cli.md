@@ -101,6 +101,8 @@ Browser history weights are derived from visit count (capped at 10) so frequentl
 | `--duration` | | `0` (unlimited) | Auto-stop after this wall-clock duration (e.g. `5m`, `30s`, `1h`); **required** when `pacing.mode` is `burst` |
 | `--tui` | | `false` | Enable the live terminal UI (requires a TTY; falls back to plain output with a warning when stdout is piped or redirected) |
 
+`sendit validate` and `sendit start` read `vars_file` inputs and reject malformed or unknown request-template placeholders before sending traffic.
+
 ### Terminal UI (--tui)
 
 When run on a TTY, `--tui` replaces the default log output with a live dashboard:
@@ -134,13 +136,14 @@ When stdout is not a TTY (pipe, redirect, Docker, CI), `--tui` emits a warning a
 ```
 Config: config/example.yaml  ✓ valid
 
-Targets (4):
+Targets (5):
   URL                                      TYPE       WEIGHT     SHARE
-  https://httpbin.org/get                  http       10         47.6%
-  https://httpbin.org/status/200           http       5          23.8%
-  https://news.ycombinator.com             browser    3          14.3%
-  example.com                              dns        3          14.3%
-  Total weight: 21
+  https://httpbin.org/get                  http       10         43.5%
+  https://httpbin.org/status/200           http       5          21.7%
+  https://news.ycombinator.com             browser    3          13.0%
+  example.com                              dns        3          13.0%
+  https://httpbin.org/anything/users/alice/1?request=8d652a44-dc45-47a3-80da-33b47fc94709&at=1791490000 http 2 8.7%
+  Total weight: 23
 
 Pacing:
   mode: human | delay: 800ms–8000ms (random uniform)
@@ -148,6 +151,8 @@ Pacing:
 Limits:
   workers: 4 (browser: 1) | cpu: 60% | memory: 512 MB
 ```
+
+Templated targets show one expanded example URL. UUIDs, timestamps, and randomly selected custom values vary between dry runs. Dry-run does not print expanded bodies, variable maps, or authentication values.
 
 ## `probe` flags
 

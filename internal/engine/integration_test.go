@@ -7,6 +7,8 @@ import (
 	"context"
 	"encoding/binary"
 	"encoding/json"
+	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -20,6 +22,7 @@ import (
 	"github.com/lewta/sendit/internal/config"
 	"github.com/lewta/sendit/internal/engine"
 	"github.com/lewta/sendit/internal/metrics"
+	"github.com/lewta/sendit/internal/task"
 	"github.com/miekg/dns"
 )
 
@@ -98,6 +101,84 @@ func TestIntegration_HTTP_HappyPath(t *testing.T) {
 
 	if n := counter.Load(); n < 3 {
 		t.Errorf("expected >= 3 requests, got %d", n)
+	}
+}
+
+func TestIntegrationRequestTemplate(t *testing.T) {
+	type request struct {
+		path string
+		body string
+	}
+	received := make(chan request, 10)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			t.Errorf("reading body: %v", err)
+		}
+		select {
+		case received <- request{path: r.URL.Path, body: string(body)}:
+		default:
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer srv.Close()
+	host, _, err := net.SplitHostPort(srv.Listener.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cfg := testCfg([]config.TargetConfig{{
+		URL:    "http://{{host}}/users/{{name}}/{{seq}}",
+		Type:   "http",
+		Weight: 1,
+		Vars: map[string][]string{
+			"host": {srv.Listener.Addr().String()},
+			"name": {"alice"},
+		},
+		HTTP: config.HTTPConfig{
+			Method: "POST",
+			Body:   `{"name":"{{name}}","seq":{{seq}}}`,
+		},
+	}})
+	cfg.Limits.MaxWorkers = 1
+	cfg.RateLimits.DefaultRPS = 0.01
+	cfg.RateLimits.PerDomain = []config.DomainRateLimit{{Domain: host, RPS: 100}}
+	eng, err := engine.New(cfg, metrics.Noop())
+	if err != nil {
+		t.Fatalf("engine.New: %v", err)
+	}
+
+	done := make(chan struct{})
+	var once sync.Once
+	var completed atomic.Int64
+	eng.SetObserver(func(result task.Result) {
+		if result.Error == nil && completed.Add(1) == 2 {
+			once.Do(func() { close(done) })
+		}
+	})
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	runDone := make(chan struct{})
+	go func() {
+		defer close(runDone)
+		eng.Run(ctx)
+	}()
+
+	select {
+	case <-done:
+		cancel()
+	case <-ctx.Done():
+		t.Fatal("timed out waiting for expanded request")
+	}
+	<-runDone
+	for sequence := 1; sequence <= 2; sequence++ {
+		got := <-received
+		if want := fmt.Sprintf("/users/alice/%d", sequence); got.path != want {
+			t.Fatalf("path = %q, want %q", got.path, want)
+		}
+		if want := fmt.Sprintf(`{"name":"alice","seq":%d}`, sequence); got.body != want {
+			t.Fatalf("body = %q, want %q", got.body, want)
+		}
 	}
 }
 

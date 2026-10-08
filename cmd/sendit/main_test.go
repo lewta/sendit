@@ -601,7 +601,9 @@ func makeDryRunConfig(mode string) *config.Config {
 func TestPrintDryRun_HumanMode(t *testing.T) {
 	cfg := makeDryRunConfig("human")
 	out := captureStdout(t, func() {
-		printDryRun("config/test.yaml", cfg, 0)
+		if err := printDryRun("config/test.yaml", cfg, 0); err != nil {
+			t.Fatal(err)
+		}
 	})
 	if !strings.Contains(out, "human") {
 		t.Errorf("expected 'human' pacing in output, got: %q", out)
@@ -614,7 +616,9 @@ func TestPrintDryRun_HumanMode(t *testing.T) {
 func TestPrintDryRun_RateLimitedMode(t *testing.T) {
 	cfg := makeDryRunConfig("rate_limited")
 	out := captureStdout(t, func() {
-		printDryRun("config/test.yaml", cfg, 0)
+		if err := printDryRun("config/test.yaml", cfg, 0); err != nil {
+			t.Fatal(err)
+		}
 	})
 	if !strings.Contains(out, "rate_limited") {
 		t.Errorf("expected 'rate_limited' in output, got: %q", out)
@@ -627,7 +631,9 @@ func TestPrintDryRun_ScheduledMode(t *testing.T) {
 		{Cron: "0 9 * * 1-5", DurationMinutes: 480, RequestsPerMinute: 30},
 	}
 	out := captureStdout(t, func() {
-		printDryRun("config/test.yaml", cfg, 0)
+		if err := printDryRun("config/test.yaml", cfg, 0); err != nil {
+			t.Fatal(err)
+		}
 	})
 	if !strings.Contains(out, "scheduled") {
 		t.Errorf("expected 'scheduled' in output, got: %q", out)
@@ -641,7 +647,9 @@ func TestPrintDryRun_BurstMode(t *testing.T) {
 	cfg := makeDryRunConfig("burst")
 	cfg.Pacing.RampUpS = 30
 	out := captureStdout(t, func() {
-		printDryRun("config/test.yaml", cfg, 60*time.Second)
+		if err := printDryRun("config/test.yaml", cfg, 60*time.Second); err != nil {
+			t.Fatal(err)
+		}
 	})
 	if !strings.Contains(out, "burst") {
 		t.Errorf("expected 'burst' in output, got: %q", out)
@@ -654,7 +662,9 @@ func TestPrintDryRun_BurstMode(t *testing.T) {
 func TestPrintDryRun_BurstMode_NoRampUp(t *testing.T) {
 	cfg := makeDryRunConfig("burst")
 	out := captureStdout(t, func() {
-		printDryRun("config/test.yaml", cfg, 0)
+		if err := printDryRun("config/test.yaml", cfg, 0); err != nil {
+			t.Fatal(err)
+		}
 	})
 	if !strings.Contains(out, "none") {
 		t.Errorf("expected 'none' ramp_up in output, got: %q", out)
@@ -667,7 +677,9 @@ func TestPrintDryRun_BurstMode_NoRampUp(t *testing.T) {
 func TestPrintDryRun_UnknownMode(t *testing.T) {
 	cfg := makeDryRunConfig("foobar")
 	out := captureStdout(t, func() {
-		printDryRun("config/test.yaml", cfg, 0)
+		if err := printDryRun("config/test.yaml", cfg, 0); err != nil {
+			t.Fatal(err)
+		}
 	})
 	if !strings.Contains(out, "foobar") {
 		t.Errorf("expected unknown mode in output, got: %q", out)
@@ -678,9 +690,29 @@ func TestPrintDryRun_EmptyTargets(t *testing.T) {
 	cfg := makeDryRunConfig("human")
 	cfg.Targets = nil
 	out := captureStdout(t, func() {
-		printDryRun("config/test.yaml", cfg, 0)
+		if err := printDryRun("config/test.yaml", cfg, 0); err != nil {
+			t.Fatal(err)
+		}
 	})
 	if !strings.Contains(out, "Targets (0)") {
 		t.Errorf("expected 'Targets (0)' in output, got: %q", out)
+	}
+}
+
+func TestPrintDryRunExpandsExampleURL(t *testing.T) {
+	cfg := makeDryRunConfig("human")
+	cfg.Targets = []config.TargetConfig{{
+		URL:    "https://example.com/users/{{user}}/{{seq}}",
+		Type:   "http",
+		Weight: 1,
+		Vars:   map[string][]string{"user": {"alice"}},
+	}}
+	out := captureStdout(t, func() {
+		if err := printDryRun("config/test.yaml", cfg, 0); err != nil {
+			t.Fatal(err)
+		}
+	})
+	if !strings.Contains(out, "https://example.com/users/alice/1") || strings.Contains(out, "{{") {
+		t.Fatalf("unexpected dry-run output: %q", out)
 	}
 }

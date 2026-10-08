@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"math"
 	"os"
+	"path/filepath"
 	"reflect"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -26,6 +28,13 @@ func Load(path string) (*Config, error) {
 
 	if err := v.ReadInConfig(); err != nil {
 		return nil, fmt.Errorf("reading config: %w", err)
+	}
+	rawConfig, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("reading config for variable validation: %w", err)
+	}
+	if err := validateRawVariableNames(rawConfig); err != nil {
+		return nil, fmt.Errorf("invalid config: %w", err)
 	}
 	// Preserve the uint64 range while routing invalid source values through aggregate validation.
 	memoryThreshold := v.Get("limits.memory_threshold_mb")
@@ -48,6 +57,9 @@ func Load(path string) (*Config, error) {
 		if err := loadTargetsFile(&cfg); err != nil {
 			return nil, fmt.Errorf("targets_file: %w", err)
 		}
+	}
+	if err := loadVariableFiles(&cfg, filepath.Dir(path)); err != nil {
+		return nil, fmt.Errorf("loading template variables: %w", err)
 	}
 
 	if err := validate(&cfg); err != nil {
@@ -186,6 +198,8 @@ func loadTargetsFile(cfg *Config) error {
 			URL:       url,
 			Weight:    weight,
 			Type:      typ,
+			Vars:      cloneVariables(d.Vars),
+			VarsFile:  cloneStringMap(d.VarsFile),
 			Auth:      d.Auth,
 			HTTP:      d.HTTP,
 			Browser:   d.Browser,
@@ -200,6 +214,71 @@ func loadTargetsFile(cfg *Config) error {
 		return fmt.Errorf("reading %q: %w", cfg.TargetsFile, err)
 	}
 	return nil
+}
+
+func loadVariableFiles(cfg *Config, configDir string) error {
+	for i := range cfg.Targets {
+		target := &cfg.Targets[i]
+		target.Vars = cloneVariables(target.Vars)
+		keys := make([]string, 0, len(target.VarsFile))
+		for name := range target.VarsFile {
+			keys = append(keys, name)
+		}
+		slices.Sort(keys)
+
+		for _, name := range keys {
+			if _, exists := target.Vars[name]; exists {
+				return fmt.Errorf("targets[%d].vars_file.%s: variable is defined in both vars and vars_file", i, name)
+			}
+			path := strings.TrimSpace(target.VarsFile[name])
+			if path == "" {
+				return fmt.Errorf("targets[%d].vars_file.%s: path must not be empty", i, name)
+			}
+			if !filepath.IsAbs(path) {
+				path = filepath.Join(configDir, path)
+			}
+			data, err := os.ReadFile(path)
+			if err != nil {
+				return fmt.Errorf("targets[%d].vars_file.%s: reading %q: %w", i, name, path, err)
+			}
+			var values []string
+			for _, line := range strings.Split(string(data), "\n") {
+				if value := strings.TrimSpace(line); value != "" {
+					values = append(values, value)
+				}
+			}
+			if len(values) == 0 {
+				return fmt.Errorf("targets[%d].vars_file.%s: %q contains no values", i, name, path)
+			}
+			if target.Vars == nil {
+				target.Vars = make(map[string][]string)
+			}
+			target.Vars[name] = values
+		}
+	}
+	return nil
+}
+
+func cloneVariables(values map[string][]string) map[string][]string {
+	if values == nil {
+		return nil
+	}
+	cloned := make(map[string][]string, len(values))
+	for name, candidates := range values {
+		cloned[name] = slices.Clone(candidates)
+	}
+	return cloned
+}
+
+func cloneStringMap(values map[string]string) map[string]string {
+	if values == nil {
+		return nil
+	}
+	cloned := make(map[string]string, len(values))
+	for name, value := range values {
+		cloned[name] = value
+	}
+	return cloned
 }
 
 func validate(cfg *Config) error {
@@ -313,6 +392,7 @@ func validate(cfg *Config) error {
 		if t.Type == "sftp" {
 			errs = append(errs, validateSFTPTarget(i, t)...)
 		}
+		errs = append(errs, validateTargetTemplates(i, t)...)
 		if a := t.Auth; a.Type != "" {
 			if !validAuthTypes[a.Type] {
 				errs = append(errs, fmt.Sprintf("targets[%d].auth.type must be one of bearer|basic|header|query, got %q", i, a.Type))
@@ -369,6 +449,63 @@ func validate(cfg *Config) error {
 		return errors.New(strings.Join(errs, "; "))
 	}
 	return nil
+}
+
+func validateTargetTemplates(i int, target TargetConfig) []string {
+	var errs []string
+	variableNames := make([]string, 0, len(target.Vars))
+	for name := range target.Vars {
+		variableNames = append(variableNames, name)
+	}
+	slices.Sort(variableNames)
+	for _, name := range variableNames {
+		prefix := fmt.Sprintf("targets[%d].vars.%s", i, name)
+		if !templateName.MatchString(name) {
+			errs = append(errs, prefix+" must match [a-z][a-z0-9_]*")
+		}
+		if builtInVariables[name] {
+			errs = append(errs, prefix+" uses a reserved built-in name")
+		}
+		values := target.Vars[name]
+		if len(values) == 0 {
+			errs = append(errs, prefix+" must contain at least one value")
+		}
+		for j, value := range values {
+			if strings.TrimSpace(value) == "" {
+				errs = append(errs, fmt.Sprintf("%s[%d] must not be empty", prefix, j))
+			}
+		}
+	}
+
+	surfaces := []struct {
+		field string
+		value string
+	}{
+		{field: "url", value: target.URL},
+		{field: "http.body", value: target.HTTP.Body},
+		{field: "grpc.body", value: target.GRPC.Body},
+	}
+	for j, value := range target.WebSocket.SendMessages {
+		surfaces = append(surfaces, struct {
+			field string
+			value string
+		}{field: fmt.Sprintf("websocket.send_messages[%d]", j), value: value})
+	}
+
+	for _, surface := range surfaces {
+		prefix := fmt.Sprintf("targets[%d].%s", i, surface.field)
+		names, err := TemplateVariables(surface.value)
+		if err != nil {
+			errs = append(errs, fmt.Sprintf("%s: %v", prefix, err))
+			continue
+		}
+		for _, name := range names {
+			if _, exists := target.Vars[name]; !exists && !builtInVariables[name] {
+				errs = append(errs, fmt.Sprintf("%s references unknown variable %q", prefix, name))
+			}
+		}
+	}
+	return errs
 }
 
 func validateSFTPTarget(i int, t TargetConfig) []string {

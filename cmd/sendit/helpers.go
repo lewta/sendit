@@ -8,13 +8,29 @@ import (
 	"time"
 
 	"github.com/lewta/sendit/internal/config"
+	"github.com/lewta/sendit/internal/task"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
 
 // --- helpers ---
 
-func printDryRun(path string, cfg *config.Config, duration time.Duration) {
+func printDryRun(path string, cfg *config.Config, duration time.Duration) error {
+	// Sort a copy by weight descending.
+	sorted := make([]config.TargetConfig, len(cfg.Targets))
+	copy(sorted, cfg.Targets)
+	slices.SortFunc(sorted, func(a, b config.TargetConfig) int {
+		return b.Weight - a.Weight
+	})
+	var examples []task.Task
+	if len(sorted) > 0 {
+		selector, err := task.NewSelector(sorted)
+		if err != nil {
+			return fmt.Errorf("building dry-run examples: %w", err)
+		}
+		examples = selector.Examples()
+	}
+
 	fmt.Printf("Config: %s  ✓ valid\n\n", path)
 
 	// Compute total weight.
@@ -23,21 +39,14 @@ func printDryRun(path string, cfg *config.Config, duration time.Duration) {
 		totalWeight += t.Weight
 	}
 
-	// Sort a copy by weight descending.
-	sorted := make([]config.TargetConfig, len(cfg.Targets))
-	copy(sorted, cfg.Targets)
-	slices.SortFunc(sorted, func(a, b config.TargetConfig) int {
-		return b.Weight - a.Weight
-	})
-
 	fmt.Printf("Targets (%d):\n", len(sorted))
 	fmt.Printf("  %-40s %-10s %-10s %s\n", "URL", "TYPE", "WEIGHT", "SHARE")
-	for _, t := range sorted {
+	for i, t := range sorted {
 		share := 0.0
 		if totalWeight > 0 {
 			share = float64(t.Weight) / float64(totalWeight) * 100
 		}
-		fmt.Printf("  %-40s %-10s %-10d %.1f%%\n", t.URL, t.Type, t.Weight, share)
+		fmt.Printf("  %-40s %-10s %-10d %.1f%%\n", examples[i].URL, t.Type, t.Weight, share)
 	}
 	fmt.Printf("  Total weight: %d\n", totalWeight)
 	fmt.Println()
@@ -75,6 +84,7 @@ func printDryRun(path string, cfg *config.Config, duration time.Duration) {
 	l := cfg.Limits
 	fmt.Printf("Limits:\n  workers: %d (browser: %d) | cpu: %.0f%% | memory: %d MB\n",
 		l.MaxWorkers, l.MaxBrowserWorkers, l.CPUThresholdPct, l.MemoryThresholdMB)
+	return nil
 }
 
 func initLogger(level, format string) {

@@ -62,7 +62,7 @@ targets_file format (one entry per line):
   <url> <type> [weight]
 
   url     Full URL (https://, wss://) or bare hostname for dns targets
-  type    http | browser | dns | websocket
+  type    http | browser | dns | websocket | grpc | sftp
   weight  Optional positive integer (default: target_defaults.weight)
   #       Lines beginning with '#' and blank lines are ignored
 
@@ -72,6 +72,11 @@ Example targets_file:
 
 Default field values for file-loaded targets (method, timeout, resolver,
 etc.) are configured under 'target_defaults:' in the YAML.
+
+Targets may define 'vars' candidate lists and 'vars_file' mappings to
+newline-delimited files. {{uuid}}, {{timestamp}}, {{seq}}, and custom
+{{name}} values expand per request in URLs, HTTP/gRPC bodies, and WebSocket
+send messages. Relative vars_file paths use the config file's directory.
 
 On SIGINT, SIGTERM, duration expiry, or TUI quit, sendit stops dispatch,
 waits for in-flight workers to exit, and flushes output before returning.
@@ -96,8 +101,7 @@ to pacing mode or resource limits (workers, cpu, memory) require a restart.`,
 			}
 
 			if dryRun {
-				printDryRun(cfgPath, cfg, duration)
-				return nil
+				return printDryRun(cfgPath, cfg, duration)
 			}
 
 			// CLI flag overrides config log level.

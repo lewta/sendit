@@ -243,13 +243,14 @@ Pass `--dry-run` to `sendit start` to preview the effective configuration — ta
 ```
 Config: config/example.yaml  ✓ valid
 
-Targets (4):
+Targets (5):
   URL                                      TYPE       WEIGHT     SHARE
-  https://httpbin.org/get                  http       10         47.6%
-  https://httpbin.org/status/200           http       5          23.8%
-  https://news.ycombinator.com             browser    3          14.3%
-  example.com                              dns        3          14.3%
-  Total weight: 21
+  https://httpbin.org/get                  http       10         43.5%
+  https://httpbin.org/status/200           http       5          21.7%
+  https://news.ycombinator.com             browser    3          13.0%
+  example.com                              dns        3          13.0%
+  https://httpbin.org/anything/users/alice/1?request=8d652a44-dc45-47a3-80da-33b47fc94709&at=1791490000 http 2 8.7%
+  Total weight: 23
 
 Pacing:
   mode: human | delay: 800ms–8000ms (random uniform)
@@ -257,6 +258,8 @@ Pacing:
 Limits:
   workers: 4 (browser: 1) | cpu: 60% | memory: 512 MB
 ```
+
+Templated targets show one expanded example URL. UUIDs, timestamps, and randomly selected custom values vary between dry runs.
 
 ---
 
@@ -686,6 +689,10 @@ targets_file: "config/targets.txt"
 
 target_defaults:
   weight: 1                    # used when weight is omitted from the file
+  vars:
+    environment: [staging]     # shared template values for file-loaded targets
+  vars_file:
+    region: "config/regions.txt"
   auth:                        # optional: apply shared credentials to all file-loaded targets
     type: bearer
     token_env: API_TOKEN       # resolved from env at dispatch time
@@ -718,6 +725,8 @@ target_defaults:
 | `target_defaults` field | Default | Description |
 |-------------------------|---------|-------------|
 | `weight` | `1` | Selection weight for file targets with no explicit weight |
+| `vars` | `{}` | Shared inline template candidates for file-loaded targets |
+| `vars_file` | `{}` | Shared variable-to-file mappings for file-loaded targets |
 | `auth.type` | `""` | Auth type: `bearer` \| `basic` \| `header` \| `query` |
 | `http.method` | `GET` | HTTP verb |
 | `http.timeout_s` | `15` | Request timeout in seconds |
@@ -737,6 +746,32 @@ target_defaults:
 ### `targets`
 
 List of endpoints to request. Each target has a `weight` controlling selection frequency relative to the others. Selection uses the Vose alias method (O(1) per pick).
+
+#### Request templating
+
+Use `{{name}}` placeholders to vary traffic without duplicating targets. For each request, sendit uniformly chooses one candidate per referenced custom variable and reuses it across the URL, HTTP body, gRPC body, and WebSocket send messages.
+
+```yaml
+targets:
+  - url: "https://api.example.com/users/{{user_id}}?request={{uuid}}"
+    type: http
+    weight: 10
+    vars:
+      user_id: [alice, bob]
+    vars_file:
+      region: "data/regions.txt"
+    http:
+      method: POST
+      body: '{"user":"{{user_id}}","region":"{{region}}","sequence":{{seq}},"at":{{timestamp}}}'
+```
+
+`vars_file` maps a variable name to a newline-delimited file. Relative paths resolve from the main YAML file's directory. Values are trimmed and blank lines are ignored. The file must contain at least one value.
+
+Variable names must match `[a-z][a-z0-9_]*`. The reserved built-ins are `{{uuid}}` (random UUIDv4), `{{timestamp}}` (Unix epoch seconds), and `{{seq}}` (per-target counter starting at 1). Sequence counters reset on process start and successful config reload.
+
+Expansion is a single pass: template-looking text inside a selected value remains literal. A variable cannot be defined in both `vars` and `vars_file`. Invalid names, empty values, unreadable files, malformed placeholders, and unknown variables fail configuration validation. `target_defaults.vars` and `target_defaults.vars_file` apply to targets loaded through `targets_file`.
+
+Only target URLs, `http.body`, `grpc.body`, and `websocket.send_messages` are templated. Headers, authentication, and other driver settings are unchanged.
 
 Non-standard ports are specified directly in the URL — no additional config needed:
 
@@ -849,7 +884,7 @@ targets:
       token_env: API_KEY
 ```
 
-Authentication applies to HTTP and WebSocket targets. Query authentication adds or replaces the configured parameter while preserving other query values. Environment-backed tokens are resolved at dispatch time. Results and exported output retain the configured URL, not the credential-bearing dial URL.
+Authentication applies to HTTP and WebSocket targets. Query authentication adds or replaces the configured parameter while preserving other query values. Environment-backed tokens are resolved at dispatch time. Results and exported output retain the expanded target URL, not the credential-bearing dial URL.
 
 ### `output`
 

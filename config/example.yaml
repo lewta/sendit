@@ -132,6 +132,18 @@ targets:
   #     type: query
   #     param_name: api_key
   #     token_env: API_KEY
+  # Request templates expand once per request. Relative vars_file paths use
+  # this YAML file's directory; replacement values are not expanded again.
+  - url: "https://httpbin.org/anything/users/{{user_id}}/{{seq}}?request={{uuid}}&at={{timestamp}}"
+    weight: 2
+    type: http
+    vars:
+      user_id: [alice, bob]
+    vars_file:
+      region: "regions.txt" # one value per line; blank lines ignored
+    http:
+      method: POST
+      body: '{"user":"{{user_id}}","region":"{{region}}","sequence":{{seq}}}'
 
   - url: "https://httpbin.org/get"
     weight: 10

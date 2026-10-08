@@ -27,6 +27,8 @@ ports must be in the range 1..65535.
 If 'targets_file' is set in the config, that file is also read and parsed
 as part of validation — a missing file, malformed line, unknown driver
 type, or invalid weight is reported here before any traffic is sent.
+Variable files are read, and malformed or unknown template placeholders
+are rejected across URLs, HTTP/gRPC bodies, and WebSocket send messages.
 
 Exits 0 and prints "config valid" on success.
 Exits non-zero and prints the validation error on failure.`,

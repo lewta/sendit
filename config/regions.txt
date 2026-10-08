@@ -1,0 +1,2 @@
+us-east
+eu-west

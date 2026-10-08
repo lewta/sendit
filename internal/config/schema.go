@@ -18,14 +18,16 @@ type Config struct {
 // from targets_file. Fields left at their zero value fall through to each
 // driver's own built-in defaults.
 type TargetDefaultsConfig struct {
-	Weight    int             `mapstructure:"weight"`
-	Auth      AuthConfig      `mapstructure:"auth"`
-	HTTP      HTTPConfig      `mapstructure:"http"`
-	Browser   BrowserConfig   `mapstructure:"browser"`
-	DNS       DNSConfig       `mapstructure:"dns"`
-	WebSocket WebSocketConfig `mapstructure:"websocket"`
-	GRPC      GRPCConfig      `mapstructure:"grpc"`
-	SFTP      SFTPConfig      `mapstructure:"sftp"`
+	Weight    int                 `mapstructure:"weight"`
+	Vars      map[string][]string `mapstructure:"vars"`
+	VarsFile  map[string]string   `mapstructure:"vars_file"`
+	Auth      AuthConfig          `mapstructure:"auth"`
+	HTTP      HTTPConfig          `mapstructure:"http"`
+	Browser   BrowserConfig       `mapstructure:"browser"`
+	DNS       DNSConfig           `mapstructure:"dns"`
+	WebSocket WebSocketConfig     `mapstructure:"websocket"`
+	GRPC      GRPCConfig          `mapstructure:"grpc"`
+	SFTP      SFTPConfig          `mapstructure:"sftp"`
 }
 
 // PacingConfig controls how requests are spaced in time.
@@ -79,16 +81,18 @@ type BackoffConfig struct {
 
 // TargetConfig describes a single request target.
 type TargetConfig struct {
-	URL       string          `mapstructure:"url"`
-	Weight    int             `mapstructure:"weight"`
-	Type      string          `mapstructure:"type"` // http | browser | dns | websocket | grpc | sftp
-	Auth      AuthConfig      `mapstructure:"auth"`
-	HTTP      HTTPConfig      `mapstructure:"http"`
-	Browser   BrowserConfig   `mapstructure:"browser"`
-	DNS       DNSConfig       `mapstructure:"dns"`
-	WebSocket WebSocketConfig `mapstructure:"websocket"`
-	GRPC      GRPCConfig      `mapstructure:"grpc"`
-	SFTP      SFTPConfig      `mapstructure:"sftp"`
+	URL       string              `mapstructure:"url"`
+	Weight    int                 `mapstructure:"weight"`
+	Type      string              `mapstructure:"type"` // http | browser | dns | websocket | grpc | sftp
+	Vars      map[string][]string `mapstructure:"vars"`
+	VarsFile  map[string]string   `mapstructure:"vars_file"`
+	Auth      AuthConfig          `mapstructure:"auth"`
+	HTTP      HTTPConfig          `mapstructure:"http"`
+	Browser   BrowserConfig       `mapstructure:"browser"`
+	DNS       DNSConfig           `mapstructure:"dns"`
+	WebSocket WebSocketConfig     `mapstructure:"websocket"`
+	GRPC      GRPCConfig          `mapstructure:"grpc"`
+	SFTP      SFTPConfig          `mapstructure:"sftp"`
 }
 
 // AuthConfig defines optional authentication applied to a target request.

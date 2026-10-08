@@ -694,7 +694,7 @@ targets:
 - [x] WebSocket query authentication
 - [x] Prometheus metrics contract
 - [x] Configuration validation
-- [ ] Residual documentation reconciliation
+- [x] Residual documentation reconciliation
 
 ---
 

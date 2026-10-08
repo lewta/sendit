@@ -23,7 +23,7 @@ Controls how requests are spaced in time. See [Pacing Modes](../pacing/) for det
 | `min_delay_ms` | int | `800` | Minimum inter-request delay for `human` mode (ms) |
 | `max_delay_ms` | int | `8000` | Maximum inter-request delay for `human` mode (ms) |
 | `schedule` | list | `[]` | Validated cron windows — required when `mode: scheduled` |
-| `ramp_up_s` | int | `0` | Linearly decreases burst inter-request delay to zero over this many seconds; does not resize the worker pool |
+| `ramp_up_s` | int | `0` | `burst` mode only; linearly decreases inter-request delay to zero without resizing the worker pool; `0` = immediate full-speed dispatch |
 
 ## `limits`
 

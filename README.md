@@ -586,7 +586,7 @@ Controls how requests are spaced in time.
 | `min_delay_ms` | `800` | Minimum inter-request delay in `human` mode |
 | `max_delay_ms` | `8000` | Maximum inter-request delay in `human` mode |
 | `schedule` | `[]` | List of validated cron windows — required when `mode: scheduled` |
-| `ramp_up_s` | `0` | Linearly decreases burst inter-request delay to zero over this many seconds; does not resize the worker pool |
+| `ramp_up_s` | `0` | `burst` mode only; linearly decreases inter-request delay to zero without resizing the worker pool; `0` = immediate full-speed dispatch |
 
 **Pacing modes:**
 

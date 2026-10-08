@@ -54,7 +54,7 @@ Every supplied schedule entry is validated with the scheduler's standard parser,
 
 ## `burst` mode
 
-Fires requests as fast as worker slots allow once any configured ramp completes. Intended for **internal or owned infrastructure** — load testing, chaos experiments, or benchmarking your own services.
+Dispatches throughout any configured ramp with a decreasing inter-request delay, then fires requests as fast as worker slots allow. Intended for **internal or owned infrastructure** — load testing, chaos experiments, or benchmarking your own services.
 
 > **Important:** `mode: burst` requires `--duration` on `sendit start`. The engine refuses to run a burst session without a time bound. This is a deliberate safety gate — never point burst at external targets you do not control.
 

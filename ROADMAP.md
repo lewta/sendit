@@ -310,7 +310,7 @@ Add an explicit opt-in `burst` pacing mode for internal infrastructure testing a
 
 **Implementation:**
 
-- **`mode: burst`** in the `pacing:` config block — fires requests as fast as worker slots allow once any configured ramp completes; `min_delay_ms` / `max_delay_ms` / `requests_per_minute` are ignored
+- **`mode: burst`** in the `pacing:` config block — dispatches throughout any configured ramp with a decreasing inter-request delay, then fires as fast as worker slots allow; `min_delay_ms` / `max_delay_ms` / `requests_per_minute` are ignored
 - **`ramp_up_s`** — optional field in the `pacing:` block; linearly decreases burst inter-request delay to zero over the configured period; it does not resize the worker pool; applies to `burst` mode only; prevents a cold-start spike against the target
 - **`--duration <duration>`** on `sendit start` — auto-stops the engine after the specified wall-clock time (e.g. `--duration 5m`, `--duration 30s`); **required when `mode: burst`**, optional otherwise; on expiry the engine cancels active requests, then waits for workers to exit and output to flush, identical to SIGTERM
 - **Config validation** — `config.Load` returns an error if `mode: burst` and `--duration` was not passed; enforced at startup, not silently defaulted

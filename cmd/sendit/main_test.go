@@ -285,6 +285,20 @@ func TestStartCmd_DurationFlag(t *testing.T) {
 	}
 }
 
+func TestStartCmd_TUIHelpDescribesFallbackWarning(t *testing.T) {
+	cmd := startCmd()
+	var out bytes.Buffer
+	cmd.SetOut(&out)
+	cmd.SetArgs([]string{"--help"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("rendering start help: %v", err)
+	}
+	help := out.String()
+	if !strings.Contains(help, "warns and falls back to plain output") {
+		t.Fatalf("start help does not describe the non-TTY warning and fallback:\n%s", help)
+	}
+}
+
 // TestStartCmd_BurstRequiresDuration verifies that starting with pacing.mode=burst
 // but no --duration returns a clear error rather than running indefinitely.
 func TestStartCmd_BurstRequiresDuration(t *testing.T) {

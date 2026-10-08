@@ -17,29 +17,29 @@ appears that cannot be justified by the table below.
 |--------|---------|---------|---------|
 | [`github.com/charmbracelet/bubbletea`](https://github.com/charmbracelet/bubbletea) | v1.3.10 | MIT | Elm-architecture TUI framework — powers the `--tui` terminal dashboard |
 | [`github.com/charmbracelet/lipgloss`](https://github.com/charmbracelet/lipgloss) | v1.1.0 | MIT | Style definitions for the terminal UI (bold labels, colour-coded counters) |
-| [`github.com/chromedp/chromedp`](https://github.com/chromedp/chromedp) | v0.15.1 | MIT | Browser automation via the Chrome DevTools Protocol — powers the `browser` driver |
+| [`github.com/chromedp/chromedp`](https://github.com/chromedp/chromedp) | v0.16.0 | MIT | Browser automation via the Chrome DevTools Protocol — powers the `browser` driver |
 | [`github.com/coder/websocket`](https://github.com/coder/websocket) | v1.8.15 | ISC | WebSocket client — powers the `websocket` driver |
-| [`github.com/miekg/dns`](https://github.com/miekg/dns) | v1.1.72 | BSD-3-Clause | Full-featured DNS client and server library — powers the `dns` driver |
+| [`github.com/miekg/dns`](https://github.com/miekg/dns) | v1.1.73 | BSD-3-Clause | Full-featured DNS client and server library — powers the `dns` driver |
 | [`github.com/pkg/sftp`](https://github.com/pkg/sftp) | v1.13.11 | BSD-2-Clause | SFTP client and test server — powers the `sftp` driver |
-| [`github.com/prometheus/client_golang`](https://github.com/prometheus/client_golang) | v1.23.2 | Apache-2.0 | Prometheus metrics exposition (`/metrics` endpoint) |
+| [`github.com/prometheus/client_golang`](https://github.com/prometheus/client_golang) | v1.24.1 | Apache-2.0 | Prometheus metrics exposition (`/metrics` endpoint) |
 | [`github.com/robfig/cron/v3`](https://github.com/robfig/cron) | v3.0.1 | MIT | Cron expression parser — used by `scheduled` pacing mode to define active windows |
 | [`github.com/rs/zerolog`](https://github.com/rs/zerolog) | v1.35.1 | MIT | Zero-allocation structured logger; `zerolog.Nop()` used internally for no-op metrics |
 | [`github.com/shirou/gopsutil/v3`](https://github.com/shirou/gopsutil) | v3.24.5 | BSD-3-Clause | Cross-platform CPU and memory utilisation polling — powers the resource admission gate |
 | [`github.com/spf13/cobra`](https://github.com/spf13/cobra) | v1.10.2 | Apache-2.0 | CLI framework — commands, flags, and shell completion generation |
 | [`github.com/spf13/viper`](https://github.com/spf13/viper) | v1.21.0 | MIT | Config file loading with environment variable overlay and `mapstructure` unmarshalling |
-| [`golang.org/x/crypto`](https://pkg.go.dev/golang.org/x/crypto) | v0.56.0 | BSD-3-Clause | `ssh` subpackage — SSH transport and algorithm policy controls for the `sftp` driver |
-| [`golang.org/x/net`](https://pkg.go.dev/golang.org/x/net) | v0.57.0 | BSD-3-Clause | `html` subpackage — HTML parser used by the `generate` command to extract links |
-| [`golang.org/x/time`](https://pkg.go.dev/golang.org/x/time) | v0.15.0 | BSD-3-Clause | `rate` subpackage — token-bucket rate limiter used by `rate_limited` and `scheduled` pacing |
-| [`google.golang.org/grpc`](https://pkg.go.dev/google.golang.org/grpc) | v1.82.0 | Apache-2.0 | gRPC client and server — powers the `grpc` driver; includes reflection client and health service |
-| [`google.golang.org/protobuf`](https://pkg.go.dev/google.golang.org/protobuf) | v1.36.11 | BSD-3-Clause | Dynamic protobuf messages and JSON/protobuf marshaling for the reflection-based `grpc` driver |
+| [`golang.org/x/crypto`](https://pkg.go.dev/golang.org/x/crypto) | v0.57.0 | BSD-3-Clause | `ssh` subpackage — SSH transport and algorithm policy controls for the `sftp` driver |
+| [`golang.org/x/net`](https://pkg.go.dev/golang.org/x/net) | v0.59.0 | BSD-3-Clause | `html` subpackage — HTML parser used by the `generate` command to extract links |
+| [`golang.org/x/time`](https://pkg.go.dev/golang.org/x/time) | v0.16.0 | BSD-3-Clause | `rate` subpackage — token-bucket rate limiter used by `rate_limited` and `scheduled` pacing |
+| [`google.golang.org/grpc`](https://pkg.go.dev/google.golang.org/grpc) | v1.84.0 | Apache-2.0 | gRPC client and server — powers the `grpc` driver; includes reflection client and health service |
+| [`google.golang.org/protobuf`](https://pkg.go.dev/google.golang.org/protobuf) | v1.36.12 | BSD-3-Clause | Dynamic protobuf messages and JSON/protobuf marshaling for the reflection-based `grpc` driver |
 | [`howett.net/plist`](https://pkg.go.dev/howett.net/plist) | v1.0.1 | BSD-2-Clause | Property-list parser used by `generate` to read Safari bookmarks |
-| [`modernc.org/sqlite`](https://pkg.go.dev/modernc.org/sqlite) | v1.58.0 | BSD-3-Clause | Pure-Go SQLite driver (CGo-free) — used by `generate` to read Chrome/Firefox history and bookmark databases |
+| [`modernc.org/sqlite`](https://pkg.go.dev/modernc.org/sqlite) | v1.60.1 | BSD-3-Clause | Pure-Go SQLite driver (CGo-free) — used by `generate` to read Chrome/Firefox history and bookmark databases |
 
 ## Test dependencies
 
 | Module | Version | Licence | Purpose |
 |--------|---------|---------|---------|
-| [`github.com/cucumber/godog`](https://github.com/cucumber/godog) | v0.15.1 | MIT | Cucumber/Gherkin BDD test framework — powers the `features/auth.feature` behavioural tests for the auth block |
+| [`github.com/cucumber/godog`](https://github.com/cucumber/godog) | v0.16.0 | MIT | Cucumber/Gherkin BDD test framework — powers the `features/auth.feature` behavioural tests for the auth block |
 
 ## Alternatives considered
 

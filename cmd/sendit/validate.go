@@ -18,7 +18,11 @@ func validateCmd() *cobra.Command {
 		Long: `Parse and validate a config file without starting the engine.
 
 Checks all config fields, pacing modes, concurrency limits, per-target
-settings, and backoff parameters.
+settings, and backoff parameters. All supplied schedule entries must use
+valid cron syntax and positive duration/RPM values, even when scheduled
+pacing is inactive. Per-domain rate limits require a nonblank domain and
+positive RPS, memory thresholds must be positive, and enabled Prometheus
+ports must be in the range 1..65535.
 
 If 'targets_file' is set in the config, that file is also read and parsed
 as part of validation — a missing file, malformed line, unknown driver

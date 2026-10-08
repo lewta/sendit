@@ -337,6 +337,8 @@ Open in Wireshark; packets appear as raw data under the `USER0` dissector. Use t
 
 ## `validate` flags
 
+`validate` checks every supplied schedule entry, even when scheduled pacing is not active. Cron uses the scheduler's standard parser. Schedule duration/RPM, per-domain RPS, and memory thresholds must be positive; domains must not be blank; an enabled Prometheus port must be `1..65535`. Invalid reloads leave the running configuration unchanged.
+
 | Flag | Short | Default | Description |
 |---|---|---|---|
 | `--config` | `-c` | `config/example.yaml` | Path to YAML config file |

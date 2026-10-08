@@ -144,7 +144,7 @@ target_defaults:
 ```
 
 ```sh
-./sendit validate --config config/simple.yaml   # check the file parses cleanly
+./sendit validate --config config/simple.yaml   # check parsing and constraints
 ./sendit start   --config config/simple.yaml --log-level debug
 ```
 
@@ -174,7 +174,7 @@ sendit completion <shell>
 | `pinch`      | Check whether a TCP or UDP port is open on a remote host, repeating on an interval. No config file required. |
 | `export`     | Convert a JSONL results file to PCAP format for analysis in Wireshark or tshark. |
 | `stop`       | Send SIGTERM to a running instance via its PID file. |
-| `reload`     | Send SIGHUP to a running instance via its PID file to reload the config atomically. Not available on Windows — use a full restart instead. |
+| `reload`     | Send SIGHUP to a running instance via its PID file to reload the config atomically. Invalid configs leave the running configuration unchanged. Not available on Windows — use a full restart instead. |
 | `status`     | Check whether the process in the PID file is still alive. |
 | `validate`   | Parse and validate a config file without starting the engine. Exits 0 on success, non-zero with a message on failure. |
 | `version`    | Print version, commit, and build date. |
@@ -570,6 +570,8 @@ The `--foreground` flag is set in the image entrypoint — PID files are not use
 
 See [`config/example.yaml`](config/example.yaml) for a full working example. Every section has defaults so you only need to specify what you want to override.
 
+All supplied schedule entries are validated even when scheduled pacing is not active. Cron uses the scheduler's standard parser. Schedule duration/RPM, per-domain RPS, and memory thresholds must be positive; domains must not be blank; an enabled Prometheus port must be `1..65535`. Invalid reloads leave the running configuration unchanged.
+
 ### `pacing`
 
 Controls how requests are spaced in time.
@@ -581,7 +583,7 @@ Controls how requests are spaced in time.
 | `jitter_factor` | `0.4` | Unused in `human` mode; reserved for future modes |
 | `min_delay_ms` | `800` | Minimum inter-request delay in `human` mode |
 | `max_delay_ms` | `8000` | Maximum inter-request delay in `human` mode |
-| `schedule` | `[]` | List of cron windows — required when `mode: scheduled` |
+| `schedule` | `[]` | List of validated cron windows — required when `mode: scheduled` |
 | `ramp_up_s` | `0` | Seconds to linearly ramp up to full speed — `burst` mode only; `0` = immediate |
 
 **Pacing modes:**
@@ -877,7 +879,7 @@ Optional Prometheus exposition.
 metrics:
   enabled: true
   bind_address: 127.0.0.1
-  prometheus_port: 9090     # GET http://localhost:9090/metrics
+  prometheus_port: 9090     # 1..65535; GET http://localhost:9090/metrics
 ```
 
 Metrics bind to loopback by default because metric labels include target domains. Set `bind_address: 0.0.0.0` only when you intentionally expose `/metrics` to another host or container network.

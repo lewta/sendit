@@ -4,11 +4,11 @@ pacing:
   jitter_factor: 0.4
   min_delay_ms: 800
   max_delay_ms: 8000
-  # schedule is only used when mode: scheduled
+  # All schedule entries are validated even when mode is not scheduled.
   schedule:
-    - cron: "0 9 * * 1-5"       # weekdays at 09:00
-      duration_minutes: 30
-      requests_per_minute: 40
+    - cron: "0 9 * * 1-5"       # scheduler standard syntax; weekdays at 09:00
+      duration_minutes: 30       # must be positive
+      requests_per_minute: 40    # must be positive
   # ramp_up_s is only used when mode: burst
   # ramp_up_s: 30               # linearly ramp up over 30 s; 0 = immediate full speed
 
@@ -16,15 +16,15 @@ limits:
   max_workers: 4
   max_browser_workers: 1
   cpu_threshold_pct: 60.0
-  memory_threshold_mb: 512
+  memory_threshold_mb: 512       # must be positive
 
 rate_limits:
   default_rps: 0.5
   per_domain:
-    - domain: "example.com"
-      rps: 0.2
-    - domain: "httpbin.org"
-      rps: 1.0
+    - domain: "example.com"      # must not be blank
+      rps: 0.2                   # must be positive
+    - domain: "httpbin.org"      # must not be blank
+      rps: 1.0                   # must be positive
 
 backoff:
   initial_ms: 1000
@@ -178,7 +178,7 @@ targets:
 metrics:
   enabled: false
   bind_address: "127.0.0.1"
-  prometheus_port: 9090
+  prometheus_port: 9090          # when enabled, must be 1..65535
 
 daemon:
   pid_file: "/tmp/sendit.pid"

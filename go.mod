@@ -8,6 +8,7 @@ require (
 	github.com/chromedp/chromedp v0.16.0
 	github.com/coder/websocket v1.8.15
 	github.com/cucumber/godog v0.16.0
+	github.com/go-viper/mapstructure/v2 v2.4.0
 	github.com/miekg/dns v1.1.73
 	github.com/pkg/sftp v1.13.11
 	github.com/prometheus/client_golang v1.24.1
@@ -42,7 +43,6 @@ require (
 	github.com/fsnotify/fsnotify v1.9.0 // indirect
 	github.com/go-json-experiment/json v0.0.0-20260623181947-01eb4420fa68 // indirect
 	github.com/go-ole/go-ole v1.2.6 // indirect
-	github.com/go-viper/mapstructure/v2 v2.4.0 // indirect
 	github.com/gobwas/httphead v0.1.0 // indirect
 	github.com/gobwas/pool v0.2.1 // indirect
 	github.com/gobwas/ws v1.4.0 // indirect

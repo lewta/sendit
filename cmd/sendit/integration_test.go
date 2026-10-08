@@ -100,7 +100,9 @@ targets:
 // TestIntegrationCmd_Start_DryRun verifies that start --dry-run prints the
 // dry-run summary and does not block or start the engine.
 func TestIntegrationCmd_Start_DryRun(t *testing.T) {
-	cfgPath := writeCfg(t, minimalCfg(t, ""))
+	yaml := strings.Replace(minimalCfg(t, ""), `url: "https://example.com"`, `url: "https://example.com/{{user}}/{{seq}}"
+    vars: {user: [alice]}`, 1)
+	cfgPath := writeCfg(t, yaml)
 
 	cmd := startCmd()
 	cmd.SetArgs([]string{"--config", cfgPath, "--dry-run"})
@@ -116,8 +118,8 @@ func TestIntegrationCmd_Start_DryRun(t *testing.T) {
 	if !strings.Contains(got, "rate_limited") {
 		t.Errorf("expected pacing mode in dry-run output, got: %q", got)
 	}
-	if !strings.Contains(got, "https://example.com") {
-		t.Errorf("expected target URL in dry-run output, got: %q", got)
+	if !strings.Contains(got, "https://example.com/alice/1") || strings.Contains(got, "{{") {
+		t.Errorf("expected expanded target URL in dry-run output, got: %q", got)
 	}
 }
 

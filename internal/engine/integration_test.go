@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/binary"
 	"encoding/json"
+	"io"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -20,6 +21,7 @@ import (
 	"github.com/lewta/sendit/internal/config"
 	"github.com/lewta/sendit/internal/engine"
 	"github.com/lewta/sendit/internal/metrics"
+	"github.com/lewta/sendit/internal/task"
 	"github.com/miekg/dns"
 )
 
@@ -98,6 +100,72 @@ func TestIntegration_HTTP_HappyPath(t *testing.T) {
 
 	if n := counter.Load(); n < 3 {
 		t.Errorf("expected >= 3 requests, got %d", n)
+	}
+}
+
+func TestIntegrationRequestTemplate(t *testing.T) {
+	type request struct {
+		path string
+		body string
+	}
+	received := make(chan request, 1)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			t.Errorf("reading body: %v", err)
+		}
+		select {
+		case received <- request{path: r.URL.Path, body: string(body)}:
+		default:
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer srv.Close()
+
+	cfg := testCfg([]config.TargetConfig{{
+		URL:    srv.URL + "/users/{{name}}/{{seq}}",
+		Type:   "http",
+		Weight: 1,
+		Vars:   map[string][]string{"name": {"alice"}},
+		HTTP: config.HTTPConfig{
+			Method: "POST",
+			Body:   `{"name":"{{name}}","seq":{{seq}}}`,
+		},
+	}})
+	cfg.Limits.MaxWorkers = 1
+	eng, err := engine.New(cfg, metrics.Noop())
+	if err != nil {
+		t.Fatalf("engine.New: %v", err)
+	}
+
+	done := make(chan struct{})
+	var once sync.Once
+	eng.SetObserver(func(result task.Result) {
+		if result.Error == nil {
+			once.Do(func() { close(done) })
+		}
+	})
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	runDone := make(chan struct{})
+	go func() {
+		defer close(runDone)
+		eng.Run(ctx)
+	}()
+
+	select {
+	case <-done:
+		cancel()
+	case <-ctx.Done():
+		t.Fatal("timed out waiting for expanded request")
+	}
+	<-runDone
+	got := <-received
+	if got.path != "/users/alice/1" {
+		t.Fatalf("path = %q", got.path)
+	}
+	if got.body != `{"name":"alice","seq":1}` {
+		t.Fatalf("body = %q", got.body)
 	}
 }
 

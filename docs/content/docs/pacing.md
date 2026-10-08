@@ -50,6 +50,8 @@ pacing:
 
 **Cron format:** standard 5-field (`minute hour dom month dow`). The engine uses UTC.
 
+Every supplied schedule entry is validated with the scheduler's standard parser, even when `mode` is not `scheduled`. Each entry's `duration_minutes` and `requests_per_minute` must be positive.
+
 ## `burst` mode
 
 Fires requests as fast as worker slots allow with no inter-request delay. Intended for **internal or owned infrastructure** — load testing, chaos experiments, or benchmarking your own services.

@@ -694,7 +694,7 @@ targets:
 - [x] TUI lifecycle
 - [x] WebSocket query authentication
 - [x] Prometheus metrics contract
-- [ ] Configuration validation
+- [x] Configuration validation
 - [ ] Residual documentation reconciliation
 
 ---

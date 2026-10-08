@@ -9,6 +9,8 @@ sendit is configured via a YAML file. Every section has defaults — only overri
 
 See [config/example.yaml](https://github.com/lewta/sendit/blob/main/config/example.yaml) for a fully annotated example.
 
+All supplied schedule entries are validated even when scheduled pacing is not active. Cron uses the scheduler's standard parser. Schedule duration/RPM, per-domain RPS, and memory thresholds must be positive; domains must not be blank; an enabled Prometheus port must be `1..65535`. Invalid reloads leave the running configuration unchanged.
+
 ## `pacing`
 
 Controls how requests are spaced in time. See [Pacing Modes](../pacing/) for details.
@@ -20,7 +22,7 @@ Controls how requests are spaced in time. See [Pacing Modes](../pacing/) for det
 | `jitter_factor` | float | `0.4` | Reserved for future modes; unused in current pacing logic |
 | `min_delay_ms` | int | `800` | Minimum inter-request delay for `human` mode (ms) |
 | `max_delay_ms` | int | `8000` | Maximum inter-request delay for `human` mode (ms) |
-| `schedule` | list | `[]` | Cron windows — required when `mode: scheduled` |
+| `schedule` | list | `[]` | Validated cron windows — required when `mode: scheduled` |
 | `ramp_up_s` | int | `0` | Seconds to linearly ramp up to full speed — `burst` mode only; `0` = immediate full speed |
 
 ## `limits`
@@ -32,7 +34,7 @@ Concurrency and local resource thresholds.
 | `max_workers` | int | `4` | Max simultaneous requests across all drivers |
 | `max_browser_workers` | int | `1` | Sub-limit for concurrent headless browser instances |
 | `cpu_threshold_pct` | float | `60.0` | Pause dispatch when CPU exceeds this percentage |
-| `memory_threshold_mb` | int | `512` | Pause dispatch when RAM in use exceeds this value (MB) |
+| `memory_threshold_mb` | int | `512` | Positive threshold; pause dispatch when RAM in use exceeds this value (MB) |
 
 > **Note:** `memory_threshold_mb` defaults to 512 MB. Set it above your system's idle memory footprint (e.g. `8192` on a 16 GB machine) to avoid inadvertently blocking dispatch.
 
@@ -43,7 +45,7 @@ Per-domain token buckets applied after the pacing delay and before acquiring a w
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `default_rps` | float | `0.5` | RPS applied to all domains not in `per_domain` |
-| `per_domain` | list | `[]` | List of `{domain, rps}` overrides |
+| `per_domain` | list | `[]` | List of overrides with a nonblank `domain` and positive `rps` |
 
 ```yaml
 rate_limits:
@@ -160,7 +162,7 @@ Optional Prometheus exposition endpoint.
 metrics:
   enabled: true
   bind_address: 127.0.0.1
-  prometheus_port: 9090
+  prometheus_port: 9090  # when enabled, must be 1..65535
 ```
 
 When enabled, two endpoints are served on `bind_address:prometheus_port`:

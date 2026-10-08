@@ -1,6 +1,7 @@
 ## [Unreleased]
 
 ### Changed
+- Validated cron schedules, schedule pacing values, per-domain rate limits, enabled Prometheus ports, and memory thresholds before startup and reload.
 - Bumped github/codeql-action group (init/autobuild/analyze/upload-sarif) from v4.38.1 to v4.38.2 for upstream fixes.
 - Bumped modernc.org/sqlite from 1.59.0 to 1.60.1 and aligned modernc.org/libc to 1.77.1 for upstream fixes.
 

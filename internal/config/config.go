@@ -24,6 +24,10 @@ func Load(path string) (*Config, error) {
 	if err := v.ReadInConfig(); err != nil {
 		return nil, fmt.Errorf("reading config: %w", err)
 	}
+	// Preserve the uint64 range while routing negative source values through aggregate validation.
+	if strings.HasPrefix(strings.TrimSpace(fmt.Sprint(v.Get("limits.memory_threshold_mb"))), "-") {
+		v.Set("limits.memory_threshold_mb", 0)
+	}
 
 	var cfg Config
 	if err := v.Unmarshal(&cfg); err != nil {
@@ -237,7 +241,7 @@ func validate(cfg *Config) error {
 	if cfg.Limits.CPUThresholdPct <= 0 || cfg.Limits.CPUThresholdPct > 100 {
 		errs = append(errs, "limits.cpu_threshold_pct must be in (0, 100]")
 	}
-	if cfg.Limits.MemoryThresholdMB <= 0 {
+	if cfg.Limits.MemoryThresholdMB == 0 {
 		errs = append(errs, "limits.memory_threshold_mb must be > 0")
 	}
 

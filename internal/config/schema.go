@@ -54,7 +54,7 @@ type LimitsConfig struct {
 	MaxWorkers        int     `mapstructure:"max_workers"`
 	MaxBrowserWorkers int     `mapstructure:"max_browser_workers"`
 	CPUThresholdPct   float64 `mapstructure:"cpu_threshold_pct"`
-	MemoryThresholdMB int64   `mapstructure:"memory_threshold_mb"`
+	MemoryThresholdMB uint64  `mapstructure:"memory_threshold_mb"`
 }
 
 // RateLimitsConfig holds global and per-domain rate limits.

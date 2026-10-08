@@ -259,6 +259,17 @@ func TestLoad_RuntimeSensitiveValidationBoundaries(t *testing.T) {
 	}
 }
 
+func TestLoad_RuntimeSensitiveValidationPreservesUint64Range(t *testing.T) {
+	const want uint64 = 9223372036854775808
+	cfg, err := Load(writeTemp(t, configWith("limits:\n  memory_threshold_mb: 9223372036854775808")))
+	if err != nil {
+		t.Fatalf("unexpected validation error: %v", err)
+	}
+	if cfg.Limits.MemoryThresholdMB != want {
+		t.Fatalf("memory threshold = %d, want %d", cfg.Limits.MemoryThresholdMB, want)
+	}
+}
+
 func TestLoad_RuntimeSensitiveValidationAggregatesPaths(t *testing.T) {
 	yaml := configWith(`
 pacing:

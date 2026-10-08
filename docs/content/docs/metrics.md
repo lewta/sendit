@@ -55,6 +55,10 @@ curl http://localhost:9090/healthz
 - `transient` — errors that trigger backoff and retry (e.g. HTTP 429/503, DNS SERVFAIL, network failures)
 - `permanent` — errors that are logged and skipped with no retry (e.g. HTTP 404, DNS NXDOMAIN)
 
+Classified failure statuses increment both `sendit_requests_total` and `sendit_errors_total`. Cancellation and deadline errors do not increment the error counter. WebSocket `101 Switching Protocols` is a successful request status.
+
+> **Migration note:** `sendit_errors_total` uses only `transient` and `permanent` `error_class` values. Dashboards and alert rules matching the undocumented `error_class="error"` value must update their selectors to match `transient`, `permanent`, or both.
+
 ## Scrape config example
 
 ```yaml

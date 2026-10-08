@@ -3,6 +3,8 @@ package ratelimit
 import (
 	"context"
 	"errors"
+	"fmt"
+	"net/http"
 	"testing"
 	"time"
 )
@@ -11,55 +13,56 @@ import (
 
 func TestClassifyStatusCode(t *testing.T) {
 	tests := []struct {
+		name string
 		code int
 		want ErrorClass
 	}{
-		{200, ErrorClassNone},
-		{201, ErrorClassNone},
-		{204, ErrorClassNone},
-		{301, ErrorClassPermanent},
-		{400, ErrorClassPermanent},
-		{403, ErrorClassPermanent},
-		{404, ErrorClassPermanent},
-		{429, ErrorClassTransient},
-		{500, ErrorClassTransient},
-		{502, ErrorClassTransient},
-		{503, ErrorClassTransient},
-		{504, ErrorClassTransient},
-		{0, ErrorClassTransient}, // network error sentinel
+		{name: "OK", code: 200, want: ErrorClassNone},
+		{name: "created", code: 201, want: ErrorClassNone},
+		{name: "no content", code: 204, want: ErrorClassNone},
+		{name: "websocket upgrade", code: http.StatusSwitchingProtocols, want: ErrorClassNone},
+		{name: "redirect", code: 301, want: ErrorClassPermanent},
+		{name: "bad request", code: 400, want: ErrorClassPermanent},
+		{name: "forbidden", code: 403, want: ErrorClassPermanent},
+		{name: "not found", code: 404, want: ErrorClassPermanent},
+		{name: "too many requests", code: 429, want: ErrorClassTransient},
+		{name: "internal server error", code: 500, want: ErrorClassTransient},
+		{name: "bad gateway", code: 502, want: ErrorClassTransient},
+		{name: "service unavailable", code: 503, want: ErrorClassTransient},
+		{name: "gateway timeout", code: 504, want: ErrorClassTransient},
+		{name: "network error sentinel", code: 0, want: ErrorClassTransient},
 	}
 	for _, tc := range tests {
-		got := ClassifyStatusCode(tc.code)
-		if got != tc.want {
-			t.Errorf("ClassifyStatusCode(%d) = %v, want %v", tc.code, got, tc.want)
-		}
+		t.Run(tc.name, func(t *testing.T) {
+			got := ClassifyStatusCode(tc.code)
+			if got != tc.want {
+				t.Errorf("ClassifyStatusCode(%d) = %v, want %v", tc.code, got, tc.want)
+			}
+		})
 	}
 }
 
 // --- ClassifyError tests ---
 
-func TestClassifyError_Nil(t *testing.T) {
-	if got := ClassifyError(nil); got != ErrorClassNone {
-		t.Errorf("ClassifyError(nil) = %v, want ErrorClassNone", got)
+func TestClassifyError(t *testing.T) {
+	tests := []struct {
+		name string
+		err  error
+		want ErrorClass
+	}{
+		{name: "nil", err: nil, want: ErrorClassNone},
+		{name: "canceled", err: context.Canceled, want: ErrorClassFatal},
+		{name: "deadline", err: context.DeadlineExceeded, want: ErrorClassFatal},
+		{name: "wrapped canceled", err: fmt.Errorf("request: %w", context.Canceled), want: ErrorClassFatal},
+		{name: "wrapped deadline", err: fmt.Errorf("request: %w", context.DeadlineExceeded), want: ErrorClassFatal},
+		{name: "other", err: errors.New("connection reset"), want: ErrorClassTransient},
 	}
-}
-
-func TestClassifyError_Canceled(t *testing.T) {
-	if got := ClassifyError(context.Canceled); got != ErrorClassFatal {
-		t.Errorf("ClassifyError(Canceled) = %v, want ErrorClassFatal", got)
-	}
-}
-
-func TestClassifyError_DeadlineExceeded(t *testing.T) {
-	if got := ClassifyError(context.DeadlineExceeded); got != ErrorClassFatal {
-		t.Errorf("ClassifyError(DeadlineExceeded) = %v, want ErrorClassFatal", got)
-	}
-}
-
-func TestClassifyError_OtherError(t *testing.T) {
-	err := errors.New("connection reset")
-	if got := ClassifyError(err); got != ErrorClassTransient {
-		t.Errorf("ClassifyError(generic) = %v, want ErrorClassTransient", got)
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := ClassifyError(tc.err); got != tc.want {
+				t.Errorf("ClassifyError(%v) = %v, want %v", tc.err, got, tc.want)
+			}
+		})
 	}
 }
 

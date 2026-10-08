@@ -7,6 +7,7 @@
 ### Fixed
 - Made TUI exit cancel the engine and wait for engine shutdown and output flushing before `sendit start` returns.
 - Applied query authentication to WebSocket handshakes while keeping resolved credentials out of result URLs.
+- Corrected `sendit_errors_total` to emit `transient` and `permanent` classes and include classified status failures; dashboards matching the undocumented `error` class must update their selectors.
 
 ## [1.6.5] - 2026-09-12
 

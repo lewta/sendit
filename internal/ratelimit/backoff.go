@@ -2,7 +2,9 @@ package ratelimit
 
 import (
 	"context"
+	"errors"
 	"math/rand"
+	"net/http"
 	"sync"
 	"time"
 )
@@ -22,6 +24,8 @@ const (
 // codes by the DNS driver before being passed here).
 func ClassifyStatusCode(code int) ErrorClass {
 	switch code {
+	case http.StatusSwitchingProtocols:
+		return ErrorClassNone
 	case 429, 502, 503, 504:
 		return ErrorClassTransient
 	case 400, 403, 404:
@@ -45,7 +49,7 @@ func ClassifyError(err error) ErrorClass {
 	if err == nil {
 		return ErrorClassNone
 	}
-	if err == context.Canceled || err == context.DeadlineExceeded {
+	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 		return ErrorClassFatal
 	}
 	return ErrorClassTransient

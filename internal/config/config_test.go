@@ -1138,6 +1138,33 @@ func TestValidateTemplateVariables(t *testing.T) {
 	}
 }
 
+func TestValidateTemplateVariablesRejectsUppercaseRawKeys(t *testing.T) {
+	tests := []struct {
+		name string
+		yaml string
+	}{
+		{name: "inline target", yaml: "targets:\n  - url: https://example.com\n    type: http\n    weight: 1\n    vars:\n      UserName: [alice]\n"},
+		{name: "target file variable", yaml: "targets:\n  - url: https://example.com\n    type: http\n    weight: 1\n    vars_file:\n      UserName: users.txt\n"},
+		{name: "target defaults", yaml: "target_defaults:\n  vars:\n    UserName: [alice]\ntargets:\n  - url: https://example.com\n    type: http\n    weight: 1\n"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := t.TempDir()
+			if err := os.WriteFile(filepath.Join(dir, "users.txt"), []byte("alice\n"), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			path := filepath.Join(dir, "config.yaml")
+			if err := os.WriteFile(path, []byte(tt.yaml), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			_, err := Load(path)
+			if err == nil || !strings.Contains(err.Error(), "UserName") {
+				t.Fatalf("Load() error = %v, want uppercase variable name", err)
+			}
+		})
+	}
+}
+
 func TestTemplateExpansionIsLiteralAndSinglePass(t *testing.T) {
 	names, err := TemplateVariables("{{first}}/{{second}}/{{first}}")
 	if err != nil {

@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/binary"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net"
 	"net/http"
@@ -108,7 +109,7 @@ func TestIntegrationRequestTemplate(t *testing.T) {
 		path string
 		body string
 	}
-	received := make(chan request, 1)
+	received := make(chan request, 10)
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		body, err := io.ReadAll(r.Body)
 		if err != nil {
@@ -121,18 +122,27 @@ func TestIntegrationRequestTemplate(t *testing.T) {
 		w.WriteHeader(http.StatusOK)
 	}))
 	defer srv.Close()
+	host, _, err := net.SplitHostPort(srv.Listener.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	cfg := testCfg([]config.TargetConfig{{
-		URL:    srv.URL + "/users/{{name}}/{{seq}}",
+		URL:    "http://{{host}}/users/{{name}}/{{seq}}",
 		Type:   "http",
 		Weight: 1,
-		Vars:   map[string][]string{"name": {"alice"}},
+		Vars: map[string][]string{
+			"host": {srv.Listener.Addr().String()},
+			"name": {"alice"},
+		},
 		HTTP: config.HTTPConfig{
 			Method: "POST",
 			Body:   `{"name":"{{name}}","seq":{{seq}}}`,
 		},
 	}})
 	cfg.Limits.MaxWorkers = 1
+	cfg.RateLimits.DefaultRPS = 0.01
+	cfg.RateLimits.PerDomain = []config.DomainRateLimit{{Domain: host, RPS: 100}}
 	eng, err := engine.New(cfg, metrics.Noop())
 	if err != nil {
 		t.Fatalf("engine.New: %v", err)
@@ -140,12 +150,13 @@ func TestIntegrationRequestTemplate(t *testing.T) {
 
 	done := make(chan struct{})
 	var once sync.Once
+	var completed atomic.Int64
 	eng.SetObserver(func(result task.Result) {
-		if result.Error == nil {
+		if result.Error == nil && completed.Add(1) == 2 {
 			once.Do(func() { close(done) })
 		}
 	})
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 	runDone := make(chan struct{})
 	go func() {
@@ -160,12 +171,14 @@ func TestIntegrationRequestTemplate(t *testing.T) {
 		t.Fatal("timed out waiting for expanded request")
 	}
 	<-runDone
-	got := <-received
-	if got.path != "/users/alice/1" {
-		t.Fatalf("path = %q", got.path)
-	}
-	if got.body != `{"name":"alice","seq":1}` {
-		t.Fatalf("body = %q", got.body)
+	for sequence := 1; sequence <= 2; sequence++ {
+		got := <-received
+		if want := fmt.Sprintf("/users/alice/%d", sequence); got.path != want {
+			t.Fatalf("path = %q, want %q", got.path, want)
+		}
+		if want := fmt.Sprintf(`{"name":"alice","seq":%d}`, sequence); got.body != want {
+			t.Fatalf("body = %q, want %q", got.body, want)
+		}
 	}
 }
 

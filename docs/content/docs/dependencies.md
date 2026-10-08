@@ -5,7 +5,7 @@ weight: 95
 description: "Direct dependencies, their purpose, and their licences."
 ---
 
-sendit has 20 direct runtime dependencies and 1 direct test dependency. All are permissive open-source licences
+sendit has 21 direct runtime dependencies and 1 direct test dependency. All are permissive open-source licences
 compatible with the project's [MIT licence](https://github.com/lewta/sendit/blob/main/LICENSE).
 
 The module graph is managed with `go mod tidy` and kept minimal — no dependency
@@ -28,6 +28,7 @@ appears that cannot be justified by the table below.
 | [`github.com/shirou/gopsutil/v3`](https://github.com/shirou/gopsutil) | v3.24.5 | BSD-3-Clause | Cross-platform CPU and memory utilisation polling — powers the resource admission gate |
 | [`github.com/spf13/cobra`](https://github.com/spf13/cobra) | v1.10.2 | Apache-2.0 | CLI framework — commands, flags, and shell completion generation |
 | [`github.com/spf13/viper`](https://github.com/spf13/viper) | v1.21.0 | MIT | Config file loading with environment variable overlay and `mapstructure` unmarshalling |
+| [`go.yaml.in/yaml/v3`](https://pkg.go.dev/go.yaml.in/yaml/v3) | v3.0.4 | MIT | Raw YAML syntax tree used to validate template variable key casing before Viper normalization |
 | [`golang.org/x/crypto`](https://pkg.go.dev/golang.org/x/crypto) | v0.57.0 | BSD-3-Clause | `ssh` subpackage — SSH transport and algorithm policy controls for the `sftp` driver |
 | [`golang.org/x/net`](https://pkg.go.dev/golang.org/x/net) | v0.59.0 | BSD-3-Clause | `html` subpackage — HTML parser used by the `generate` command to extract links |
 | [`golang.org/x/time`](https://pkg.go.dev/golang.org/x/time) | v0.16.0 | BSD-3-Clause | `rate` subpackage — token-bucket rate limiter used by `rate_limited` and `scheduled` pacing |
@@ -61,7 +62,7 @@ All dependency licences are permissive and compatible with the project's MIT lic
 
 | Licence | Dependencies |
 |---------|-------------|
-| MIT | `bubbletea`, `lipgloss`, `chromedp`, `mapstructure/v2`, `cron/v3`, `zerolog`, `viper` |
+| MIT | `bubbletea`, `lipgloss`, `chromedp`, `mapstructure/v2`, `cron/v3`, `zerolog`, `viper`, `yaml/v3` |
 | ISC | `coder/websocket` |
 | BSD-2-Clause | `pkg/sftp`, `howett.net/plist` |
 | BSD-3-Clause | `miekg/dns`, `gopsutil/v3`, `x/crypto`, `x/net`, `x/time`, `google.golang.org/protobuf`, `modernc.org/sqlite` |

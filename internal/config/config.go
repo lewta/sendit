@@ -29,6 +29,13 @@ func Load(path string) (*Config, error) {
 	if err := v.ReadInConfig(); err != nil {
 		return nil, fmt.Errorf("reading config: %w", err)
 	}
+	rawConfig, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("reading config for variable validation: %w", err)
+	}
+	if err := validateRawVariableNames(rawConfig); err != nil {
+		return nil, fmt.Errorf("invalid config: %w", err)
+	}
 	// Preserve the uint64 range while routing invalid source values through aggregate validation.
 	memoryThreshold := v.Get("limits.memory_threshold_mb")
 	memoryFloat, isFloat := memoryThreshold.(float64)

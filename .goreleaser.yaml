@@ -61,6 +61,8 @@ notarize:
         issuer_id: "{{.Env.NOTARIZE_ISSUER_ID}}"
         key_id: "{{.Env.NOTARIZE_KEY_ID}}"
         key: "{{.Env.NOTARIZE_KEY}}"
+        wait: true
+        timeout: 20m
 
 archives:
   - formats: [tar.gz]

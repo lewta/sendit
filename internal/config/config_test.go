@@ -256,6 +256,7 @@ func TestLoad_RuntimeSensitiveValidationBoundaries(t *testing.T) {
 	}{
 		{"valid inactive schedule", configWith("pacing:\n  mode: human\n  schedule:\n    - cron: '* * * * *'\n      duration_minutes: 1\n      requests_per_minute: 0.1")},
 		{"valid domain override", configWith("rate_limits:\n  per_domain:\n    - domain: example.com\n      rps: 0.1")},
+		{"empty domain overrides", configWith("rate_limits:\n  per_domain: ''")},
 		{"minimum metrics port", configWith("metrics:\n  enabled: true\n  prometheus_port: 1")},
 		{"maximum metrics port", configWith("metrics:\n  enabled: true\n  prometheus_port: 65535")},
 		{"disabled metrics ignore port", configWith("metrics:\n  enabled: false\n  prometheus_port: 0")},

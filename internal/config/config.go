@@ -39,7 +39,7 @@ func Load(path string) (*Config, error) {
 	if err := v.Unmarshal(&cfg, viper.DecodeHook(mapstructure.ComposeDecodeHookFunc(
 		rejectFractionalIntegerHook,
 		mapstructure.StringToTimeDurationHookFunc(),
-		mapstructure.StringToSliceHookFunc(","),
+		mapstructure.StringToWeakSliceHookFunc(","),
 	))); err != nil {
 		return nil, fmt.Errorf("unmarshalling config: %w", err)
 	}

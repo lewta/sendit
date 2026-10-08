@@ -231,6 +231,7 @@ func TestLoad_RuntimeSensitiveValidation(t *testing.T) {
 		{"zero memory threshold", configWith("limits:\n  memory_threshold_mb: 0"), "limits.memory_threshold_mb"},
 		{"negative memory threshold", configWith("limits:\n  memory_threshold_mb: -1"), "limits.memory_threshold_mb"},
 		{"fractional memory threshold", configWith("limits:\n  memory_threshold_mb: 1.5"), "limits.memory_threshold_mb"},
+		{"large fractional memory threshold", configWith("limits:\n  memory_threshold_mb: 9007199254740992.5"), "limits.memory_threshold_mb"},
 		{"NaN memory threshold", configWith("limits:\n  memory_threshold_mb: .nan"), "limits.memory_threshold_mb"},
 		{"positive infinite memory threshold", configWith("limits:\n  memory_threshold_mb: .inf"), "limits.memory_threshold_mb"},
 		{"negative infinite memory threshold", configWith("limits:\n  memory_threshold_mb: -.inf"), "limits.memory_threshold_mb"},

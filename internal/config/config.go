@@ -37,7 +37,7 @@ func Load(path string) (*Config, error) {
 
 	var cfg Config
 	if err := v.Unmarshal(&cfg, viper.DecodeHook(mapstructure.ComposeDecodeHookFunc(
-		rejectFractionalIntegerHook,
+		rejectFloatToIntegerHook,
 		mapstructure.StringToTimeDurationHookFunc(),
 		mapstructure.StringToWeakSliceHookFunc(","),
 	))); err != nil {
@@ -59,11 +59,9 @@ func Load(path string) (*Config, error) {
 	return &cfg, nil
 }
 
-func rejectFractionalIntegerHook(from, to reflect.Type, data any) (any, error) {
+func rejectFloatToIntegerHook(from, to reflect.Type, data any) (any, error) {
 	if from.Kind() == reflect.Float64 && to.Kind() >= reflect.Int && to.Kind() <= reflect.Uint64 {
-		if value := data.(float64); math.Trunc(value) != value {
-			return nil, errors.New("must be an integer")
-		}
+		return nil, errors.New("must be an integer")
 	}
 	return data, nil
 }

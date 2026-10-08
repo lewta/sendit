@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+## [1.7.0] - 2026-10-08
+
 ### Changed
 - Reconciled CLI syntax, bookmark support, dispatch and burst semantics, dependency versions, security release links, and roadmap history with the implementation.
 - Validated cron schedules, schedule pacing values, per-domain rate limits, enabled Prometheus ports, and memory thresholds before startup and reload, rejecting fractional values for integer fields.

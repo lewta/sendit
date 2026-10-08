@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
+	"math"
 	"os"
 	"strconv"
 	"strings"
@@ -24,8 +25,11 @@ func Load(path string) (*Config, error) {
 	if err := v.ReadInConfig(); err != nil {
 		return nil, fmt.Errorf("reading config: %w", err)
 	}
-	// Preserve the uint64 range while routing negative source values through aggregate validation.
-	if strings.HasPrefix(strings.TrimSpace(fmt.Sprint(v.Get("limits.memory_threshold_mb"))), "-") {
+	// Preserve the uint64 range while routing invalid source values through aggregate validation.
+	memoryThreshold := v.Get("limits.memory_threshold_mb")
+	memoryFloat, isFloat := memoryThreshold.(float64)
+	if strings.HasPrefix(strings.TrimSpace(fmt.Sprint(memoryThreshold)), "-") ||
+		isFloat && (math.IsNaN(memoryFloat) || math.IsInf(memoryFloat, 0)) {
 		v.Set("limits.memory_threshold_mb", 0)
 	}
 
@@ -225,7 +229,7 @@ func validate(cfg *Config) error {
 		if entry.DurationMinutes <= 0 {
 			errs = append(errs, fmt.Sprintf("%s.duration_minutes must be > 0", prefix))
 		}
-		if entry.RequestsPerMinute <= 0 {
+		if entry.RequestsPerMinute <= 0 || math.IsNaN(entry.RequestsPerMinute) || math.IsInf(entry.RequestsPerMinute, 0) {
 			errs = append(errs, fmt.Sprintf("%s.requests_per_minute must be > 0", prefix))
 		}
 	}
@@ -253,7 +257,7 @@ func validate(cfg *Config) error {
 		if strings.TrimSpace(entry.Domain) == "" {
 			errs = append(errs, fmt.Sprintf("%s.domain must not be empty", prefix))
 		}
-		if entry.RPS <= 0 {
+		if entry.RPS <= 0 || math.IsNaN(entry.RPS) || math.IsInf(entry.RPS, 0) {
 			errs = append(errs, fmt.Sprintf("%s.rps must be > 0", prefix))
 		}
 	}

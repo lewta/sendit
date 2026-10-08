@@ -214,14 +214,23 @@ func TestLoad_RuntimeSensitiveValidation(t *testing.T) {
 		{"negative schedule duration", configWith("pacing:\n  schedule:\n    - cron: '* * * * *'\n      duration_minutes: -1\n      requests_per_minute: 1"), "pacing.schedule[0].duration_minutes"},
 		{"zero schedule rpm", configWith("pacing:\n  schedule:\n    - cron: '* * * * *'\n      duration_minutes: 1\n      requests_per_minute: 0"), "pacing.schedule[0].requests_per_minute"},
 		{"negative schedule rpm", configWith("pacing:\n  schedule:\n    - cron: '* * * * *'\n      duration_minutes: 1\n      requests_per_minute: -0.1"), "pacing.schedule[0].requests_per_minute"},
+		{"NaN schedule rpm", configWith("pacing:\n  schedule:\n    - cron: '* * * * *'\n      duration_minutes: 1\n      requests_per_minute: .nan"), "pacing.schedule[0].requests_per_minute"},
+		{"positive infinite schedule rpm", configWith("pacing:\n  schedule:\n    - cron: '* * * * *'\n      duration_minutes: 1\n      requests_per_minute: .inf"), "pacing.schedule[0].requests_per_minute"},
+		{"negative infinite schedule rpm", configWith("pacing:\n  schedule:\n    - cron: '* * * * *'\n      duration_minutes: 1\n      requests_per_minute: -.inf"), "pacing.schedule[0].requests_per_minute"},
 		{"empty domain", configWith("rate_limits:\n  per_domain:\n    - domain: ''\n      rps: 1"), "rate_limits.per_domain[0].domain"},
 		{"blank domain", configWith("rate_limits:\n  per_domain:\n    - domain: '   '\n      rps: 1"), "rate_limits.per_domain[0].domain"},
 		{"zero domain rps", configWith("rate_limits:\n  per_domain:\n    - domain: example.com\n      rps: 0"), "rate_limits.per_domain[0].rps"},
 		{"negative domain rps", configWith("rate_limits:\n  per_domain:\n    - domain: example.com\n      rps: -0.1"), "rate_limits.per_domain[0].rps"},
+		{"NaN domain rps", configWith("rate_limits:\n  per_domain:\n    - domain: example.com\n      rps: .nan"), "rate_limits.per_domain[0].rps"},
+		{"positive infinite domain rps", configWith("rate_limits:\n  per_domain:\n    - domain: example.com\n      rps: .inf"), "rate_limits.per_domain[0].rps"},
+		{"negative infinite domain rps", configWith("rate_limits:\n  per_domain:\n    - domain: example.com\n      rps: -.inf"), "rate_limits.per_domain[0].rps"},
 		{"enabled metrics zero port", configWith("metrics:\n  enabled: true\n  prometheus_port: 0"), "metrics.prometheus_port"},
 		{"enabled metrics high port", configWith("metrics:\n  enabled: true\n  prometheus_port: 65536"), "metrics.prometheus_port"},
 		{"zero memory threshold", configWith("limits:\n  memory_threshold_mb: 0"), "limits.memory_threshold_mb"},
 		{"negative memory threshold", configWith("limits:\n  memory_threshold_mb: -1"), "limits.memory_threshold_mb"},
+		{"NaN memory threshold", configWith("limits:\n  memory_threshold_mb: .nan"), "limits.memory_threshold_mb"},
+		{"positive infinite memory threshold", configWith("limits:\n  memory_threshold_mb: .inf"), "limits.memory_threshold_mb"},
+		{"negative infinite memory threshold", configWith("limits:\n  memory_threshold_mb: -.inf"), "limits.memory_threshold_mb"},
 	}
 
 	for _, tt := range tests {
@@ -260,8 +269,8 @@ func TestLoad_RuntimeSensitiveValidationBoundaries(t *testing.T) {
 }
 
 func TestLoad_RuntimeSensitiveValidationPreservesUint64Range(t *testing.T) {
-	const want uint64 = 9223372036854775808
-	cfg, err := Load(writeTemp(t, configWith("limits:\n  memory_threshold_mb: 9223372036854775808")))
+	const want uint64 = 18446744073709551615
+	cfg, err := Load(writeTemp(t, configWith("limits:\n  memory_threshold_mb: 18446744073709551615")))
 	if err != nil {
 		t.Fatalf("unexpected validation error: %v", err)
 	}
@@ -281,7 +290,7 @@ pacing:
       duration_minutes: 0
       requests_per_minute: 0
 limits:
-  memory_threshold_mb: 0
+  memory_threshold_mb: -1
 rate_limits:
   per_domain:
     - domain: example.com

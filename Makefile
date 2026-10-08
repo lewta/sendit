@@ -1,7 +1,7 @@
 GO ?= go
 GOLANGCI_LINT ?= golangci-lint
 
-.PHONY: build test test-race integration lint verify
+.PHONY: build test test-race integration lint release-check verify
 
 build:
 	$(GO) build ./cmd/sendit
@@ -18,4 +18,7 @@ integration:
 lint:
 	$(GOLANGCI_LINT) run ./...
 
-verify: build lint test-race integration
+release-check:
+	.github/scripts/verify-macos-release_test.sh
+
+verify: build lint test-race integration release-check

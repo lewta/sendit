@@ -82,3 +82,29 @@ jobs:
             dist/sendit_*.rpm
             dist/sendit_*.pkg.tar.zst
             dist/checksums.txt
+
+  verify-macos:
+    needs: release
+    runs-on: macos-latest
+    permissions:
+      contents: read
+    env:
+      RELEASE_TAG: ${{ github.event.inputs.tag || github.ref_name }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          ref: ${{ github.event.inputs.ref || github.ref }}
+
+      - name: Download final macOS release artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir release-assets
+          gh release download "${RELEASE_TAG}" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --dir release-assets \
+            --pattern checksums.txt \
+            --pattern 'sendit_*_darwin_*.tar.gz'
+
+      - name: Verify final macOS release artifacts
+        run: .github/scripts/verify-macos-release.sh release-assets

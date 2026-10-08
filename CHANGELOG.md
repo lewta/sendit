@@ -1,5 +1,8 @@
 ## [Unreleased]
 
+### Fixed
+- Wait for Apple notarization acceptance and validate final Darwin archive checksums, signatures, and notarization before the release workflow succeeds.
+
 ## [1.7.0] - 2026-10-08
 
 ### Changed

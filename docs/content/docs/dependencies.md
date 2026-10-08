@@ -5,7 +5,7 @@ weight: 95
 description: "Direct dependencies, their purpose, and their licences."
 ---
 
-sendit has 19 direct runtime dependencies and 1 direct test dependency. All are permissive open-source licences
+sendit has 20 direct runtime dependencies and 1 direct test dependency. All are permissive open-source licences
 compatible with the project's [MIT licence](https://github.com/lewta/sendit/blob/main/LICENSE).
 
 The module graph is managed with `go mod tidy` and kept minimal — no dependency
@@ -19,6 +19,7 @@ appears that cannot be justified by the table below.
 | [`github.com/charmbracelet/lipgloss`](https://github.com/charmbracelet/lipgloss) | v1.1.0 | MIT | Style definitions for the terminal UI (bold labels, colour-coded counters) |
 | [`github.com/chromedp/chromedp`](https://github.com/chromedp/chromedp) | v0.16.0 | MIT | Browser automation via the Chrome DevTools Protocol — powers the `browser` driver |
 | [`github.com/coder/websocket`](https://github.com/coder/websocket) | v1.8.15 | ISC | WebSocket client — powers the `websocket` driver |
+| [`github.com/go-viper/mapstructure/v2`](https://github.com/go-viper/mapstructure) | v2.4.0 | MIT | Strict configuration decoding and Viper unmarshalling |
 | [`github.com/miekg/dns`](https://github.com/miekg/dns) | v1.1.73 | BSD-3-Clause | Full-featured DNS client and server library — powers the `dns` driver |
 | [`github.com/pkg/sftp`](https://github.com/pkg/sftp) | v1.13.11 | BSD-2-Clause | SFTP client and test server — powers the `sftp` driver |
 | [`github.com/prometheus/client_golang`](https://github.com/prometheus/client_golang) | v1.24.1 | Apache-2.0 | Prometheus metrics exposition (`/metrics` endpoint) |
@@ -60,7 +61,7 @@ All dependency licences are permissive and compatible with the project's MIT lic
 
 | Licence | Dependencies |
 |---------|-------------|
-| MIT | `bubbletea`, `lipgloss`, `chromedp`, `cron/v3`, `zerolog`, `viper` |
+| MIT | `bubbletea`, `lipgloss`, `chromedp`, `mapstructure/v2`, `cron/v3`, `zerolog`, `viper` |
 | ISC | `coder/websocket` |
 | BSD-2-Clause | `pkg/sftp`, `howett.net/plist` |
 | BSD-3-Clause | `miekg/dns`, `gopsutil/v3`, `x/crypto`, `x/net`, `x/time`, `google.golang.org/protobuf`, `modernc.org/sqlite` |

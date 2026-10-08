@@ -2,7 +2,12 @@ package task
 
 import (
 	"math"
+	"regexp"
+	"strconv"
+	"strings"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/lewta/sendit/internal/config"
 )
@@ -148,24 +153,170 @@ func TestPick_EqualWeights(t *testing.T) {
 // TestPick_ConcurrentSafety runs many concurrent goroutines to surface data races.
 func TestPick_ConcurrentSafety(t *testing.T) {
 	targets := []config.TargetConfig{
-		makeTarget("https://a.com", 2, "http"),
-		makeTarget("https://b.com", 3, "http"),
+		makeTarget("https://a.com/{{seq}}", 1, "http"),
 	}
 	sel, err := NewSelector(targets)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	done := make(chan struct{})
+	values := make(chan uint64, 10_000)
+	var wg sync.WaitGroup
 	for i := 0; i < 10; i++ {
+		wg.Add(1)
 		go func() {
+			defer wg.Done()
 			for j := 0; j < 1000; j++ {
-				sel.Pick()
+				value, err := strconv.ParseUint(strings.TrimPrefix(sel.Pick().URL, "https://a.com/"), 10, 64)
+				if err != nil {
+					t.Errorf("parsing sequence: %v", err)
+					return
+				}
+				values <- value
 			}
-			done <- struct{}{}
 		}()
 	}
-	for i := 0; i < 10; i++ {
-		<-done
+	wg.Wait()
+	close(values)
+	seen := make(map[uint64]bool, 10_000)
+	for value := range values {
+		if seen[value] {
+			t.Fatalf("duplicate sequence %d", value)
+		}
+		seen[value] = true
+	}
+	if len(seen) != 10_000 {
+		t.Fatalf("got %d sequences, want 10000", len(seen))
+	}
+}
+
+func TestPickExpandsOneValueAcrossRequest(t *testing.T) {
+	before := time.Now().Unix()
+	target := config.TargetConfig{
+		URL:    "https://example.com/{{user}}/{{seq}}/{{uuid}}/{{timestamp}}",
+		Type:   "http",
+		Weight: 1,
+		Vars:   map[string][]string{"user": {"alice"}},
+		HTTP: config.HTTPConfig{
+			Body: `{"user":"{{user}}","seq":{{seq}}}`,
+		},
+		GRPC: config.GRPCConfig{
+			Body: `{"user":"{{user}}"}`,
+		},
+		WebSocket: config.WebSocketConfig{
+			SendMessages: []string{"{{user}}-{{seq}}"},
+		},
+	}
+	sel, err := NewSelector([]config.TargetConfig{target})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	got := sel.Pick()
+	parts := strings.Split(strings.TrimPrefix(got.URL, "https://example.com/"), "/")
+	if len(parts) != 4 {
+		t.Fatalf("expanded URL = %q", got.URL)
+	}
+	if parts[0] != "alice" || parts[1] != "1" {
+		t.Fatalf("expanded URL = %q", got.URL)
+	}
+	if matched := regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`).MatchString(parts[2]); !matched {
+		t.Fatalf("UUID = %q, want UUIDv4", parts[2])
+	}
+	timestamp, err := strconv.ParseInt(parts[3], 10, 64)
+	if err != nil || timestamp < before || timestamp > time.Now().Unix() {
+		t.Fatalf("timestamp = %q", parts[3])
+	}
+	if got.Config.HTTP.Body != `{"user":"alice","seq":1}` {
+		t.Fatalf("HTTP body = %q", got.Config.HTTP.Body)
+	}
+	if got.Config.GRPC.Body != `{"user":"alice"}` {
+		t.Fatalf("gRPC body = %q", got.Config.GRPC.Body)
+	}
+	if got.Config.WebSocket.SendMessages[0] != "alice-1" {
+		t.Fatalf("WebSocket message = %q", got.Config.WebSocket.SendMessages[0])
+	}
+	if target.URL != "https://example.com/{{user}}/{{seq}}/{{uuid}}/{{timestamp}}" || target.WebSocket.SendMessages[0] != "{{user}}-{{seq}}" {
+		t.Fatal("Pick mutated source target")
+	}
+}
+
+func TestPickExpandsCandidatesAndSequence(t *testing.T) {
+	target := config.TargetConfig{
+		URL:    "https://example.com/{{user}}/{{seq}}",
+		Type:   "http",
+		Weight: 1,
+		Vars:   map[string][]string{"user": {"alice", "bob"}},
+	}
+	sel, err := NewSelector([]config.TargetConfig{target})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i := 1; i <= 3; i++ {
+		parts := strings.Split(strings.TrimPrefix(sel.Pick().URL, "https://example.com/"), "/")
+		if len(parts) != 2 || parts[0] != "alice" && parts[0] != "bob" || parts[1] != strconv.Itoa(i) {
+			t.Fatalf("pick %d URL parts = %v", i, parts)
+		}
+	}
+}
+
+func TestTemplateExpansionDoesNotRecurse(t *testing.T) {
+	target := config.TargetConfig{
+		URL:    "https://example.com/{{first}}/{{second}}",
+		Type:   "http",
+		Weight: 1,
+		Vars: map[string][]string{
+			"first":  {`a$\\{{second}}`},
+			"second": {"世界"},
+		},
+	}
+	sel, err := NewSelector([]config.TargetConfig{target})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := sel.Pick().URL, `https://example.com/a$\\{{second}}/世界`; got != want {
+		t.Fatalf("URL = %q, want %q", got, want)
+	}
+}
+
+func TestExamplesExpandEveryTargetIndependently(t *testing.T) {
+	targets := []config.TargetConfig{
+		makeTarget("https://a.com/{{seq}}", 1, "http"),
+		makeTarget("https://b.com/{{seq}}", 1, "http"),
+	}
+	sel, err := NewSelector(targets)
+	if err != nil {
+		t.Fatal(err)
+	}
+	first := sel.Examples()
+	second := sel.Examples()
+	if first[0].URL != "https://a.com/1" || first[1].URL != "https://b.com/1" {
+		t.Fatalf("first examples = %q, %q", first[0].URL, first[1].URL)
+	}
+	if second[0].URL != "https://a.com/2" || second[1].URL != "https://b.com/2" {
+		t.Fatalf("second examples = %q, %q", second[0].URL, second[1].URL)
+	}
+}
+
+func TestPickLeavesUntemplatedTargetUnchanged(t *testing.T) {
+	target := makeTarget("https://example.com", 1, "http")
+	sel, err := NewSelector([]config.TargetConfig{target})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := sel.Pick(); got.URL != target.URL || got.Config.URL != target.URL {
+		t.Fatalf("Pick() = %#v", got)
+	}
+}
+
+func TestNewSelectorRejectsInvalidTemplate(t *testing.T) {
+	tests := []config.TargetConfig{
+		{URL: "https://example.com/{{missing}}", Type: "http", Weight: 1},
+		{URL: "https://example.com/{{name", Type: "http", Weight: 1, Vars: map[string][]string{"name": {"alice"}}},
+	}
+	for _, target := range tests {
+		if _, err := NewSelector([]config.TargetConfig{target}); err == nil {
+			t.Fatalf("NewSelector(%q) returned nil error", target.URL)
+		}
 	}
 }

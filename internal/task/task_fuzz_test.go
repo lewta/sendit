@@ -38,3 +38,23 @@ func FuzzSelector(f *testing.F) {
 		_ = sel.Pick()
 	})
 }
+
+func FuzzTemplateExpansion(f *testing.F) {
+	for _, value := range []string{`{{other}}`, `$value`, `a\\b`, `{"name":"value"}`, `?a=1&b=2`, `世界`} {
+		f.Add(value)
+	}
+	f.Fuzz(func(t *testing.T, value string) {
+		sel, err := NewSelector([]config.TargetConfig{{
+			URL:    "https://example.com/{{value}}",
+			Type:   "http",
+			Weight: 1,
+			Vars:   map[string][]string{"value": {value}},
+		}})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := sel.Pick().URL; got != "https://example.com/"+value {
+			t.Fatalf("URL = %q", got)
+		}
+	})
+}

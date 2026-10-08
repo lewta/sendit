@@ -186,7 +186,7 @@ to pacing mode or resource limits (workers, cpu, memory) require a restart.`,
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Print config summary and exit without sending any traffic")
 	cmd.Flags().StringVar(&capturePath, "capture", "", "Write a synthetic PCAP file while running (e.g. capture.pcap); finalised on clean shutdown")
 	cmd.Flags().DurationVar(&duration, "duration", 0, "Auto-stop after this wall-clock duration (e.g. 5m, 30s); required when pacing.mode is burst")
-	cmd.Flags().BoolVar(&tuiFlag, "tui", false, "Enable the terminal UI (requires a TTY; silently ignored otherwise)")
+	cmd.Flags().BoolVar(&tuiFlag, "tui", false, "Enable the terminal UI (requires a TTY; warns and falls back to plain output otherwise)")
 
 	return cmd
 }

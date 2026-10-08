@@ -23,7 +23,7 @@ Controls how requests are spaced in time. See [Pacing Modes](../pacing/) for det
 | `min_delay_ms` | int | `800` | Minimum inter-request delay for `human` mode (ms) |
 | `max_delay_ms` | int | `8000` | Maximum inter-request delay for `human` mode (ms) |
 | `schedule` | list | `[]` | Validated cron windows — required when `mode: scheduled` |
-| `ramp_up_s` | int | `0` | Seconds to linearly ramp up to full speed — `burst` mode only; `0` = immediate full speed |
+| `ramp_up_s` | int | `0` | `burst` mode only; linearly decreases inter-request delay to zero without resizing the worker pool; `0` = immediate full-speed dispatch |
 
 ## `limits`
 
@@ -40,7 +40,7 @@ Concurrency and local resource thresholds.
 
 ## `rate_limits`
 
-Per-domain token buckets applied after the pacing delay and before acquiring a worker slot.
+Per-domain token buckets applied inside acquired workers, after scheduler pacing and resource admission.
 
 | Field | Type | Default | Description |
 |---|---|---|---|

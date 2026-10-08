@@ -39,7 +39,6 @@ Features planned for future releases of sendit. Contributions are welcome — op
 - [v0.15.0 — Test coverage improvement ✓](#v0150--test-coverage-improvement-)
 - [v0.15.1 — Integration test suite expansion ✓](#v0151--integration-test-suite-expansion)
 - [v0.15.2 — Codecov Test Analytics ✓](#v0152--codecov-test-analytics)
-- [v0.15.3 — Docs audit + fuzz CI fix ✓](#v0153--docs-audit--fuzz-ci-fix)
 - [v1.0.0 — TUI + stable API ✓](#v100--tui--stable-api)
 - [v1.1.0 — gRPC driver ✓](#v110--grpc-driver)
 - [v1.2.0 — Auth support ✓](#v120--auth-support-)
@@ -310,10 +309,10 @@ Add an explicit opt-in `burst` pacing mode for internal infrastructure testing a
 
 **Implementation:**
 
-- **`mode: burst`** in the `pacing:` config block — fires requests as fast as worker slots allow with no inter-request delay; `min_delay_ms` / `max_delay_ms` / `requests_per_minute` are ignored
-- **`ramp_up_s`** — optional field in the `pacing:` block; linearly increases active workers from 1 to `max_workers` over the specified number of seconds; applies to `burst` mode only; prevents a cold-start spike against the target
+- **`mode: burst`** in the `pacing:` config block — dispatches throughout any configured ramp with a decreasing inter-request delay, then fires as fast as worker slots allow; `min_delay_ms` / `max_delay_ms` / `requests_per_minute` are ignored
+- **`ramp_up_s`** — optional field in the `pacing:` block; linearly decreases burst inter-request delay to zero over the configured period; it does not resize the worker pool; applies to `burst` mode only; prevents a cold-start spike against the target
 - **`--duration <duration>`** on `sendit start` — auto-stops the engine after the specified wall-clock time (e.g. `--duration 5m`, `--duration 30s`); **required when `mode: burst`**, optional otherwise; on expiry the engine cancels active requests, then waits for workers to exit and output to flush, identical to SIGTERM
-- **Config validation** — `config.Load` returns an error if `mode: burst` and `--duration` was not passed; enforced at startup, not silently defaulted
+- **CLI startup validation** — after `config.Load` succeeds, `sendit start` returns an error if `mode: burst` and `--duration` was not passed; the time bound is enforced before the engine starts, not silently defaulted
 - **README key properties** — update "Never bursts aggressively" to reflect the opt-in design
 - **Docs** — burst mode documented in `docs/content/docs/pacing.md` with an explicit "internal use" callout; `--duration` flag documented in `docs/content/docs/cli.md`
 
@@ -406,8 +405,8 @@ Worked through all [passing-level criteria](https://www.bestpractices.dev/en/cri
 
 Establish a proper changelog and add authored release notes to every GitHub release — past and future.
 
-- **`CHANGELOG.md`** — human-authored changelog in [Keep a Changelog](https://keepachangelog.com) format covering all releases from v0.1.0 to v0.12.5; CVE note policy documented in the header
-- **Retroactive release notes** — all 33 GitHub releases (v0.1.0–v0.12.5) updated with authored descriptions via `gh release edit`
+- **`CHANGELOG.md`** — established a human-authored changelog in [Keep a Changelog](https://keepachangelog.com) format; the current file retains recent releases
+- **GitHub Releases** — authoritative for release history not retained in the current `CHANGELOG.md`
 - **GoReleaser changelog groups** — `changelog:` block in `.goreleaser.yaml` now groups future release notes by type: New features, Bug fixes, Security, CI/build/dependencies
 
 ---
@@ -648,7 +647,7 @@ Add a `grpc` driver so sendit can generate traffic against gRPC services alongsi
 - New `type: grpc` target with `url: grpc://host:port/package.Service/Method`
 - Unary RPC calls; request body supplied as a JSON string that is marshalled to protobuf via the gRPC reflection API (no `.proto` files required at runtime)
 - Response mapped to a synthetic status code: `0 → 200`, gRPC status codes → HTTP-equivalent ranges so the existing error classifier and backoff logic work unchanged
-- `--tls`, `--insecure`, and `--authority` flags mirroring the HTTP driver's TLS options
+- TLS controls: `grpc://` selects plaintext, `grpcs://` selects TLS, `grpc.tls` forces TLS, and `grpc.insecure` skips certificate verification; custom authority remains deferred
 - Per-domain rate limiting and backoff apply to gRPC targets by hostname
 - Pure Go — `google.golang.org/grpc` with `google.golang.org/grpc/reflection/grpc_reflection_v1`; `CGO_ENABLED=0` preserved
 - Docs: new `grpc` section in the Drivers page; config examples
@@ -695,7 +694,7 @@ targets:
 - [x] WebSocket query authentication
 - [x] Prometheus metrics contract
 - [x] Configuration validation
-- [ ] Residual documentation reconciliation
+- [x] Residual documentation reconciliation
 
 ---
 

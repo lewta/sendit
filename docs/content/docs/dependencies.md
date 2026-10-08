@@ -19,7 +19,7 @@ appears that cannot be justified by the table below.
 | [`github.com/charmbracelet/lipgloss`](https://github.com/charmbracelet/lipgloss) | v1.1.0 | MIT | Style definitions for the terminal UI (bold labels, colour-coded counters) |
 | [`github.com/chromedp/chromedp`](https://github.com/chromedp/chromedp) | v0.16.0 | MIT | Browser automation via the Chrome DevTools Protocol — powers the `browser` driver |
 | [`github.com/coder/websocket`](https://github.com/coder/websocket) | v1.8.15 | ISC | WebSocket client — powers the `websocket` driver |
-| [`github.com/go-viper/mapstructure/v2`](https://github.com/go-viper/mapstructure) | v2.4.0 | MIT | Strict configuration decoding and Viper unmarshalling |
+| [`github.com/go-viper/mapstructure/v2`](https://github.com/go-viper/mapstructure) | v2.4.0 | MIT | Configuration decode hooks and Viper unmarshalling |
 | [`github.com/miekg/dns`](https://github.com/miekg/dns) | v1.1.73 | BSD-3-Clause | Full-featured DNS client and server library — powers the `dns` driver |
 | [`github.com/pkg/sftp`](https://github.com/pkg/sftp) | v1.13.11 | BSD-2-Clause | SFTP client and test server — powers the `sftp` driver |
 | [`github.com/prometheus/client_golang`](https://github.com/prometheus/client_golang) | v1.24.1 | Apache-2.0 | Prometheus metrics exposition (`/metrics` endpoint) |

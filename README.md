@@ -190,7 +190,7 @@ sendit completion <shell>
 | `--dry-run` | | `false` | Print config summary (targets, pacing, limits) and exit without sending traffic |
 | `--capture` | | `""` | Write a synthetic PCAP file while running; file is finalised on clean shutdown |
 | `--duration` | | *(unlimited)* | Auto-stop after this wall-clock time (e.g. `5m`, `30s`); **required** when `pacing.mode: burst` |
-| `--tui` | | `false` | Enable the live terminal UI (requires a TTY; silently ignored when stdout is piped or redirected) |
+| `--tui` | | `false` | Enable the live terminal UI (requires a TTY; falls back to plain output with a warning when stdout is piped or redirected) |
 
 ### `probe` flags
 

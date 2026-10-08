@@ -99,7 +99,7 @@ Browser history weights are derived from visit count (capped at 10) so frequentl
 | `--dry-run` | | `false` | Print config summary and exit without sending traffic |
 | `--capture` | | `""` | Write a synthetic PCAP file while running; file is finalised on clean shutdown |
 | `--duration` | | `0` (unlimited) | Auto-stop after this wall-clock duration (e.g. `5m`, `30s`, `1h`); **required** when `pacing.mode` is `burst` |
-| `--tui` | | `false` | Enable the live terminal UI (requires a TTY; silently ignored when stdout is piped or redirected) |
+| `--tui` | | `false` | Enable the live terminal UI (requires a TTY; falls back to plain output with a warning when stdout is piped or redirected) |
 
 ### Terminal UI (--tui)
 
@@ -123,7 +123,7 @@ Latency   avg 45ms · p95 118ms
 
 The sparkline shows the last 128 successful request latencies, scaled from `▁` (fastest) to `█` (slowest). On SIGINT, SIGTERM, duration expiry, or TUI quit, sendit stops dispatch, waits for in-flight workers to exit, and flushes output before returning. Active network requests receive the canceled context and may abort.
 
-When stdout is not a TTY (pipe, redirect, Docker, CI), `--tui` is silently ignored and plain zerolog output continues unchanged.
+When stdout is not a TTY (pipe, redirect, Docker, CI), `--tui` emits a warning and falls back to plain zerolog output.
 
 ### Dry-run output example
 

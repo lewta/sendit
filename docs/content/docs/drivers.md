@@ -39,7 +39,7 @@ targets:
 | `header` | Adds `<header_name>: <token>` header |
 | `query` | Adds or replaces `<param_name>` while preserving other query values |
 
-Authentication applies to HTTP and WebSocket targets. Query authentication adds or replaces the configured parameter while preserving other query values. Environment-backed tokens are resolved at dispatch time. Results and exported output retain the configured URL, not the credential-bearing dial URL. If an environment variable is unset when a request fires, the result carries an error and no request is made.
+Authentication applies to HTTP and WebSocket targets. Query authentication adds or replaces the configured parameter while preserving other query values. Environment-backed tokens are resolved at dispatch time. Results and exported output retain the expanded target URL, not the credential-bearing dial URL. If an environment variable is unset when a request fires, the result carries an error and no request is made.
 
 **Shared credentials via `target_defaults`:**
 
@@ -53,6 +53,17 @@ targets_file: "config/targets.txt"
 ```
 
 All file-loaded targets inherit the shared auth. Inline targets can override or omit it.
+
+## Request templates
+
+Request templates expand per dispatch before domain rate limiting and driver execution. The supported surfaces are:
+
+- Every target's `url`
+- `http.body`
+- `grpc.body`
+- Each `websocket.send_messages` entry
+
+The same selected or generated value is reused across all fields in one request. Headers, authentication values, browser options, DNS options, and SFTP options are not templated. See [Configuration](../configuration/#request-templating) for `vars`, `vars_file`, built-ins, and validation rules.
 
 ## `http`
 
@@ -77,7 +88,7 @@ targets:
 |---|---|---|
 | `method` | `GET` | HTTP verb |
 | `headers` | `{}` | Key-value map of request headers |
-| `body` | `""` | Optional request body |
+| `body` | `""` | Optional request body; supports request templates |
 | `timeout_s` | `15` | Per-request timeout (seconds) |
 | `allow_cross_host_redirects` | `false` | Follow redirects to a different host. Redirected hosts still use per-domain rate limits. Keep disabled when sending auth headers unless that forwarding is intended. |
 
@@ -176,7 +187,7 @@ targets:
 | Field | Default | Description |
 |---|---|---|
 | `duration_s` | `30` | How long to hold the connection open (seconds) |
-| `send_messages` | `[]` | List of text messages to send after connecting |
+| `send_messages` | `[]` | List of text messages to send after connecting; supports request templates |
 | `expect_messages` | `0` | Minimum messages to receive before considering success |
 
 **Non-standard ports:** include the port in the URL:
@@ -204,7 +215,7 @@ targets:
 
 | Field | Default | Description |
 |---|---|---|
-| `body` | `""` | JSON-encoded request body. Must match the method's input proto type. Empty sends a default-constructed message. |
+| `body` | `""` | JSON-encoded request body. Must match the method's input proto type. Empty sends a default-constructed message. Supports request templates. |
 | `timeout_s` | `15` | Per-call timeout in seconds |
 | `tls` | `false` | Force TLS even when the URL scheme is `grpc://` |
 | `insecure` | `false` | Skip TLS certificate verification (combine with `tls: true` or `grpcs://` scheme) |

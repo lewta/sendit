@@ -43,10 +43,10 @@ Features planned for future releases of sendit. Contributions are welcome — op
 - [v1.1.0 — gRPC driver ✓](#v110--grpc-driver)
 - [v1.2.0 — Auth support ✓](#v120--auth-support-)
 - [v1.6.0 — SFTP driver ✓](#v160--sftp-driver-)
+- [Request templating ✓](#request-templating-)
 
 **Planned**
 - [v1.7.0 - Reliability contract fixes](#v170---reliability-contract-fixes)
-- [Request templating](#future--request-templating)
 - [Replay command](#future--replay-command)
 - [HTTP version control](#future--http-version-control)
 
@@ -698,15 +698,15 @@ targets:
 
 ---
 
-## Future — Request templating
+## Request templating ✓
 
 Variable substitution in target URLs and request bodies so a single target definition can generate varied traffic without duplicating config entries.
 
-- `vars` block on a target: a map of variable name → list of values; one value is chosen per request (uniform random or weighted)
-- Substitution syntax: `{{var}}` in `url`, `http.body`, `grpc.body`, and `websocket.send`
-- Built-in variables: `{{uuid}}` (random UUIDv4), `{{timestamp}}` (Unix epoch seconds), `{{seq}}` (per-target incrementing counter)
-- `vars_file`: load variable lists from a CSV or newline-delimited file
-- Dry-run output shows an example expanded URL for each templated target
+- [x] `vars` block on a target with uniform per-request selection
+- [x] Substitution syntax: `{{var}}` in `url`, `http.body`, `grpc.body`, and `websocket.send_messages`
+- [x] Built-in variables: `{{uuid}}` (random UUIDv4), `{{timestamp}}` (Unix epoch seconds), `{{seq}}` (per-target incrementing counter)
+- [x] `vars_file` map from variable names to newline-delimited value files
+- [x] Dry-run output shows an example expanded URL for each templated target
 
 ```yaml
 targets:

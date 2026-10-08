@@ -86,6 +86,29 @@ targets:
 
 See [Drivers](../drivers/) for per-driver field reference.
 
+### Request templating
+
+Custom variables generate varied requests from one target:
+
+```yaml
+targets:
+  - url: "https://api.example.com/users/{{user_id}}?request={{uuid}}"
+    type: http
+    weight: 10
+    vars:
+      user_id: [alice, bob]
+    vars_file:
+      region: "data/regions.txt"
+    http:
+      body: '{"region":"{{region}}","sequence":{{seq}},"at":{{timestamp}}}'
+```
+
+Each referenced custom variable is selected uniformly once per request and reused in all supported fields. `vars_file` maps names to newline-delimited files; relative paths resolve from the main YAML file's directory. Values are trimmed, blank lines are ignored, and each file must provide at least one value.
+
+Names must match `[a-z][a-z0-9_]*`. `uuid`, `timestamp`, and `seq` are reserved built-ins for a random UUIDv4, Unix epoch seconds, and a per-target sequence starting at 1. Sequences reset on process start and successful reload. Expansion is single-pass, so placeholders inside selected values remain literal.
+
+Configuration validation rejects duplicate `vars`/`vars_file` names, invalid or empty variables, unreadable or empty files, malformed placeholders, and unknown names. Supported fields are target URLs, `http.body`, `grpc.body`, and `websocket.send_messages`.
+
 ## `targets_file` and `target_defaults`
 
 Load targets from a plain-text file instead of (or in addition to) the inline `targets` list.
@@ -109,6 +132,10 @@ targets_file: "config/targets.txt"
 
 target_defaults:
   weight: 1
+  vars:
+    environment: [staging]
+  vars_file:
+    region: "config/regions.txt"
   http:
     method: GET
     timeout_s: 15
@@ -127,6 +154,8 @@ target_defaults:
 | `target_defaults` field | Default | Description |
 |---|---|---|
 | `weight` | `1` | Selection weight when omitted from the file |
+| `vars` | `{}` | Shared inline template candidates for file-loaded targets |
+| `vars_file` | `{}` | Shared variable-to-file mappings for file-loaded targets |
 | `auth.type` | `""` | Auth type: `bearer` \| `basic` \| `header` \| `query` — see [Drivers](../drivers/#auth-block) |
 | `http.method` | `GET` | HTTP verb |
 | `http.timeout_s` | `15` | Request timeout (seconds) |

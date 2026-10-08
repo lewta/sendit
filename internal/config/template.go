@@ -83,10 +83,6 @@ func TemplateVariables(value string) ([]string, error) {
 	for offset := 0; offset < len(value); {
 		remaining := value[offset:]
 		open := strings.Index(remaining, "{{")
-		close := strings.Index(remaining, "}}")
-		if close >= 0 && (open < 0 || close < open) {
-			return nil, fmt.Errorf("unexpected closing template delimiter")
-		}
 		if open < 0 {
 			return names, nil
 		}

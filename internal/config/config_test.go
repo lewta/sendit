@@ -1165,6 +1165,41 @@ func TestValidateTemplateVariablesRejectsUppercaseRawKeys(t *testing.T) {
 	}
 }
 
+func TestLoadNestedJSONTemplateSurfaces(t *testing.T) {
+	tests := []struct {
+		name string
+		body string
+	}{
+		{name: "plain", body: `{"user":{"id":1}}`},
+		{name: "templated", body: `{"user":{"id":"{{uuid}}"}}`},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			yaml := strings.ReplaceAll(`
+targets:
+  - url: https://example.com
+    type: http
+    weight: 1
+    http:
+      body: 'BODY'
+  - url: grpc://example.com/pkg.Service/Method
+    type: grpc
+    weight: 1
+    grpc:
+      body: 'BODY'
+  - url: wss://example.com
+    type: websocket
+    weight: 1
+    websocket:
+      send_messages: ['BODY']
+`, "BODY", tt.body)
+			if _, err := Load(writeTemp(t, yaml)); err != nil {
+				t.Fatal(err)
+			}
+		})
+	}
+}
+
 func TestTemplateExpansionIsLiteralAndSinglePass(t *testing.T) {
 	names, err := TemplateVariables("{{first}}/{{second}}/{{first}}")
 	if err != nil {

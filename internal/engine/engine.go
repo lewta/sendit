@@ -54,7 +54,7 @@ func New(cfg *config.Config, m *metrics.Metrics) (*Engine, error) {
 	e := &Engine{
 		pool:      NewPool(cfg.Limits.MaxWorkers, cfg.Limits.MaxBrowserWorkers),
 		scheduler: NewScheduler(cfg.Pacing),
-		monitor:   resource.New(cfg.Limits.CPUThresholdPct, cfg.Limits.MemoryThresholdMB),
+		monitor:   resource.New(cfg.Limits.CPUThresholdPct, uint64(cfg.Limits.MemoryThresholdMB)),
 		metrics:   m,
 	}
 

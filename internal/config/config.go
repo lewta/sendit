@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/robfig/cron/v3"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/viper"
 )
@@ -212,6 +213,18 @@ func validate(cfg *Config) error {
 	if cfg.Pacing.Mode == "scheduled" && len(cfg.Pacing.Schedule) == 0 {
 		errs = append(errs, "pacing.schedule must have at least one entry when mode is scheduled")
 	}
+	for i, entry := range cfg.Pacing.Schedule {
+		prefix := fmt.Sprintf("pacing.schedule[%d]", i)
+		if _, err := cron.ParseStandard(entry.Cron); err != nil {
+			errs = append(errs, fmt.Sprintf("%s.cron must be a valid cron expression: %v", prefix, err))
+		}
+		if entry.DurationMinutes <= 0 {
+			errs = append(errs, fmt.Sprintf("%s.duration_minutes must be > 0", prefix))
+		}
+		if entry.RequestsPerMinute <= 0 {
+			errs = append(errs, fmt.Sprintf("%s.requests_per_minute must be > 0", prefix))
+		}
+	}
 
 	if cfg.Limits.MaxWorkers <= 0 {
 		errs = append(errs, "limits.max_workers must be > 0")
@@ -224,9 +237,21 @@ func validate(cfg *Config) error {
 	if cfg.Limits.CPUThresholdPct <= 0 || cfg.Limits.CPUThresholdPct > 100 {
 		errs = append(errs, "limits.cpu_threshold_pct must be in (0, 100]")
 	}
+	if cfg.Limits.MemoryThresholdMB <= 0 {
+		errs = append(errs, "limits.memory_threshold_mb must be > 0")
+	}
 
 	if cfg.RateLimits.DefaultRPS <= 0 {
 		errs = append(errs, "rate_limits.default_rps must be > 0")
+	}
+	for i, entry := range cfg.RateLimits.PerDomain {
+		prefix := fmt.Sprintf("rate_limits.per_domain[%d]", i)
+		if strings.TrimSpace(entry.Domain) == "" {
+			errs = append(errs, fmt.Sprintf("%s.domain must not be empty", prefix))
+		}
+		if entry.RPS <= 0 {
+			errs = append(errs, fmt.Sprintf("%s.rps must be > 0", prefix))
+		}
 	}
 
 	if cfg.Backoff.InitialMs <= 0 {
@@ -302,6 +327,11 @@ func validate(cfg *Config) error {
 		if !validFormats[cfg.Output.Format] {
 			errs = append(errs, fmt.Sprintf("output.format must be jsonl|csv, got %q", cfg.Output.Format))
 		}
+	}
+
+	if cfg.Metrics.Enabled &&
+		(cfg.Metrics.PrometheusPort < 1 || cfg.Metrics.PrometheusPort > 65535) {
+		errs = append(errs, "metrics.prometheus_port must be in [1, 65535] when metrics.enabled is true")
 	}
 
 	validLogLevels := map[string]bool{"debug": true, "info": true, "warn": true, "error": true}

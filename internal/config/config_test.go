@@ -194,6 +194,113 @@ targets:
 	}
 }
 
+func configWith(fragment string) string {
+	return fragment + `
+targets:
+  - url: "https://example.com"
+    weight: 1
+    type: http
+`
+}
+
+func TestLoad_RuntimeSensitiveValidation(t *testing.T) {
+	tests := []struct {
+		name     string
+		yaml     string
+		wantPath string
+	}{
+		{"invalid cron outside scheduled mode", configWith("pacing:\n  mode: human\n  schedule:\n    - cron: not-a-cron\n      duration_minutes: 1\n      requests_per_minute: 1"), "pacing.schedule[0].cron"},
+		{"zero schedule duration", configWith("pacing:\n  schedule:\n    - cron: '* * * * *'\n      duration_minutes: 0\n      requests_per_minute: 1"), "pacing.schedule[0].duration_minutes"},
+		{"negative schedule duration", configWith("pacing:\n  schedule:\n    - cron: '* * * * *'\n      duration_minutes: -1\n      requests_per_minute: 1"), "pacing.schedule[0].duration_minutes"},
+		{"zero schedule rpm", configWith("pacing:\n  schedule:\n    - cron: '* * * * *'\n      duration_minutes: 1\n      requests_per_minute: 0"), "pacing.schedule[0].requests_per_minute"},
+		{"negative schedule rpm", configWith("pacing:\n  schedule:\n    - cron: '* * * * *'\n      duration_minutes: 1\n      requests_per_minute: -0.1"), "pacing.schedule[0].requests_per_minute"},
+		{"empty domain", configWith("rate_limits:\n  per_domain:\n    - domain: ''\n      rps: 1"), "rate_limits.per_domain[0].domain"},
+		{"blank domain", configWith("rate_limits:\n  per_domain:\n    - domain: '   '\n      rps: 1"), "rate_limits.per_domain[0].domain"},
+		{"zero domain rps", configWith("rate_limits:\n  per_domain:\n    - domain: example.com\n      rps: 0"), "rate_limits.per_domain[0].rps"},
+		{"negative domain rps", configWith("rate_limits:\n  per_domain:\n    - domain: example.com\n      rps: -0.1"), "rate_limits.per_domain[0].rps"},
+		{"enabled metrics zero port", configWith("metrics:\n  enabled: true\n  prometheus_port: 0"), "metrics.prometheus_port"},
+		{"enabled metrics high port", configWith("metrics:\n  enabled: true\n  prometheus_port: 65536"), "metrics.prometheus_port"},
+		{"zero memory threshold", configWith("limits:\n  memory_threshold_mb: 0"), "limits.memory_threshold_mb"},
+		{"negative memory threshold", configWith("limits:\n  memory_threshold_mb: -1"), "limits.memory_threshold_mb"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := Load(writeTemp(t, tt.yaml))
+			if err == nil {
+				t.Fatal("expected validation error")
+			}
+			if !strings.Contains(err.Error(), tt.wantPath) {
+				t.Fatalf("error %q does not contain field path %q", err, tt.wantPath)
+			}
+		})
+	}
+}
+
+func TestLoad_RuntimeSensitiveValidationBoundaries(t *testing.T) {
+	tests := []struct {
+		name string
+		yaml string
+	}{
+		{"valid inactive schedule", configWith("pacing:\n  mode: human\n  schedule:\n    - cron: '* * * * *'\n      duration_minutes: 1\n      requests_per_minute: 0.1")},
+		{"valid domain override", configWith("rate_limits:\n  per_domain:\n    - domain: example.com\n      rps: 0.1")},
+		{"minimum metrics port", configWith("metrics:\n  enabled: true\n  prometheus_port: 1")},
+		{"maximum metrics port", configWith("metrics:\n  enabled: true\n  prometheus_port: 65535")},
+		{"disabled metrics ignore port", configWith("metrics:\n  enabled: false\n  prometheus_port: 0")},
+		{"minimum memory threshold", configWith("limits:\n  memory_threshold_mb: 1")},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if _, err := Load(writeTemp(t, tt.yaml)); err != nil {
+				t.Fatalf("unexpected validation error: %v", err)
+			}
+		})
+	}
+}
+
+func TestLoad_RuntimeSensitiveValidationAggregatesPaths(t *testing.T) {
+	yaml := configWith(`
+pacing:
+  schedule:
+    - cron: "* * * * *"
+      duration_minutes: 1
+      requests_per_minute: 1
+    - cron: bad
+      duration_minutes: 0
+      requests_per_minute: 0
+limits:
+  memory_threshold_mb: 0
+rate_limits:
+  per_domain:
+    - domain: example.com
+      rps: 1
+    - domain: " "
+      rps: 0
+metrics:
+  enabled: true
+  prometheus_port: 65536
+`)
+
+	_, err := Load(writeTemp(t, yaml))
+	if err == nil {
+		t.Fatal("expected aggregate validation error")
+	}
+	for _, path := range []string{
+		"pacing.schedule[1].cron",
+		"pacing.schedule[1].duration_minutes",
+		"pacing.schedule[1].requests_per_minute",
+		"rate_limits.per_domain[1].domain",
+		"rate_limits.per_domain[1].rps",
+		"limits.memory_threshold_mb",
+		"metrics.prometheus_port",
+	} {
+		if !strings.Contains(err.Error(), path) {
+			t.Errorf("error %q does not contain field path %q", err, path)
+		}
+	}
+}
+
 func TestValidate_EmptyTargets(t *testing.T) {
 	yaml := `
 targets: []

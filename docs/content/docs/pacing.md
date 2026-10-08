@@ -5,7 +5,7 @@ weight: 3
 description: "How sendit controls request timing: human, rate_limited, scheduled, and burst."
 ---
 
-The `pacing` section of your config controls how requests are spaced over time. All modes gate dispatch **before** acquiring a worker slot, so a slow domain cannot stall the dispatch loop or starve other targets.
+The `pacing` section of your config controls how requests are spaced over time. Scheduler pacing and resource admission run before worker acquisition. Domain backoff and rate-limit waits run inside acquired workers, consuming slots while preventing a slow domain from blocking the single dispatch loop.
 
 ## `human` mode
 
@@ -54,14 +54,14 @@ Every supplied schedule entry is validated with the scheduler's standard parser,
 
 ## `burst` mode
 
-Fires requests as fast as worker slots allow with no inter-request delay. Intended for **internal or owned infrastructure** — load testing, chaos experiments, or benchmarking your own services.
+Fires requests as fast as worker slots allow once any configured ramp completes. Intended for **internal or owned infrastructure** — load testing, chaos experiments, or benchmarking your own services.
 
 > **Important:** `mode: burst` requires `--duration` on `sendit start`. The engine refuses to run a burst session without a time bound. This is a deliberate safety gate — never point burst at external targets you do not control.
 
 ```yaml
 pacing:
   mode: burst
-  ramp_up_s: 30   # optional: linearly ramp from slow to full speed over 30 s
+  ramp_up_s: 30   # optional: decrease inter-request delay to zero over 30 s
 ```
 
 `requests_per_minute`, `min_delay_ms`, `max_delay_ms`, `jitter_factor`, and `schedule` are all ignored in burst mode.
@@ -70,7 +70,7 @@ The **resource gate** (`cpu_threshold_pct`, `memory_threshold_mb`) still applies
 
 ### `ramp_up_s`
 
-An optional soft ramp-up that prevents a cold-start spike. When set, the inter-request delay decreases linearly from a high initial value down to zero over the specified number of seconds. With `ramp_up_s: 30` the initial delay is ~1.5 s and reaches zero after 30 s. Set to `0` (the default) for immediate full-speed dispatch.
+`ramp_up_s` linearly decreases burst inter-request delay to zero over the configured period. It does not resize the worker pool. With `ramp_up_s: 30` the initial delay is ~1.5 s and reaches zero after 30 s. Set to `0` (the default) for immediate full-speed dispatch.
 
 ### Running a burst session
 
@@ -84,15 +84,12 @@ sendit start --config config/burst.yaml --duration 5m --dry-run
 
 ## Dispatch pipeline
 
-The pacing delay is just the first gate. After it fires, the request flows through:
+Scheduler and resource gates run before worker acquisition. Domain backoff and rate-limit waits run inside acquired workers, consuming slots while preventing a slow domain from blocking the single dispatch loop:
 
+```text
+Scheduler.Wait -> resource.Admit -> pool.Acquire -> go dispatch()
+                                                -> backoff.Wait
+                                                -> ratelimit.Wait
+                                                -> driver.Execute
+                                                -> pool.Release
 ```
-Scheduler.Wait        pacing delay
-  → resource.Admit    pause if CPU or RAM over threshold
-  → backoff.Wait      per-domain delay after transient errors
-  → ratelimit.Wait    per-domain token bucket
-  → pool.Acquire      global semaphore + browser sub-semaphore
-  → go driver.Execute
-```
-
-This ordering ensures that slow or rate-limited domains never consume worker slots while waiting, and pacing keeps the overall request rate bounded regardless of per-domain behaviour.

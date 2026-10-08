@@ -12,7 +12,7 @@ A Go CLI tool that simulates realistic user web traffic across HTTP, headless br
 
 Key properties:
 
-- Stays polite by default — all pacing is delay-gated before acquiring worker slots; `mode: burst` is available for internal infrastructure testing but requires an explicit time-bounded run (`--duration`) to start
+- Stays polite by default — scheduler and resource gates run before worker acquisition; `mode: burst` is available for internal infrastructure testing but requires an explicit time-bounded run (`--duration`) to start
 - Per-domain token-bucket rate limits with decorrelated jitter backoff on transient errors
 - Pauses dispatch when local CPU or RAM exceeds configurable thresholds
 - On SIGINT, SIGTERM, duration expiry, or TUI quit, sendit stops dispatch, waits for in-flight workers to exit, and flushes output before returning. Active network requests receive the canceled context and may abort.
@@ -586,14 +586,14 @@ Controls how requests are spaced in time.
 | `min_delay_ms` | `800` | Minimum inter-request delay in `human` mode |
 | `max_delay_ms` | `8000` | Maximum inter-request delay in `human` mode |
 | `schedule` | `[]` | List of validated cron windows — required when `mode: scheduled` |
-| `ramp_up_s` | `0` | Seconds to linearly ramp up to full speed — `burst` mode only; `0` = immediate |
+| `ramp_up_s` | `0` | Linearly decreases burst inter-request delay to zero over this many seconds; does not resize the worker pool |
 
 **Pacing modes:**
 
 - **`human`** — random delay per request uniformly sampled from `[min_delay_ms, max_delay_ms]`. `requests_per_minute` and `jitter_factor` are ignored in this mode.
 - **`rate_limited`** — token-bucket limiter at `requests_per_minute` plus a small random jitter after each token.
 - **`scheduled`** — cron expressions open active windows; within each window behaves like `rate_limited` at the window's own RPM. Dispatch stays paused between windows; polling only checks whether a window has opened.
-- **`burst`** — fires requests as fast as worker slots allow with no inter-request delay. Intended for internal infrastructure testing. **Requires `--duration`** on `sendit start` — the engine refuses to run an unbounded burst session.
+- **`burst`** — fires requests as fast as worker slots allow; optional `ramp_up_s` adds an inter-request delay that decreases to zero. Intended for internal infrastructure testing. **Requires `--duration`** on `sendit start` — the engine refuses to run an unbounded burst session.
 
 ```yaml
 pacing:
@@ -608,7 +608,7 @@ pacing:
 # Burst example — always pair with --duration when starting
 pacing:
   mode: burst
-  ramp_up_s: 30   # optional: ramp from slow to full speed over 30 s
+  ramp_up_s: 30   # optional: decrease inter-request delay to zero over 30 s
 ```
 
 ### `limits`
@@ -626,7 +626,7 @@ Concurrency and resource thresholds.
 
 ### `rate_limits`
 
-Per-domain token buckets applied after the pacing delay and before acquiring a worker slot.
+Per-domain token buckets applied inside acquired workers, after scheduler pacing and resource admission.
 
 | Field | Default | Description |
 |-------|---------|-------------|
@@ -912,19 +912,15 @@ daemon:
 
 ## Dispatch Pipeline
 
-Every task flows through the following gates in order before a worker goroutine is launched:
+Scheduler and resource gates run before worker acquisition. Domain backoff and rate-limit waits run inside acquired workers, consuming slots while preventing a slow domain from blocking the single dispatch loop.
 
+```text
+Scheduler.Wait -> resource.Admit -> pool.Acquire -> go dispatch()
+                                                -> backoff.Wait
+                                                -> ratelimit.Wait
+                                                -> driver.Execute
+                                                -> pool.Release
 ```
-Scheduler.Wait        pacing delay (human jitter / token bucket / cron window)
-  → resource.Admit    pause if CPU or RAM over threshold
-  → backoff.Wait      per-domain delay after transient errors
-  → ratelimit.Wait    per-domain token bucket
-  → pool.Acquire      global semaphore + browser sub-semaphore
-  → go driver.Execute
-  → pool.Release
-```
-
-This ordering ensures that slow or rate-limited domains do not consume worker slots while waiting.
 
 ---
 

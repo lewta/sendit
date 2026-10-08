@@ -153,8 +153,8 @@ target_defaults:
 ## CLI Commands
 
 ```
-sendit generate [--targets-file <path>] [--url <url>] [--from-history chrome|firefox|safari] [--from-bookmarks chrome|firefox] [--output <file>]
-sendit start    [-c <path>] [--foreground] [--log-level debug|info|warn|error] [--dry-run] [--capture <file>]
+sendit generate [--targets-file <path>] [--url <url>] [--from-history chrome|firefox|safari] [--from-bookmarks chrome|firefox|safari] [--output <file>]
+sendit start    [-c <path>] [--foreground] [--log-level debug|info|warn|error] [--dry-run] [--capture <file>] [--duration <duration>] [--tui]
 sendit probe    <target>   [--type http|dns|websocket] [--interval 1s] [--timeout 5s] [--send <msg>]
 sendit pinch    <host:port> [--type tcp|udp] [--interval 1s] [--timeout 5s]
 sendit export   --pcap <results.jsonl> [--output <results.pcap>]
@@ -190,6 +190,7 @@ sendit completion <shell>
 | `--dry-run` | | `false` | Print config summary (targets, pacing, limits) and exit without sending traffic |
 | `--capture` | | `""` | Write a synthetic PCAP file while running; file is finalised on clean shutdown |
 | `--duration` | | *(unlimited)* | Auto-stop after this wall-clock time (e.g. `5m`, `30s`); **required** when `pacing.mode: burst` |
+| `--tui` | | `false` | Enable the live terminal UI (requires a TTY; silently ignored when stdout is piped or redirected) |
 
 ### `probe` flags
 
@@ -300,6 +301,7 @@ Visit count is mapped to a target weight (capped at 10) so frequently visited pa
 ```sh
 sendit generate --from-bookmarks chrome  --output config/generated.yaml
 sendit generate --from-bookmarks firefox --output config/generated.yaml
+sendit generate --from-bookmarks safari  --output config/generated.yaml  # macOS only
 ```
 
 All bookmarked HTTP/HTTPS URLs are emitted as equal-weight targets. Sources can be combined:
@@ -319,7 +321,7 @@ sendit generate --url https://example.com --from-history chrome --history-limit 
 | `--max-pages` | `50` | Maximum number of pages to discover |
 | `--ignore-robots` | `false` | Skip `robots.txt` enforcement during crawl |
 | `--from-history` | `""` | Harvest visited URLs from browser history: `chrome` \| `firefox` \| `safari` |
-| `--from-bookmarks` | `""` | Harvest bookmarked URLs: `chrome` \| `firefox` (Safari bookmarks not yet supported) |
+| `--from-bookmarks` | `""` | Harvest bookmarked URLs: `chrome` \| `firefox` \| `safari` |
 | `--history-limit` | `100` | Maximum URLs to import from history (ordered by visit count descending) |
 | `--output` | *(stdout)* | Write config to a file instead of stdout; prompts before overwriting |
 

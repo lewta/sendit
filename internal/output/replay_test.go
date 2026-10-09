@@ -2,6 +2,7 @@ package output
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"io"
@@ -11,6 +12,7 @@ import (
 	"time"
 
 	"github.com/lewta/sendit/internal/config"
+	"github.com/lewta/sendit/internal/driver"
 	"github.com/lewta/sendit/internal/task"
 )
 
@@ -188,5 +190,37 @@ func BenchmarkReplayEncoding(b *testing.B) {
 				}
 			}
 		})
+	}
+}
+
+func TestReplayRedactsMalformedURLUserinfo(t *testing.T) {
+	for _, raw := range []string{"https://alice:private-marker@example.com/%zz", "https://alice:private-marker@example.com:bad/x", "//alice:private-marker@example.com/%zz"} {
+		for _, exclusion := range []string{"", "auth", "headers"} {
+			t.Run(raw+exclusion, func(t *testing.T) {
+				source := capturedResult("http", raw)
+				if exclusion == "auth" {
+					source.Task.Config.Auth.Type = "bearer"
+					source.Task.Config.Auth.Token = "token-marker"
+				}
+				if exclusion == "headers" {
+					source.Task.Config.HTTP.Headers = map[string]string{"X-Key": "token-marker"}
+				}
+				result := driver.NewHTTPDriver().Execute(context.Background(), source.Task)
+				result.Capture = source.Capture
+				if result.Error == nil {
+					t.Fatal("expected malformed URL failure")
+				}
+				var b bytes.Buffer
+				if err := EncodeJSONL(json.NewEncoder(&b), result); err != nil {
+					t.Fatal(err)
+				}
+				if strings.Contains(b.String(), "private-marker") || strings.Contains(b.String(), "alice") || strings.Contains(b.String(), "token-marker") {
+					t.Fatalf("credential leak: %s", b.String())
+				}
+				if !strings.Contains(b.String(), "error omitted") {
+					t.Fatal("unsafe error retained")
+				}
+			})
+		}
 	}
 }

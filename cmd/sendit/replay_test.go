@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -250,5 +251,106 @@ func TestReplayEncoderReportsFailures(t *testing.T) {
 	r.Capture = stamp
 	if err := output.EncodeJSONL(json.NewEncoder(io.Discard), r); err == nil {
 		t.Fatal("encoding error swallowed")
+	}
+}
+
+func TestOpenReplayOutputSymlinkParentKeepsPathMeaning(t *testing.T) {
+	root := t.TempDir()
+	for _, dir := range []string{"a", "b/sub"} {
+		if err := os.MkdirAll(filepath.Join(root, dir), 0o700); err != nil {
+			t.Fatal(err)
+		}
+	}
+	inputPath := filepath.Join(root, "b", "input.jsonl")
+	unrelated := filepath.Join(root, "a", "input.jsonl")
+	for _, path := range []string{inputPath, unrelated} {
+		if err := os.WriteFile(path, []byte("sentinel"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.Symlink(filepath.Join(root, "b", "sub"), filepath.Join(root, "a", "link")); err != nil {
+		t.Skipf("symlink unavailable: %v", err)
+	}
+	input, err := os.Open(inputPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer input.Close()
+	// Do not use filepath.Join: lexical cleanup is precisely the bug being tested.
+	alias := root + "/a/link/../input.jsonl"
+	if f, err := openReplayOutput(input, alias); err == nil {
+		_ = f.Close()
+		t.Error("input alias accepted")
+	}
+	for _, path := range []string{inputPath, unrelated} {
+		b, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if string(b) != "sentinel" {
+			t.Errorf("truncated %s", path)
+		}
+	}
+}
+
+func TestReplayMalformedFinalRecordNeverExecutes(t *testing.T) {
+	var calls atomic.Int32
+	srv := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) { calls.Add(1) }))
+	defer srv.Close()
+	for _, kind := range []string{"null message", "surrogate", "timestamp"} {
+		for _, filtered := range []bool{false, true} {
+			t.Run(fmt.Sprintf("%s/filter=%v", kind, filtered), func(t *testing.T) {
+				records := replayRecords(503, 200)
+				for i := range records {
+					records[i].URL = srv.URL
+					records[i].Envelope.Request.URL = srv.URL
+				}
+				if kind == "null message" {
+					url := "ws" + strings.TrimPrefix(srv.URL, "http")
+					records[1].URL = url
+					records[1].Type = "websocket"
+					records[1].Envelope.Request = &output.ReplayRequest{URL: url, Type: "websocket", WebSocket: &output.ReplayWebSocket{DurationS: 1, SendMessages: []string{"hello"}}}
+				}
+				input := writeReplayFile(t, records)
+				b, err := os.ReadFile(input)
+				if err != nil {
+					t.Fatal(err)
+				}
+				lines := strings.Split(string(b), "\n")
+				switch kind {
+				case "null message":
+					lines[1] = strings.Replace(lines[1], `["hello"]`, `[null,"hello"]`, 1)
+				case "surrogate":
+					lines[1] = strings.Replace(lines[1], `"body":"{{literal}}"`, `"body":"\ud800"`, 1)
+				case "timestamp":
+					lines[1] = strings.Replace(lines[1], records[1].Envelope.StartedAt.Format(time.RFC3339Nano), "2026-10-08T21:16:33+24:00", 1)
+				}
+				if err := os.WriteFile(input, []byte(strings.Join(lines, "\n")), 0o600); err != nil { //nolint:gosec // input is a test-owned path from t.TempDir, not decoded data
+					t.Fatal(err)
+				}
+				dest := filepath.Join(t.TempDir(), "output.jsonl")
+				if err := os.WriteFile(dest, []byte("sentinel"), 0o600); err != nil {
+					t.Fatal(err)
+				}
+				args := []string{"--input", input, "--output", dest}
+				if filtered {
+					args = append(args, "--filter", "status=5xx")
+				}
+				cmd := replayCmd()
+				cmd.SetArgs(args)
+				cmd.SetOut(io.Discard)
+				cmd.SetErr(io.Discard)
+				if err := cmd.Execute(); err == nil {
+					t.Fatal("malformed final record accepted")
+				}
+				b, err = os.ReadFile(dest)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if calls.Load() != 0 || string(b) != "sentinel" {
+					t.Fatal("preflight caused traffic or data loss")
+				}
+			})
+		}
 	}
 }

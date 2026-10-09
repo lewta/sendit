@@ -9,6 +9,7 @@ import (
 	"io"
 	"regexp"
 	"slices"
+	"strconv"
 	"unicode/utf8"
 )
 
@@ -17,6 +18,44 @@ const MaxReplayLineBytes = 8 << 20
 const MaxReplayRecords = 10_000
 
 var replayRunID = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`)
+var replayTimestamp = regexp.MustCompile(`^[0-9]{4}-[0-9]{2}-[0-9]{2}T([01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9](\.[0-9]{1,9})?(Z|[+-]([01][0-9]|2[0-3]):[0-5][0-9])$`)
+
+// jsonUnicodeLossless runs only after json.Valid, so escape lengths are known.
+// encoding/json otherwise silently replaces unpaired UTF-16 surrogates.
+func jsonUnicodeLossless(raw []byte) bool {
+	quoted := false
+	for i := 0; i < len(raw); i++ {
+		switch raw[i] {
+		case '"':
+			quoted = !quoted
+		case '\\':
+			if !quoted {
+				continue
+			}
+			i++
+			if raw[i] != 'u' {
+				continue
+			}
+			value, _ := strconv.ParseUint(string(raw[i+1:i+5]), 16, 16)
+			i += 4
+			if value >= 0xdc00 && value <= 0xdfff {
+				return false
+			}
+			if value < 0xd800 || value > 0xdbff {
+				continue
+			}
+			if i+7 > len(raw) || raw[i+1] != '\\' || raw[i+2] != 'u' {
+				return false
+			}
+			low, err := strconv.ParseUint(string(raw[i+3:i+7]), 16, 16)
+			if err != nil || low < 0xdc00 || low > 0xdfff {
+				return false
+			}
+			i += 6
+		}
+	}
+	return true
+}
 
 type ReplayRecord struct {
 	Line     int
@@ -96,6 +135,9 @@ func DecodeReplayRecord(line []byte) (ReplayRecord, error) {
 	if !utf8.Valid(line) || !json.Valid(line) {
 		return fail("JSON")
 	}
+	if !jsonUnicodeLossless(line) {
+		return fail("JSON Unicode escapes")
+	}
 	d := json.NewDecoder(bytes.NewReader(line))
 	d.UseNumber()
 	if err := jsonUniqueKeys(d); err != nil {
@@ -114,6 +156,10 @@ func DecodeReplayRecord(line []byte) (ReplayRecord, error) {
 	env, err := replayObject(top["replay"], []string{"version", "run_id", "sequence", "started_at", "replayable"}, []string{"reason", "request"}, true, "replay")
 	if err != nil {
 		return r, err
+	}
+	var stamp string
+	if json.Unmarshal(env["started_at"], &stamp) != nil || !replayTimestamp.MatchString(stamp) {
+		return fail("replay.started_at")
 	}
 	if json.Unmarshal(top["replay"], &r.Envelope) != nil {
 		return fail("replay fields")
@@ -157,8 +203,20 @@ func DecodeReplayRecord(line []byte) (ReplayRecord, error) {
 		"websocket": {"duration_s", "send_messages", "expect_messages"},
 		"grpc":      {"body", "timeout_s", "tls", "insecure"},
 	}
-	if _, err := replayObject(req[r.Type], fields[r.Type], nil, true, "replay.request."+r.Type); err != nil {
+	block, err := replayObject(req[r.Type], fields[r.Type], nil, true, "replay.request."+r.Type)
+	if err != nil {
 		return r, err
+	}
+	if r.Type == "websocket" {
+		var messages []*string
+		if json.Unmarshal(block["send_messages"], &messages) != nil {
+			return fail("request.websocket.send_messages")
+		}
+		for _, message := range messages {
+			if message == nil {
+				return fail("request.websocket.send_messages elements")
+			}
+		}
 	}
 	if e.Request == nil || e.Request.URL != r.URL || e.Request.Type != r.Type {
 		return fail("replay.request url/type consistency")

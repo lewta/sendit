@@ -3,11 +3,14 @@ package output
 import (
 	"bytes"
 	"encoding/json"
+	"strings"
 	"testing"
 )
 
 func FuzzReplayRecord(f *testing.F) {
 	f.Add([]byte(validReplayLine))
+	f.Add([]byte(strings.Replace(validReplayLine, `"body":"{}"`, `"body":"\ud800"`, 1)))
+	f.Add([]byte(strings.Replace(validReplayLine, "2026-10-08T21:16:33.123456789Z", "2026-10-08T21:16:33+24:00", 1)))
 	for _, s := range []string{`null`, `{"replay":null}`, `{"x":1,"x":2}`, "\xff", `{"sequence":18446744073709551616}`, `{"body":"{\"nested\":{}}"}`} {
 		f.Add([]byte(s))
 	}
@@ -17,6 +20,9 @@ func FuzzReplayRecord(f *testing.F) {
 			f.Fatal(err)
 		}
 		f.Add(bytes.TrimSpace(b.Bytes()))
+		if typ == "websocket" {
+			f.Add([]byte(strings.Replace(b.String(), `"send_messages":[]`, `"send_messages":[null]`, 1)))
+		}
 	}
 	f.Fuzz(func(t *testing.T, line []byte) {
 		if len(line) > MaxReplayLineBytes {

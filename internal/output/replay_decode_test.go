@@ -165,3 +165,68 @@ func TestReadReplayCheckedInExample(t *testing.T) {
 		t.Fatal("invalid documented fixture")
 	}
 }
+
+func TestDecodeReplayRejectsNullWebSocketMessages(t *testing.T) {
+	r := capturedResult("websocket", "ws://example.com")
+	r.Task.Config.WebSocket.SendMessages = []string{"hello"}
+	var b bytes.Buffer
+	if err := EncodeJSONL(json.NewEncoder(&b), r); err != nil {
+		t.Fatal(err)
+	}
+	line := strings.Replace(b.String(), `["hello"]`, `[null,"hello"]`, 1)
+	if _, err := ReadReplay(strings.NewReader(line)); err == nil {
+		t.Fatal("null message became executable empty message")
+	}
+}
+
+func TestDecodeReplayUnicodeIsLossless(t *testing.T) {
+	for _, value := range []string{`\ud800`, `\udc00`, `\ud800x`, `\ud800\u0041`} {
+		for _, field := range []string{"body", "url", "message"} {
+			t.Run(field+value, func(t *testing.T) {
+				line := strings.Replace(validReplayLine, `"body":"{}"`, `"body":"`+value+`"`, 1)
+				if field == "url" {
+					line = strings.ReplaceAll(validReplayLine, "https://example.com", "https://example.com/"+value)
+				}
+				if field == "message" {
+					r := capturedResult("websocket", "ws://example.com")
+					r.Task.Config.WebSocket.SendMessages = []string{"hello"}
+					var b bytes.Buffer
+					if err := EncodeJSONL(json.NewEncoder(&b), r); err != nil {
+						t.Fatal(err)
+					}
+					line = strings.Replace(b.String(), "hello", value, 1)
+				}
+				if _, err := ReadReplay(strings.NewReader(line)); err == nil {
+					t.Fatal("lossy unicode accepted")
+				}
+			})
+		}
+	}
+	for _, tc := range []struct{ escaped, want string }{{`\ud83d\ude00`, "😀"}, {`\ufffd`, "�"}, {`\\ud800`, `\ud800`}} {
+		line := strings.Replace(validReplayLine, `"body":"{}"`, `"body":"`+tc.escaped+`"`, 1)
+		rs, err := ReadReplay(strings.NewReader(line))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if rs[0].Envelope.Request.HTTP.Body != tc.want {
+			t.Fatal("changed valid Unicode")
+		}
+	}
+}
+
+func TestDecodeReplayStrictTimestamp(t *testing.T) {
+	for _, stamp := range []string{"2026-10-08T21:16:33+24:00", "2026-10-08T21:16:33+00:60", "2026-10-08T1:16:33Z", "2026-10-08T21:16:33,123Z", "2026-10-08T21:16:33.1234567891Z"} {
+		t.Run(stamp, func(t *testing.T) {
+			line := strings.Replace(validReplayLine, "2026-10-08T21:16:33.123456789Z", stamp, 1)
+			if _, err := ReadReplay(strings.NewReader(line)); err == nil {
+				t.Fatal("invalid timestamp accepted")
+			}
+		})
+	}
+	for _, stamp := range []string{"2026-10-08T21:16:33Z", "2026-10-08T21:16:33.120Z", "2026-10-08T21:16:33+23:59", "2026-10-08T21:16:33-04:00"} {
+		line := strings.Replace(validReplayLine, "2026-10-08T21:16:33.123456789Z", stamp, 1)
+		if _, err := ReadReplay(strings.NewReader(line)); err != nil {
+			t.Fatalf("valid timestamp %s: %v", stamp, err)
+		}
+	}
+}

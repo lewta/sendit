@@ -10,9 +10,10 @@
 - Documented replay contracts and capture examples; moved released v1.7.0 and implemented Replay into completed roadmap milestones.
 
 ### Security
-- Omit URL userinfo from JSONL result URLs and replace associated error text with a generic omission message.
+- Omit URL userinfo from JSONL result URLs, including malformed URLs, and replace associated error text with a generic omission message.
 
 ### Fixed
+- Preserve filesystem symlink/parent path semantics during replay output checks, and reject null messages, unpaired Unicode escapes, and malformed timestamps before replay traffic or output truncation.
 - Wait for Apple notarization acceptance and validate final Darwin archive checksums, signatures, and notarization before the release workflow succeeds.
 
 ## [1.7.0] - 2026-10-08

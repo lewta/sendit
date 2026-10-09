@@ -5,7 +5,6 @@ import (
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
-	"net/url"
 	"os"
 	"time"
 
@@ -117,9 +116,8 @@ func (w *Writer) runJSONL(bw *bufio.Writer) {
 
 func toJSONLRecord(r task.Result) map[string]any {
 	rec := toRecord(r)
-	if u, err := url.Parse(rec.URL); err == nil && u.User != nil {
-		u.User = nil
-		rec.URL = u.String()
+	if redacted, hasUserinfo := withoutURLUserinfo(rec.URL); hasUserinfo {
+		rec.URL = redacted
 		if rec.Error != "" {
 			rec.Error = "error omitted: target URL contains userinfo"
 		}

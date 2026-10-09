@@ -109,7 +109,7 @@ Flags:
 
 `--rate 2` halves original start gaps; `--rate 0.5` doubles them. Zero, negative, NaN, and infinite values are invalid. No filter replays every record. `status=5xx` selects source records with status 500 through 599; it does not include status zero, 429, or other errors.
 
-Input and output must identify different regular files. Check canonical paths and existing file identity (`os.SameFile`) to catch relative, symlink, and hard-link aliases. Open the destination without truncation, verify its identity against the open input, then truncate only after successful preflight. No output is created or truncated for invalid input or flags. Concurrent external replacement of filesystem entries is not a supported workflow.
+Input and output must identify different regular files. Check filesystem identity (`os.SameFile`) to catch relative, symlink, and hard-link aliases. Preserve the supplied path's symlink/parent traversal semantics rather than lexically cleaning it before opening. Open the destination without truncation, verify its identity against the open input, then truncate only after successful preflight. No output is created or truncated for invalid input or flags. Concurrent external replacement of filesystem entries is not a supported workflow.
 
 New replay output is created with mode `0600`. On POSIX, existing output with any group/other permission bits is rejected with a clear diagnostic before truncation; do not silently change its permissions. Windows retains native filesystem access controls. Ordinary engine output retains its existing creation-only permission policy, which documentation must distinguish from the replay command's policy.
 

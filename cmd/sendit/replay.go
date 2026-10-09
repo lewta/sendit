@@ -8,7 +8,6 @@ import (
 	"io"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"runtime"
 	"syscall"
 	"time"
@@ -103,21 +102,9 @@ func openReplayOutput(input *os.File, outputPath string) (*os.File, error) {
 	if err != nil {
 		return nil, err
 	}
-	inputAbs, err := filepath.Abs(input.Name())
-	if err != nil {
-		return nil, err
-	}
-	outputAbs, err := filepath.Abs(outputPath)
-	if err != nil {
-		return nil, err
-	}
-	if inputAbs == outputAbs {
-		return nil, fmt.Errorf("--input and --output must be different files")
-	}
-	if resolved, err := filepath.EvalSymlinks(outputAbs); err == nil {
-		outputAbs = resolved
-	}
-	if info, err := os.Stat(outputAbs); err == nil {
+	// Let the filesystem resolve symlinks and '..' in the supplied order.
+	// Lexical path cleaning can name a different file before it is opened.
+	if info, err := os.Stat(outputPath); err == nil {
 		if !info.Mode().IsRegular() {
 			return nil, fmt.Errorf("--output must be a regular file")
 		}
@@ -128,7 +115,7 @@ func openReplayOutput(input *os.File, outputPath string) (*os.File, error) {
 		return nil, err
 	}
 	// Verify the opened inode before any truncation, including hard-link aliases.
-	f, err := os.OpenFile(outputAbs, os.O_CREATE|os.O_WRONLY, 0o600)
+	f, err := os.OpenFile(outputPath, os.O_CREATE|os.O_WRONLY, 0o600)
 	if err != nil {
 		return nil, err
 	}

@@ -1,7 +1,9 @@
 package engine
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"testing"
 	"testing/synctest"
@@ -9,6 +11,7 @@ import (
 
 	"github.com/lewta/sendit/internal/config"
 	"github.com/lewta/sendit/internal/metrics"
+	"github.com/lewta/sendit/internal/output"
 	"github.com/lewta/sendit/internal/task"
 )
 
@@ -122,6 +125,89 @@ func TestDispatchCaptureAfterAdmission(t *testing.T) {
 					t.Fatalf("capture before admission: %+v wanted elapsed %v", result.Capture, expected)
 				}
 			})
+		})
+	}
+}
+
+func TestReloadPreservesLateExpandedSnapshot(t *testing.T) {
+	for _, typ := range []string{"http", "websocket"} {
+		t.Run(typ, func(t *testing.T) {
+			scheme := "https://"
+			if typ == "websocket" {
+				scheme = "wss://"
+			}
+			old := config.TargetConfig{URL: scheme + "old.example/{{seq}}", Type: typ, Weight: 1, Vars: map[string][]string{"name": {"{{literal}}"}}, HTTP: config.HTTPConfig{Method: "POST", Body: `{"id":"{{uuid}}","name":"{{name}}","seq":{{seq}}}`}, WebSocket: config.WebSocketConfig{DurationS: 1, SendMessages: []string{"{{uuid}}/{{seq}}/{{name}}"}}}
+			eng, err := New(baseCfg([]config.TargetConfig{old}), metrics.Noop())
+			if err != nil {
+				t.Fatal(err)
+			}
+			original := eng.selector.Load().Pick()
+			entered, release := make(chan struct{}), make(chan struct{})
+			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+			defer cancel()
+			eng.drivers[typ] = captureDriverFunc(func(ctx context.Context, v task.Task) task.Result {
+				if v.URL == original.URL {
+					close(entered)
+					select {
+					case <-release:
+					case <-ctx.Done():
+					}
+				}
+				return task.Result{Task: v, StatusCode: 200}
+			})
+			records := make(chan task.Result, 2)
+			eng.SetObserver(func(r task.Result) { records <- r })
+			if err := eng.pool.Acquire(ctx, typ); err != nil {
+				t.Fatal(err)
+			}
+			go eng.dispatch(ctx, original)
+			select {
+			case <-entered:
+			case <-ctx.Done():
+				t.Fatal("old request not started")
+			}
+			updated := old
+			updated.URL = scheme + "new.example/{{seq}}"
+			updated.Vars = map[string][]string{"name": {"new"}}
+			if err := eng.Reload(baseCfg([]config.TargetConfig{updated})); err != nil {
+				t.Fatal(err)
+			}
+			next := eng.selector.Load().Pick()
+			if err := eng.pool.Acquire(ctx, typ); err != nil {
+				t.Fatal(err)
+			}
+			eng.dispatch(ctx, next)
+			newer := <-records
+			close(release)
+			older := <-records
+			eng.pool.Wait()
+			var b bytes.Buffer
+			enc := json.NewEncoder(&b)
+			for _, r := range []task.Result{newer, older} {
+				if err := output.EncodeJSONL(enc, r); err != nil {
+					t.Fatal(err)
+				}
+			}
+			decoded, err := output.ReadReplay(&b)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(decoded) != 2 || decoded[0].Envelope.RunID != decoded[1].Envelope.RunID || decoded[0].Envelope.Sequence != 1 || decoded[1].Envelope.Sequence != 2 {
+				t.Fatal("reload changed capture identity")
+			}
+			got := decoded[0].Envelope.Request.Task()
+			if got.URL != original.URL {
+				t.Fatal("expanded URL changed")
+			}
+			if typ == "http" && got.Config.HTTP.Body != original.Config.HTTP.Body {
+				t.Fatal("expanded body changed")
+			}
+			if typ == "websocket" && got.Config.WebSocket.SendMessages[0] != original.Config.WebSocket.SendMessages[0] {
+				t.Fatal("expanded messages changed")
+			}
+			if old.HTTP.Body != `{"id":"{{uuid}}","name":"{{name}}","seq":{{seq}}}` || old.WebSocket.SendMessages[0] != "{{uuid}}/{{seq}}/{{name}}" {
+				t.Fatal("source mutated")
+			}
 		})
 	}
 }

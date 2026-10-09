@@ -1,7 +1,9 @@
 package main
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math"
@@ -281,5 +283,77 @@ func TestRunReplaySlowWriterDoesNotPaceDispatch(t *testing.T) {
 	close(release)
 	if err := <-done; err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestRunReplayMultiworkerCancellationDrainsBeforeClose(t *testing.T) {
+	records := replayRecords(200, 200, 200, 200)
+	for i := range records {
+		records[i].Envelope.StartedAt = records[0].Envelope.StartedAt
+	}
+	items, err := prepareReplay(records, replayOptions{Rate: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	started := make(chan struct{}, len(items))
+	releaseWrite := make(chan struct{})
+	writing := make(chan struct{}, len(items))
+	var results []task.Result
+	drv := replayDriverFunc(func(ctx context.Context, v task.Task) task.Result {
+		started <- struct{}{}
+		<-ctx.Done()
+		return task.Result{Task: v, Error: ctx.Err()}
+	})
+	done := make(chan error, 1)
+	go func() {
+		summary, err := runReplay(ctx, items, replayOptions{Rate: 1}, map[string]driver.Driver{"http": drv}, func(r task.Result) error {
+			writing <- struct{}{}
+			<-releaseWrite
+			results = append(results, r)
+			return nil
+		})
+		if summary.Requests != 4 || summary.Failures != 4 {
+			err = fmt.Errorf("bad summary: %+v", summary)
+		}
+		done <- err
+	}()
+	for range items {
+		select {
+		case <-started:
+		case <-ctx.Done():
+			t.Fatal("workers not started")
+		}
+	}
+	cancel()
+	select {
+	case <-writing:
+	case <-time.After(3 * time.Second):
+		t.Fatal("no cancellation output")
+	}
+	select {
+	case <-done:
+		t.Fatal("returned before final write could finish")
+	default:
+	}
+	close(releaseWrite)
+	if err := <-done; err != nil {
+		t.Fatal(err)
+	}
+	if len(results) != 4 {
+		t.Fatal("lost cancellation results")
+	}
+	// The CLI's finalization follows runReplay; by this point every write completed.
+	var b bytes.Buffer
+	enc := json.NewEncoder(&b)
+	for _, r := range results {
+		if err := output.EncodeJSONL(enc, r); err != nil {
+			t.Fatal(err)
+		}
+	}
+	parsed, err := output.ReadReplay(&b)
+	if err != nil || len(parsed) != 4 {
+		t.Fatalf("cancellation output not replayable: %v", err)
 	}
 }

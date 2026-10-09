@@ -77,7 +77,7 @@ func replayEnvelope(r task.Result) *ReplayEnvelope {
 	case len(c.HTTP.Headers) > 0:
 		e.Reason = "custom_headers"
 	default:
-		if u, err := url.Parse(r.Task.URL); err == nil && u.User != nil {
+		if _, hasUserinfo := withoutURLUserinfo(r.Task.URL); hasUserinfo {
 			e.Reason = "url_userinfo"
 		}
 	}
@@ -125,6 +125,27 @@ func replayEnvelope(r task.Result) *ReplayEnvelope {
 	e.Replayable = true
 	e.Request = q
 	return e
+}
+
+// withoutURLUserinfo isolates the authority without parsing the path or port.
+// Malformed URLs can still contain credentials and appear in driver errors.
+func withoutURLUserinfo(raw string) (string, bool) {
+	start := 0
+	if i := strings.Index(raw, "://"); i >= 0 {
+		start = i + 3
+	} else if strings.HasPrefix(raw, "//") {
+		start = 2
+	} else {
+		return raw, false
+	}
+	end := len(raw)
+	if i := strings.IndexAny(raw[start:], "/?#"); i >= 0 {
+		end = start + i
+	}
+	if i := strings.LastIndexByte(raw[start:end], '@'); i >= 0 {
+		return raw[:start] + raw[start+i+1:], true
+	}
+	return raw, false
 }
 
 // Task converts a validated snapshot without loading configuration or templates.

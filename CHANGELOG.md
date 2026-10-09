@@ -5,6 +5,7 @@
 - Omit URL userinfo from JSONL result URLs, including malformed URLs, and replace associated error text with a generic omission message.
 
 ### Added
+- Added strict `http.http_version` configuration for automatic, HTTP/1.1, and HTTPS-only HTTP/2 policies (#252).
 - Added `sendit replay` for versioned JSONL captures with scaled concurrent timing, source-status filtering, looping, cancellation, and lossless replay output on success (#253).
 - Added safe expanded request snapshots, run identity, monotonic-anchored dispatch timestamps, strict bounded preflight validation, and input/output alias protection. Legacy results and selected records containing configured auth, custom headers, URL userinfo, or SFTP cannot be replayed.
 - Added per-request templating for target URLs, HTTP/gRPC bodies, and WebSocket messages with inline values, newline-delimited variable files, and UUID, timestamp, and sequence built-ins.

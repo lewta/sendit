@@ -141,7 +141,7 @@ jobs:
           cache: true
 
       - name: Run benchmarks
-        run: go test -bench=. -benchmem -run='^$' ./internal/task/ ./internal/ratelimit/ ./internal/engine/ | tee bench.txt
+        run: go test -bench=. -benchmem -run='^$' ./internal/task/ ./internal/ratelimit/ ./internal/engine/ ./internal/output/ | tee bench.txt
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
@@ -173,3 +173,6 @@ jobs:
 
       - name: Fuzz PCAP writer
         run: bash scripts/fuzz.sh -fuzz=FuzzWriteRecord -fuzztime=30s ./internal/pcap/
+
+      - name: Fuzz replay record decoder
+        run: bash scripts/fuzz.sh -fuzz=FuzzReplayRecord -fuzztime=30s ./internal/output/

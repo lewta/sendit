@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/lewta/sendit/internal/config"
@@ -83,5 +84,44 @@ func TestDispatchCaptureCanceledAdmission(t *testing.T) {
 	eng.dispatch(ctx, task.Task{URL: target.URL, Type: target.Type, Config: target})
 	if calls != 0 {
 		t.Fatal("dispatched after canceled admission")
+	}
+	stamp, err := eng.capture.Next()
+	if err != nil || stamp.Sequence != 1 {
+		t.Fatal("canceled admission consumed capture sequence")
+	}
+}
+
+func TestDispatchCaptureAfterAdmission(t *testing.T) {
+	for _, gate := range []string{"backoff", "rate-limit"} {
+		t.Run(gate, func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				target := config.TargetConfig{URL: "https://example.com", Type: "http", Weight: 1}
+				cfg := baseCfg([]config.TargetConfig{target})
+				cfg.RateLimits.DefaultRPS = 1
+				eng, err := New(cfg, metrics.Noop())
+				if err != nil {
+					t.Fatal(err)
+				}
+				expected := time.Second
+				if gate == "rate-limit" {
+					if err := eng.rl.Load().Wait(context.Background(), "example.com"); err != nil {
+						t.Fatal(err)
+					}
+				} else {
+					expected = eng.backoff.Load().RecordError("example.com")
+				}
+				before := time.Now()
+				eng.drivers["http"] = captureDriverFunc(func(_ context.Context, v task.Task) task.Result { return task.Result{Task: v, StatusCode: 200} })
+				var result task.Result
+				eng.SetObserver(func(r task.Result) { result = r })
+				if err := eng.pool.Acquire(context.Background(), "http"); err != nil {
+					t.Fatal(err)
+				}
+				eng.dispatch(context.Background(), task.Task{URL: target.URL, Type: "http", Config: target})
+				if result.Capture.StartedAt.Sub(before) != expected || result.Capture.Sequence != 1 {
+					t.Fatalf("capture before admission: %+v wanted elapsed %v", result.Capture, expected)
+				}
+			})
+		})
 	}
 }

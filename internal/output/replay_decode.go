@@ -37,7 +37,8 @@ func jsonUniqueKeys(d *json.Decoder) error {
 	if !ok {
 		return nil
 	}
-	if delim == '{' {
+	switch delim {
+	case '{':
 		seen := make(map[string]bool)
 		for d.More() {
 			key, err := d.Token()
@@ -53,7 +54,7 @@ func jsonUniqueKeys(d *json.Decoder) error {
 				return err
 			}
 		}
-	} else if delim == '[' {
+	case '[':
 		for d.More() {
 			if err := jsonUniqueKeys(d); err != nil {
 				return err

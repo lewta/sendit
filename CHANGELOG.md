@@ -9,6 +9,7 @@
 - Added per-request templating for target URLs, HTTP/gRPC bodies, and WebSocket messages with inline values, newline-delimited variable files, and UUID, timestamp, and sequence built-ins.
 
 ### Changed
+- Included command-level integration coverage in `make verify` and added replay decoder fuzzing and encoding benchmarks to CI.
 - Documented the approved replay command design, compatibility and output contracts, acceptance-test coverage, and implementation plan for issue #253; implementation is pending.
 
 ### Fixed

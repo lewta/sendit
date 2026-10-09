@@ -149,7 +149,7 @@ func TestOpenReplayOutputAliasesAndPermissions(t *testing.T) {
 	}
 	for _, alias := range aliases {
 		if f, err := openReplayOutput(in, alias); err == nil {
-			f.Close()
+			_ = f.Close()
 			t.Fatalf("accepted alias %s", alias)
 		}
 	}
@@ -158,11 +158,11 @@ func TestOpenReplayOutputAliasesAndPermissions(t *testing.T) {
 		t.Fatal("input changed")
 	}
 	if f, err := openReplayOutput(in, t.TempDir()); err == nil {
-		f.Close()
+		_ = f.Close()
 		t.Fatal("directory accepted")
 	}
 	if f, err := openReplayOutput(in, os.DevNull); err == nil {
-		f.Close()
+		_ = f.Close()
 		t.Fatal("device accepted")
 	}
 	dest := filepath.Join(t.TempDir(), "output.csv")
@@ -174,21 +174,23 @@ func TestOpenReplayOutputAliasesAndPermissions(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	f.Close()
+	if err := f.Close(); err != nil {
+		t.Fatal(err)
+	}
 	if runtime.GOOS != "windows" {
 		if info.Mode().Perm() != 0o600 {
 			t.Fatal(info.Mode())
 		}
-		if err := os.Chmod(dest, 0o644); err != nil {
+		if err := os.Chmod(dest, 0o644); err != nil { //nolint:gosec // test rejection of an existing permissive file
 			t.Fatal(err)
 		}
 		if f, err := openReplayOutput(in, dest); err == nil {
-			f.Close()
+			_ = f.Close()
 			t.Fatal("permissive existing output accepted")
 		}
 	}
 	if f, err := openReplayOutput(in, filepath.Join(dest, "missing")); err == nil {
-		f.Close()
+		_ = f.Close()
 		t.Fatal("invalid destination accepted")
 	}
 }

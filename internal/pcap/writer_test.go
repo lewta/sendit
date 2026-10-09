@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/lewta/sendit/internal/config"
+	"github.com/lewta/sendit/internal/output"
 	"github.com/lewta/sendit/internal/pcap"
 	"github.com/lewta/sendit/internal/task"
 )
@@ -160,5 +161,35 @@ func TestExport(t *testing.T) {
 	off2 := 24 + 16 + firstIncl
 	if off2+16 > len(data) {
 		t.Fatal("second packet missing from output")
+	}
+}
+
+func TestExportReplayEnvelope(t *testing.T) {
+	inPath := t.TempDir() + "/capture.jsonl"
+	f, err := os.Create(inPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	capture, err := task.NewCaptureClock().Next()
+	if err != nil {
+		t.Fatal(err)
+	}
+	r := task.Result{Task: task.Task{URL: "https://example.com", Type: "http"}, Capture: capture, StatusCode: 200, Duration: 42 * time.Millisecond}
+	if err := output.EncodeJSONL(json.NewEncoder(f), r); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.Close(); err != nil {
+		t.Fatal(err)
+	}
+	dest := t.TempDir() + "/capture.pcap"
+	if err := pcap.Export(inPath, dest); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(dest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(data), "duration_ms=42") {
+		t.Fatal("additive envelope broke PCAP export")
 	}
 }

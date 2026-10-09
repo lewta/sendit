@@ -1,5 +1,8 @@
 ## [Unreleased]
 
+### Fixed
+- Resolve package-tap updates from the exact release workflow commit, failing on missing or ambiguous releases instead of treating a manual dispatch's branch as its tag.
+
 ## [1.8.0] - 2026-10-09
 
 This minor release adds request templating, request replay, and explicit HTTP/1.1–HTTP/2 selection, alongside Go and networking security updates.

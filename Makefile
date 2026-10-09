@@ -20,5 +20,6 @@ lint:
 
 release-check:
 	.github/scripts/verify-macos-release_test.sh
+	.github/scripts/resolve-release-tag_test.sh
 
 verify: build lint test-race integration release-check

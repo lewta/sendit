@@ -83,6 +83,7 @@ targets:
     weight: 5
     type: http
     http:
+      http_version: 0                    # 0 automatic | 1 HTTP/1.1 | 2 HTTPS-only HTTP/2
       method: GET                        # GET | POST | PUT | DELETE | ...
       headers:
         User-Agent: "Mozilla/5.0 ..."
@@ -95,6 +96,7 @@ targets:
 | Field | Default | Description |
 |---|---|---|
 | `method` | `GET` | HTTP verb |
+| `http_version` | `0` | Integer `0`: automatic; `1`: HTTP/1.1; `2`: HTTPS-only HTTP/2, without HTTP/1 fallback |
 | `headers` | `{}` | Key-value map of request headers |
 | `body` | `""` | Optional request body; supports request templates |
 | `timeout_s` | `15` | Per-request timeout (seconds) |
@@ -110,6 +112,14 @@ targets:
 - url: "https://staging.example.com:8443/api"
   type: http
 ```
+
+### HTTP version selection
+
+Mode `0` preserves automatic HTTP/1.1 for plaintext and ALPN negotiation of HTTP/1.1 or HTTP/2 for HTTPS. Mode `1` sends HTTP/1.1 requests. Mode `2` requires HTTPS with ALPN `h2`; an HTTP/1-only or no-ALPN server fails before the HTTP request is transmitted. Normal certificate verification remains enabled. No plaintext h2c or HTTP/3 is implemented; HTTP/3 is tracked in [#320](https://github.com/lewta/sendit/issues/320).
+
+The policy applies to every redirect hop. A forced-H2 request cannot follow a redirect to plaintext or send an HTTP/1 request to an incompatible destination. Existing cross-host permission, auth, timeout, and engine redirect-limiter behavior is retained. Distinct transports are reused safely for concurrent mixed policies. HTTP protocol controls do not change browser, WebSocket or gRPC transports.
+
+`http_protocol` in JSONL and debug logs reports the actual final response protocol (`HTTP/1.1`, `HTTP/2.0`, etc.), including policy-stopped redirects. No response means no protocol metadata. It is independent of requested `http_version`, which is preserved in v2 replay snapshots. V1 replay input remains automatic. Dry-run displays configured policy only and sends no traffic.
 
 ## `browser`
 

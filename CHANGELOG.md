@@ -13,6 +13,7 @@
 
 ### Changed
 - New replay captures use envelope v2 with explicit requested HTTP version; strict v1 captures remain readable with automatic protocol selection. Generator and dry-run output preserve/display the configured policy.
+- Documented completed HTTP/1.1–HTTP/2 selection and tracked TLS-only HTTP/3 separately in #320.
 - Included command-level integration coverage in `make verify` and added replay decoder fuzzing and encoding benchmarks to CI.
 - Documented replay contracts and capture examples; moved released v1.7.0 and implemented Replay into completed roadmap milestones.
 

@@ -63,7 +63,7 @@ func TestHTTPVersionNegotiationAndReuse(t *testing.T) {
 		if string(b) != "payload" || r.Method != "POST" {
 			t.Error("request changed")
 		}
-		_, _ = io.WriteString(w, r.Proto)
+		_, _ = io.WriteString(w, "ok")
 	}))
 	d := NewHTTPDriver()
 	trustVersionServers(t, d, srv)
@@ -174,7 +174,7 @@ func TestHTTPVersionRedirectPolicy(t *testing.T) {
 		if r.URL.Path == "/h2" {
 			dest = h2.URL
 		}
-		http.Redirect(w, r, dest, 307)
+		http.Redirect(w, r, dest, http.StatusTemporaryRedirect)
 	}))
 	var limited atomic.Int32
 	d := NewHTTPDriverWithRedirectLimiter(func(context.Context, string) error { limited.Add(1); return nil })
@@ -263,7 +263,7 @@ func TestHTTPVersionDisabledH2(t *testing.T) {
 		}
 		return
 	}
-	cmd := exec.Command(os.Args[0], "-test.run=^TestHTTPVersionDisabledH2$")
+	cmd := exec.Command(os.Args[0], "-test.run=^TestHTTPVersionDisabledH2$") //nolint:gosec // re-executes this test binary with fixed arguments
 	cmd.Env = append(os.Environ(), "SENDIT_H2_DISABLED_TEST=1", "GODEBUG=http2client=0")
 	if b, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("disabled H2: %v %s", err, b)

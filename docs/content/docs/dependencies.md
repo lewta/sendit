@@ -11,6 +11,8 @@ compatible with the project's [MIT licence](https://github.com/lewta/sendit/blob
 The module graph is managed with `go mod tidy` and kept minimal — no dependency
 appears that cannot be justified by the table below.
 
+HTTP/1.1 and HTTP/2 selection use Go 1.26.9's standard `net/http.Protocols` and TLS ALPN verification; no new transport dependency is required. HTTP/3/QUIC dependency and distribution choices remain tracked in [#320](https://github.com/lewta/sendit/issues/320).
+
 ## Direct dependencies
 
 | Module | Version | Licence | Purpose |

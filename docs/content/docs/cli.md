@@ -76,6 +76,8 @@ sendit replay --input results.jsonl --loop --loop-delay 1s
 
 ### Validation and execution
 
+Replay reads envelopes v1 and v2 and writes v2. V2 HTTP snapshots include the requested `http_version` (0 automatic, 1 HTTP/1.1, 2 HTTPS-only HTTP/2). V1 captures use automatic policy; adding `http_version` to a v1 record is invalid. The observed JSONL `http_protocol` does not override the captured policy. Invalid policy data fails preflight, and older v1-only binaries cannot read v2 captures.
+
 - **Future records only:** legacy telemetry and CSV lack the request snapshot. [New JSONL](../configuration/#replay-jsonl-envelope) captures expanded values without regenerating UUIDs or template choices. No normal configuration is loaded during replay.
 - **One run:** appended sessions with different run IDs are rejected before filtering. Sequence gaps are allowed, duplicates are not. Serialization order may differ from dispatch order; replay sorts by sequence.
 - **Limits:** 256 MiB per file, 8 MiB per line excluding CRLF/LF, and 10,000 records before filtering. Input must be a regular file. It is read completely before the first request or destructive output opening.
@@ -191,12 +193,12 @@ When stdout is not a TTY (pipe, redirect, Docker, CI), `--tui` emits a warning a
 Config: config/example.yaml  ✓ valid
 
 Targets (5):
-  URL                                      TYPE       WEIGHT     SHARE
-  https://httpbin.org/get                  http       10         43.5%
-  https://httpbin.org/status/200           http       5          21.7%
-  https://news.ycombinator.com             browser    3          13.0%
-  example.com                              dns        3          13.0%
-  https://httpbin.org/anything/users/alice/1?request=8d652a44-dc45-47a3-80da-33b47fc94709&at=1791490000 http 2 8.7%
+  URL                                      TYPE       WEIGHT     SHARE    HTTP POLICY
+  https://httpbin.org/get                  http       10         43.5%    auto
+  https://httpbin.org/status/200           http       5          21.7%    auto
+  https://news.ycombinator.com             browser    3          13.0%    -
+  example.com                              dns        3          13.0%    -
+  https://httpbin.org/anything/users/alice/1?request=8d652a44-dc45-47a3-80da-33b47fc94709&at=1791490000 http 2 8.7% auto
   Total weight: 23
 
 Pacing:
@@ -207,6 +209,8 @@ Limits:
 ```
 
 Templated targets show one expanded example URL. UUIDs, timestamps, and randomly selected custom values vary between dry runs. Dry-run does not print expanded bodies, variable maps, or authentication values.
+
+`HTTP POLICY` reports configured intent (`auto`, `HTTP/1.1`, or `HTTP/2 (HTTPS)`), not negotiated protocol. Set `http.http_version` in config; no additional CLI flag is required. For actual response protocol use `start --log-level debug` or JSONL `http_protocol` metadata.
 
 ## `probe` flags
 

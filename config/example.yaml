@@ -48,6 +48,7 @@ target_defaults:
   #   token_env: API_TOKEN         # env var holding the token (preferred over literal)
   #   # token: "literal-secret"   # literal value — triggers a startup warning
   http:
+    http_version: 0            # 0 auto | 1 HTTP/1.1 | 2 HTTPS-only HTTP/2 (no fallback)
     method: GET
     headers:
       User-Agent: "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36"
@@ -143,6 +144,7 @@ targets:
       region: "regions.txt" # one value per line; blank lines ignored
     http:
       method: POST
+      http_version: 0          # use 2 only with HTTPS targets that support h2 ALPN
       body: '{"user":"{{user_id}}","region":"{{region}}","sequence":{{seq}}}'
 
   - url: "https://httpbin.org/get"

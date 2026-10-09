@@ -7,6 +7,7 @@ import (
 	"context"
 	"crypto/tls"
 	"io"
+	"math"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -85,7 +86,9 @@ func TestIntegrationReplayCapturedHTTP(t *testing.T) {
 	}))
 	defer server.Close()
 	path := filepath.Join(t.TempDir(), "capture.jsonl")
-	cfg := &config.Config{Pacing: config.PacingConfig{Mode: "rate_limited", RequestsPerMinute: 600}, Limits: config.LimitsConfig{MaxWorkers: 2, MaxBrowserWorkers: 1, CPUThresholdPct: 100, MemoryThresholdMB: 999999}, RateLimits: config.RateLimitsConfig{DefaultRPS: 100}, Backoff: config.BackoffConfig{InitialMs: 10, MaxMs: 100, Multiplier: 2, MaxAttempts: 3}, Output: config.OutputConfig{Enabled: true, File: path, Format: "jsonl"}, Targets: []config.TargetConfig{{URL: server.URL + "/users/{{seq}}", Type: "http", Weight: 1, HTTP: config.HTTPConfig{Method: "POST", Body: `{"id":{"uuid":"{{uuid}}","seq":{{seq}}}}`, TimeoutS: 2}}}}
+	// This test measures replay fidelity, not host CPU admission. Production
+	// config validation still limits CPU thresholds to 100 percent.
+	cfg := &config.Config{Pacing: config.PacingConfig{Mode: "rate_limited", RequestsPerMinute: 600}, Limits: config.LimitsConfig{MaxWorkers: 2, MaxBrowserWorkers: 1, CPUThresholdPct: math.Inf(1), MemoryThresholdMB: 999999}, RateLimits: config.RateLimitsConfig{DefaultRPS: 100}, Backoff: config.BackoffConfig{InitialMs: 10, MaxMs: 100, Multiplier: 2, MaxAttempts: 3}, Output: config.OutputConfig{Enabled: true, File: path, Format: "jsonl"}, Targets: []config.TargetConfig{{URL: server.URL + "/users/{{seq}}", Type: "http", Weight: 1, HTTP: config.HTTPConfig{Method: "POST", Body: `{"id":{"uuid":"{{uuid}}","seq":{{seq}}}}`, TimeoutS: 2}}}}
 	eng, err := engine.New(cfg, metrics.Noop())
 	if err != nil {
 		t.Fatal(err)

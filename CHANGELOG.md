@@ -13,6 +13,7 @@
 - Omit URL userinfo from JSONL result URLs, including malformed URLs, and replace associated error text with a generic omission message.
 
 ### Fixed
+- Isolated integration tests from host CPU saturation using test-only admission settings; production resource limits and explicit resource-gate tests retain their behavior.
 - Preserve filesystem symlink/parent path semantics during replay output checks, and reject null messages, unpaired Unicode escapes, and malformed timestamps before replay traffic or output truncation.
 - Wait for Apple notarization acceptance and validate final Darwin archive checksums, signatures, and notarization before the release workflow succeeds.
 

@@ -180,6 +180,9 @@ targets:
       record_type: A
 
 # Optional: write request results to a file for offline analysis.
+# JSONL includes replay metadata; keep append: false for a single replayable run.
+# Auth, custom HTTP headers, URL userinfo and SFTP make a target non-replayable.
+# Use a header-free/unauthenticated capture config for sendit replay --input <file>.
 # output:
 #   enabled: true
 #   file: "sendit-results.jsonl"  # path to output file

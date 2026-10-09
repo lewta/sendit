@@ -106,7 +106,7 @@ func toRecord(r task.Result) record {
 func (w *Writer) runJSONL(bw *bufio.Writer) {
 	enc := json.NewEncoder(bw)
 	for r := range w.ch {
-		if err := enc.Encode(toJSONLRecord(r)); err != nil {
+		if err := EncodeJSONL(enc, r); err != nil {
 			log.Warn().Err(err).Msg("output writer: failed to encode result")
 			continue
 		}
@@ -116,6 +116,12 @@ func (w *Writer) runJSONL(bw *bufio.Writer) {
 
 func toJSONLRecord(r task.Result) map[string]any {
 	rec := toRecord(r)
+	if redacted, hasUserinfo := withoutURLUserinfo(rec.URL); hasUserinfo {
+		rec.URL = redacted
+		if rec.Error != "" {
+			rec.Error = "error omitted: target URL contains userinfo"
+		}
+	}
 	out := map[string]any{
 		"ts":          rec.TS,
 		"url":         rec.URL,
@@ -127,13 +133,24 @@ func toJSONLRecord(r task.Result) map[string]any {
 	if rec.Error != "" {
 		out["error"] = rec.Error
 	}
+	if envelope := replayEnvelope(r); envelope != nil {
+		out["replay"] = envelope
+	}
 	for k, v := range r.Meta {
+		if k == "replay" {
+			continue
+		}
 		if _, reserved := out[k]; reserved {
 			continue
 		}
 		out[k] = v
 	}
 	return out
+}
+
+// EncodeJSONL shares record encoding, not the asynchronous writer's drop policy.
+func EncodeJSONL(enc *json.Encoder, r task.Result) error {
+	return enc.Encode(toJSONLRecord(r))
 }
 
 func (w *Writer) runCSV(bw *bufio.Writer, appendMode bool) {

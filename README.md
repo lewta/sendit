@@ -29,6 +29,7 @@ Key properties:
 - [Probe](#probe)
 - [Pinch](#pinch)
 - [Capture](#capture)
+- [Replay](#replay)
 - [Docker](#docker)
 - [Configuration Reference](#configuration-reference)
 - [Dispatch Pipeline](#dispatch-pipeline)
@@ -158,6 +159,7 @@ sendit start    [-c <path>] [--foreground] [--log-level debug|info|warn|error] [
 sendit probe    <target>   [--type http|dns|websocket] [--interval 1s] [--timeout 5s] [--send <msg>]
 sendit pinch    <host:port> [--type tcp|udp] [--interval 1s] [--timeout 5s]
 sendit export   --pcap <results.jsonl> [--output <results.pcap>]
+sendit replay   --input <results.jsonl> [--rate 1] [--filter status=5xx] [--loop] [--loop-delay 1s] [--output <file>]
 sendit stop     [--pid-file <path>]
 sendit reload   [--pid-file <path>]
 sendit status   [--pid-file <path>]
@@ -173,6 +175,7 @@ sendit completion <shell>
 | `probe`      | Test a single HTTP, DNS, or WebSocket endpoint in a loop (like ping). No config file required. |
 | `pinch`      | Check whether a TCP or UDP port is open on a remote host, repeating on an interval. No config file required. |
 | `export`     | Convert a JSONL results file to PCAP format for analysis in Wireshark or tshark. |
+| `replay`     | Replay a versioned request capture with scaled start timing, source-status filtering, and optional looping. |
 | `stop`       | Send SIGTERM to a running instance via its PID file. |
 | `reload`     | Send SIGHUP to a running instance via its PID file to reload the config atomically. Invalid configs leave the running configuration unchanged. Not available on Windows — use a full restart instead. |
 | `status`     | Check whether the process in the PID file is still alive. |
@@ -509,6 +512,51 @@ ts=2024-01-01T12:00:00Z url=https://example.com type=http status=200 duration_ms
 Open in Wireshark and use **Analyze → Follow → TCP Stream** (or the raw packet bytes view) to inspect individual request records.
 
 ---
+
+## Replay
+
+`sendit replay` reproduces expanded request data from **new replay-capable JSONL**, using the existing HTTP, browser, DNS, WebSocket, and gRPC drivers. Old result files lack methods, bodies, and precise dispatch timing and cannot be replayed. SFTP, configured authentication, custom headers (even in an inactive HTTP block), and URL userinfo are marked non-replayable rather than saved as executable requests.
+
+For a local service on port 8080, save this as `replay-capture.yaml`:
+
+```yaml
+pacing:
+  mode: rate_limited
+  requests_per_minute: 60
+targets:
+  - url: http://127.0.0.1:8080/users/{{seq}}
+    type: http
+    weight: 1
+output:
+  enabled: true
+  file: results.jsonl
+  format: jsonl
+  append: false
+```
+
+```sh
+sendit start --config replay-capture.yaml --foreground --duration 5s
+sendit replay --input results.jsonl --rate 2 --output replay-results.jsonl
+sendit replay --input results.jsonl --filter status=5xx --rate 0.5
+sendit replay --input results.jsonl --loop --loop-delay 1s
+```
+
+| Flag | Default | Meaning |
+|---|---|---|
+| `--input` | required | One capture run in versioned JSONL |
+| `--rate` | `1` | Positive finite timing multiplier: `2` halves start gaps, `0.5` doubles them |
+| `--filter` | none | Only `status=5xx`, selecting original statuses 500–599, not 429 or network errors |
+| `--loop` | `false` | Repeat until interrupted; requires at least one selected record |
+| `--loop-delay` | `1s` | Nonnegative delay after all requests in a cycle finish; not scaled by rate |
+| `--output` | none | Write new replay-capable JSONL, regardless of filename extension |
+
+Replay validates the entire file before traffic or truncating output, sorts by dispatch sequence, and retains elapsed gaps between selected records. Requests overlap; actual network arrival order and timing remain best-effort. Normal pacing, backoff, rate limits, resource gates, and metrics are not applied. The command does not load normal config or re-expand template values.
+
+Input limits are **256 MiB**, **8 MiB per line**, and **10,000 records before filtering**. Appended files containing multiple run IDs are rejected. Up to the accepted record count may execute concurrently. A valid excluded non-replayable record is allowed; malformed excluded records still fail validation. Empty non-looping selections succeed with zero requests.
+
+Ctrl-C stops scheduling, cancels active calls, waits for replay workers, and finalizes output; driver shutdown latency still applies. The final summary counts Go errors and classified status failures (including HTTP 500, DNS SERVFAIL, and mapped gRPC errors). Request failures do not stop later requests or produce a nonzero command exit; input/setup/output failures do. Successful replay output retains every executed result. Write/flush/close failures return errors and may leave a partial file.
+
+Input/output aliases, including symlinks and hard links, are rejected. New output uses mode `0600`; on POSIX, existing output must have no group/other permission bits. URLs, bodies, and messages can contain sensitive application data. Ambient proxy settings, trust stores, browser versions, and remote state are not captured. See the [CLI reference](https://lewta.github.io/sendit/docs/cli/#replay-flags) for validation details and [configuration reference](https://lewta.github.io/sendit/docs/configuration/#replay-jsonl-envelope) for the wire format. `config/replay-example.jsonl` is a small format example.
 
 ## Docker
 
@@ -906,6 +954,7 @@ output:
 ```
 
 Each JSONL record contains: `ts`, `url`, `type`, `status`, `duration_ms`, `bytes`, `error`. Drivers may add metadata fields; SFTP records include SSH handshake and list metadata when available.
+New engine records also contain a versioned `replay` envelope with run ID, dispatch sequence, monotonic-anchored start timestamp, and an eligible expanded request snapshot (or a non-replayable reason). The envelope is additive; `duration_ms` stays an integer and PCAP export still accepts these records. Ordinary engine output remains non-blocking and may drop records under pressure; replay cannot recover dropped source traffic. Use `append: false` for a single-run replay input. Ordinary output's mode `0600` applies to file creation, not an existing file's permissions.
 CSV output writes a header row when `append: false`.
 
 ### `metrics`

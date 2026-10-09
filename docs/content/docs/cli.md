@@ -13,6 +13,7 @@ sendit start    [-c <path>] [--foreground] [--log-level debug|info|warn|error] [
 sendit probe    <target>    [--type http|dns|websocket] [--interval 1s] [--timeout 5s] [--send <msg>]
 sendit pinch    <host:port> [--type tcp|udp] [--interval 1s] [--timeout 5s]
 sendit export   --pcap <results.jsonl> [--output <results.pcap>]
+sendit replay   --input <results.jsonl> [--rate 1] [--filter status=5xx] [--loop] [--loop-delay 1s] [--output <file>]
 sendit stop     [--pid-file <path>]
 sendit reload   [--pid-file <path>]
 sendit status   [--pid-file <path>]
@@ -28,12 +29,65 @@ sendit completion <shell>
 | `probe` | Test a single HTTP, DNS, or WebSocket endpoint in a loop (like ping). No config file needed. |
 | `pinch` | Check whether a TCP or UDP port is open on a remote host, repeating on an interval. No config file needed. |
 | `export` | Convert a JSONL results file to PCAP format for analysis in Wireshark or tshark. |
+| `replay` | Replay versioned captured requests with scaled concurrent timing, filtering, and optional looping. |
 | `stop` | Send SIGTERM to the running instance via its PID file. Cancels active requests, then waits for workers to exit and output to flush. |
 | `reload` | Send SIGHUP to the running instance via its PID file to hot-reload config atomically. |
 | `status` | Report whether the process in the PID file is still alive. |
 | `validate` | Parse and validate a config file. Exits 0 on success, non-zero with a message on error. |
 | `version` | Print version, commit hash, and build date. |
 | `completion` | Generate shell autocompletion scripts for bash, zsh, fish, or powershell. |
+
+## `replay` flags
+
+| Flag | Default | Description |
+|---|---|---|
+| `--input` | required | Replay-capable JSONL containing one capture run |
+| `--rate` | `1` | Positive finite multiplier: `2` halves original start gaps; `0.5` doubles them |
+| `--filter` | `""` | Only `status=5xx` (original status 500–599); excludes status 0 and 429 |
+| `--loop` | `false` | Repeat selected records until interrupted |
+| `--loop-delay` | `1s` | Nonnegative delay between completed cycles, independent of `--rate` |
+| `--output` | `""` | New results as JSONL, independent of the filename extension |
+
+### Capture and replay
+
+Enable JSONL `output` in your capture config, with `append: false`. `start` does not have an `--output` flag. For a service running locally on port 8080, save this as `replay-capture.yaml`:
+
+```yaml
+pacing:
+  mode: rate_limited
+  requests_per_minute: 60
+targets:
+  - url: http://127.0.0.1:8080/users/{{seq}}
+    type: http
+    weight: 1
+output:
+  enabled: true
+  file: results.jsonl
+  format: jsonl
+  append: false
+```
+
+```sh
+sendit start --config replay-capture.yaml --foreground --duration 5s
+sendit replay --input results.jsonl --rate 2 --output replay-results.jsonl
+sendit replay --input results.jsonl --filter status=5xx --rate 0.5
+sendit replay --input results.jsonl --loop --loop-delay 1s
+```
+
+### Validation and execution
+
+- **Future records only:** legacy telemetry and CSV lack the request snapshot. [New JSONL](../configuration/#replay-jsonl-envelope) captures expanded values without regenerating UUIDs or template choices. No normal configuration is loaded during replay.
+- **One run:** appended sessions with different run IDs are rejected before filtering. Sequence gaps are allowed, duplicates are not. Serialization order may differ from dispatch order; replay sorts by sequence.
+- **Limits:** 256 MiB per file, 8 MiB per line excluding CRLF/LF, and 10,000 records before filtering. Input must be a regular file. It is read completely before the first request or destructive output opening.
+- **Strict executable fields:** unknown versions/types/fields, missing/null required fields, duplicate JSON keys, blank lines, invalid UTF-8, trailing JSON values, invalid static request shapes, and unrepresentable timing are rejected with line-specific errors. An unterminated final line is accepted. Arbitrary top-level result metadata remains compatible. Remote schema/TLS/browser errors are execution results.
+- **Eligibility:** SFTP, populated auth (including env references), HTTP headers even on inactive blocks, and URL userinfo are non-replayable. Filtering may exclude a valid non-replayable record, but never excuses malformed records. Empty non-looping selections succeed; empty looping selections error.
+- **Timing:** selected gaps are retained and divided by rate, rounded down to nanoseconds. Equal/overdue deadlines launch in sequence order. Requests overlap; driver-entry/network-arrival order is not guaranteed. Normal scheduler/backoff/rate-limit/resource/metrics behavior is not used. Up to 10,000 accepted requests can execute concurrently.
+- **Looping:** wait for every request and its output, then the unscaled loop delay. Explicit zero delay is supported. Output uses a fresh run ID and continuous sequence across loops; replaying it later remains subject to input limits.
+- **Shutdown:** Ctrl-C/SIGTERM stops scheduling, cancels calls, waits for replay workers, and finalizes output. Existing driver close/exchange latency still applies; this does not promise immediate network quiescence.
+- **Results:** final stdout is `Replayed N requests; M failures.` Go errors or classified status failures count, including returned cancellation failures. Request failures continue and exit successfully. Parsing/setup/output failures exit nonzero. Successful output retains every executed result; output write failure cancels remaining work, flush/close errors are surfaced, and partial files may remain.
+- **Files:** input/output identity is checked before truncation, including relative/symlink/hard-link aliases. New outputs use mode `0600`; on POSIX existing outputs with group/other permissions are rejected. Windows uses native access controls. Concurrent external replacement of these paths is unsupported.
+
+URLs, bodies, and messages may contain application secrets despite configured-credential exclusions. Proxy/environment state and remote responses are not recorded. See [replay data handling](../security/#replay-data-handling).
 
 ## `generate` flags
 

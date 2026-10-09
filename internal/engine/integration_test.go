@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -28,7 +29,7 @@ import (
 
 // testCfg constructs a *config.Config suitable for fast integration tests:
 //   - rate_limited pacing at 600 RPM (~10 req/s)
-//   - resource gate never blocks (CPU=100%, Mem=999999 MB)
+//   - resource gate never blocks (CPU=+Inf, Mem=999999 MB; test-only config)
 //   - generous per-domain rate limit (100 RPS)
 //   - short backoff windows for fast retries
 //   - metrics disabled to avoid port conflicts
@@ -41,8 +42,8 @@ func testCfg(targets []config.TargetConfig) *config.Config {
 		Limits: config.LimitsConfig{
 			MaxWorkers:        10,
 			MaxBrowserWorkers: 1,
-			CPUThresholdPct:   100,    // never over threshold
-			MemoryThresholdMB: 999999, // never over threshold
+			CPUThresholdPct:   math.Inf(1), // disable CPU admission for non-resource tests, including saturated CI hosts
+			MemoryThresholdMB: 999999,      // never over threshold
 		},
 		RateLimits: config.RateLimitsConfig{
 			DefaultRPS: 100,

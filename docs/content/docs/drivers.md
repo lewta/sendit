@@ -7,6 +7,14 @@ description: "HTTP, browser, DNS, WebSocket, gRPC, and SFTP driver options and e
 
 A **driver** is responsible for executing a single request and returning a result. Each target in your config specifies a `type` that selects the driver. All drivers map their results to HTTP-like status codes so the engine's error classifier, backoff, and metrics work uniformly.
 
+## Replay support
+
+`sendit replay` reuses HTTP, browser, DNS, WebSocket, and gRPC drivers with their captured expanded settings. Browser replay requires Chrome; gRPC still uses server reflection. Same-host HTTP redirects retain normal behavior and cross-host redirects follow the captured `allow_cross_host_redirects` setting, without the engine's redirect rate limiter.
+
+Targets with any populated auth field, custom HTTP headers (even in an inactive block), URL userinfo, or SFTP are marked non-replayable. Snapshots contain only the active block: HTTP method/body/timeout/redirect policy; browser scroll/selector/timeout; DNS resolver/record type; WebSocket messages/duration/expected count; gRPC body/timeout/TLS settings. Values already expanded by templating are replayed literally.
+
+Replay does not recreate remote responses, DNS answers, proxy settings, system trust stores, browser versions, or connection state. Driver errors remain results and do not stop later requests. Cancellation waits for replay-owned driver calls; existing DNS exchange and WebSocket close latency still applies. See the [CLI contract](../cli/#replay-flags).
+
 ## `auth` block
 
 Any target (or `target_defaults`) can include an `auth` block to attach credentials to each request. The `http` and `websocket` drivers honour it; SFTP uses credentials from its `sftp` block; other drivers silently ignore it.

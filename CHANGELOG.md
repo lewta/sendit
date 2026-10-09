@@ -2,11 +2,20 @@
 
 ### Security
 - Upgraded Go to 1.26.9 and `golang.org/x/net` to v0.60.0 to address the published HTTP, TLS, MIME, and HTML-template vulnerabilities reported by security CI (#318). Aligned local, docs-module, and digest-pinned Docker build toolchains with the fixed version.
+- Omit URL userinfo from JSONL result URLs, including malformed URLs, and replace associated error text with a generic omission message.
 
 ### Added
+- Added `sendit replay` for versioned JSONL captures with scaled concurrent timing, source-status filtering, looping, cancellation, and lossless replay output on success (#253).
+- Added safe expanded request snapshots, run identity, monotonic-anchored dispatch timestamps, strict bounded preflight validation, and input/output alias protection. Legacy results and selected records containing configured auth, custom headers, URL userinfo, or SFTP cannot be replayed.
 - Added per-request templating for target URLs, HTTP/gRPC bodies, and WebSocket messages with inline values, newline-delimited variable files, and UUID, timestamp, and sequence built-ins.
 
+### Changed
+- Included command-level integration coverage in `make verify` and added replay decoder fuzzing and encoding benchmarks to CI.
+- Documented replay contracts and capture examples; moved released v1.7.0 and implemented Replay into completed roadmap milestones.
+
 ### Fixed
+- Isolated protocol integration tests and the under-threshold admission test from host CPU saturation using test-only admission settings; production resource limits and explicit resource-gate tests retain their behavior.
+- Preserve filesystem symlink/parent path semantics during replay output checks, and reject null messages, unpaired Unicode escapes, and malformed timestamps before replay traffic or output truncation.
 - Wait for Apple notarization acceptance and validate final Darwin archive checksums, signatures, and notarization before the release workflow succeeds.
 
 ## [1.7.0] - 2026-10-08

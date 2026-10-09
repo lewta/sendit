@@ -39,6 +39,10 @@ jobs:
           HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
         run: |
           if [[ "${EVENT_NAME}" == "workflow_dispatch" ]]; then
+            if [[ ! "${INPUT_TAG}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$ ]]; then
+              echo "invalid release tag: ${INPUT_TAG}" >&2
+              exit 1
+            fi
             echo "value=${INPUT_TAG}" >> "$GITHUB_OUTPUT"
           else
             TAG="$(.github/scripts/resolve-release-tag.sh \
@@ -63,8 +67,9 @@ jobs:
           repositories: homebrew-tap,scoop-bucket
 
       - name: Download checksums from release
+        env:
+          TAG: ${{ steps.tag.outputs.value }}
         run: |
-          TAG="${{ steps.tag.outputs.value }}"
           VERSION="${TAG#v}"
           curl -fsSL \
             "https://github.com/lewta/sendit/releases/download/${TAG}/checksums.txt" \

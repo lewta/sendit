@@ -26,19 +26,31 @@ if [[ "${release_event}" != "workflow_dispatch" ]]; then
   exit 1
 fi
 
+if ! published_tag_list="$(
+  gh api --paginate "repos/${repository}/releases?per_page=100" \
+    --jq '.[] | select(.draft == false) | .tag_name'
+)"; then
+  echo "failed to list published releases" >&2
+  exit 1
+fi
+
 published_tags=()
 while IFS= read -r tag; do
   [[ -n "${tag}" ]] && published_tags+=("${tag}")
-done < <(
-  gh api --paginate "repos/${repository}/releases?per_page=100" \
-    --jq '.[] | select(.draft == false) | .tag_name'
-)
+done <<< "${published_tag_list}"
 
 matches=()
+api_error_file="$(mktemp)"
+trap 'rm -f "${api_error_file}"' EXIT
 for tag in "${published_tags[@]}"; do
-  if ! tag_sha="$(gh api "repos/${repository}/commits/${tag}" --jq .sha 2>/dev/null)"; then
-    echo "skipping published release ${tag}: tag cannot be resolved" >&2
-    continue
+  if ! tag_sha="$(gh api "repos/${repository}/commits/${tag}" --jq .sha 2> "${api_error_file}")"; then
+    api_error="$(< "${api_error_file}")"
+    if [[ "${api_error}" == *"(HTTP 404)"* ]]; then
+      echo "skipping published release ${tag}: tag cannot be resolved" >&2
+      continue
+    fi
+    echo "failed to resolve published release ${tag}: ${api_error}" >&2
+    exit 1
   fi
   if [[ "${tag_sha}" == "${head_sha}" ]]; then
     matches+=("${tag}")

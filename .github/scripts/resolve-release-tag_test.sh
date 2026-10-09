@@ -26,6 +26,10 @@ done
 
 case "${endpoint}" in
   repos/test/repo/releases\?per_page=100)
+    if [[ -n "${MOCK_RELEASES_ERROR:-}" ]]; then
+      echo "${MOCK_RELEASES_ERROR}" >&2
+      exit 1
+    fi
     printf '%s\n' "${MOCK_RELEASE_TAGS:-}"
     ;;
   repos/test/repo/releases/tags/*)
@@ -35,7 +39,14 @@ case "${endpoint}" in
     ;;
   repos/test/repo/commits/*)
     tag="${endpoint##*/}"
-    awk -v tag="${tag}" '$1 == tag { print $2; found = 1 } END { exit !found }' <<< "${MOCK_TAG_COMMITS:-}"
+    if [[ "${tag}" == "${MOCK_COMMIT_ERROR_TAG:-}" ]]; then
+      echo 'gh: service unavailable (HTTP 503)' >&2
+      exit 1
+    fi
+    awk -v tag="${tag}" '$1 == tag { print $2; found = 1 } END { exit !found }' <<< "${MOCK_TAG_COMMITS:-}" || {
+      echo 'gh: Not Found (HTTP 404)' >&2
+      exit 1
+    }
     ;;
   *)
     echo "unexpected gh endpoint: ${endpoint}" >&2
@@ -121,6 +132,34 @@ test_ignores_release_with_unresolvable_tag() {
     fail "unresolvable release tag did not produce a warning"
 }
 
+test_rejects_release_list_api_failure() {
+  local root
+  root="$(mktemp -d)"
+  trap 'rm -rf "${root}"' RETURN
+  make_fixture "${root}"
+  if MOCK_RELEASES_ERROR='gh: service unavailable (HTTP 503)' \
+    run_resolver "${root}" workflow_dispatch main release-sha > "${root}/output" 2> "${root}/error"; then
+    fail "release list API failure resolved successfully"
+  fi
+  grep -Fq 'failed to list published releases' "${root}/error" || \
+    fail "release list API failure was treated as an empty release list"
+}
+
+test_rejects_commit_api_failure() {
+  local root
+  root="$(mktemp -d)"
+  trap 'rm -rf "${root}"' RETURN
+  make_fixture "${root}"
+  if MOCK_RELEASE_TAGS=$'v1.8.0\nv1.8.1' \
+    MOCK_TAG_COMMITS='v1.8.0 release-sha' \
+    MOCK_COMMIT_ERROR_TAG='v1.8.1' \
+    run_resolver "${root}" workflow_dispatch main release-sha > "${root}/output" 2> "${root}/error"; then
+    fail "commit API failure produced a unique release"
+  fi
+  grep -Fq 'failed to resolve published release v1.8.1' "${root}/error" || \
+    fail "commit API failure was treated as a stale tag"
+}
+
 test_manual_release_does_not_treat_tag_shaped_ref_as_tag() {
   local root output
   root="$(mktemp -d)"
@@ -185,6 +224,11 @@ test_workflow_uses_resolver_without_changing_manual_recovery() {
   grep -Fq 'HEAD_SHA: ${{ github.event.workflow_run.head_sha }}' "${workflow}" || fail "release head is not passed through the environment"
   grep -Fq 'RELEASE_EVENT: ${{ github.event.workflow_run.event }}' "${workflow}" || fail "release event is not passed through the environment"
   grep -Fq 'echo "value=${INPUT_TAG}"' "${workflow}" || fail "manual recovery no longer uses its explicit tag input"
+  grep -Fq 'TAG: ${{ steps.tag.outputs.value }}' "${workflow}" || fail "resolved tag is not passed through the environment"
+  grep -Fq 'invalid release tag:' "${workflow}" || fail "manual recovery tag is not validated"
+  if grep -Fq 'TAG="${{ steps.tag.outputs.value }}"' "${workflow}"; then
+    fail "resolved tag is interpolated into shell source"
+  fi
   if grep -Fq 'echo "value=${{ github.event.workflow_run.head_branch }}"' "${workflow}"; then
     fail "workflow still treats head_branch as the release tag"
   fi
@@ -195,6 +239,8 @@ test_preserves_tag_triggered_release
 test_rejects_ambiguous_manual_release
 test_rejects_missing_manual_release
 test_ignores_release_with_unresolvable_tag
+test_rejects_release_list_api_failure
+test_rejects_commit_api_failure
 test_manual_release_does_not_treat_tag_shaped_ref_as_tag
 test_rejects_tag_head_mismatch
 test_rejects_non_tag_push

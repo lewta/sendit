@@ -24,6 +24,9 @@ history or bookmarks — no manual config editing required.
 Use 'sendit export --pcap <results.jsonl>' to convert a results file to
 PCAP format for analysis in Wireshark or similar tools.
 
+Use 'sendit replay --input <results.jsonl>' to replay a versioned request
+capture with scaled timing, source-status filtering, and optional looping.
+
 Use 'sendit validate' to check a config before running.`,
 }
 
@@ -38,4 +41,5 @@ func init() {
 	rootCmd.AddCommand(pinchCmd())
 	rootCmd.AddCommand(exportCmd())
 	rootCmd.AddCommand(generateCmd())
+	rootCmd.AddCommand(replayCmd())
 }

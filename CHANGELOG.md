@@ -5,6 +5,7 @@
 - Added versioned JSONL replay snapshots excluding configured authentication, custom headers, URL userinfo, and SFTP credentials.
 - Added bounded replay JSONL validation with exact sequence parsing, single-run ordering, strict executable fields, and fuzz coverage.
 - Added concurrent replay scheduling with rate scaling, source-status filtering, loop barriers, cancellation, and lossless serialized result delivery.
+- Added `sendit replay` CLI wiring, non-destructive input/output identity checks, and surfaced output-finalization errors.
 - Added per-request templating for target URLs, HTTP/gRPC bodies, and WebSocket messages with inline values, newline-delimited variable files, and UUID, timestamp, and sequence built-ins.
 
 ### Changed

@@ -1,5 +1,15 @@
 ## [Unreleased]
 
+## [1.8.0] - 2026-10-09
+
+This minor release adds request templating, request replay, and explicit HTTP/1.1–HTTP/2 selection, alongside Go and networking security updates.
+
+### Compatibility notes
+- Existing HTTP targets retain automatic negotiation when `http.http_version` is omitted or `0`. Forced HTTP/2 (`2`) requires HTTPS and ALPN `h2`, with no HTTP/1 fallback or plaintext h2c. HTTP/3 remains deferred to #320.
+- Replay requires versioned request captures; older result-only JSONL files cannot reconstruct requests. New captures use envelope v2, while v1 captures remain readable with automatic HTTP policy. V1-only readers cannot read v2 captures.
+- Replay excludes configured authentication, custom HTTP headers, URL userinfo, and SFTP. URLs and request bodies/messages may still contain sensitive application data.
+- Building from source requires Go 1.26.9 or newer.
+
 ### Security
 - Upgraded Go to 1.26.9 and `golang.org/x/net` to v0.60.0 to address the published HTTP, TLS, MIME, and HTML-template vulnerabilities reported by security CI (#318). Aligned local, docs-module, and digest-pinned Docker build toolchains with the fixed version.
 - Omit URL userinfo from JSONL result URLs, including malformed URLs, and replace associated error text with a generic omission message.

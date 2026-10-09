@@ -36,6 +36,9 @@ func Load(path string) (*Config, error) {
 	if err := validateRawVariableNames(rawConfig); err != nil {
 		return nil, fmt.Errorf("invalid config: %w", err)
 	}
+	if err := validateRawHTTPVersions(rawConfig); err != nil {
+		return nil, fmt.Errorf("invalid config: %w", err)
+	}
 	// Preserve the uint64 range while routing invalid source values through aggregate validation.
 	memoryThreshold := v.Get("limits.memory_threshold_mb")
 	memoryFloat, isFloat := memoryThreshold.(float64)
@@ -113,6 +116,7 @@ func setDefaults(v *viper.Viper) {
 	// target_defaults: applied to every target loaded from targets_file.
 	v.SetDefault("target_defaults.weight", 1)
 	v.SetDefault("target_defaults.http.method", "GET")
+	v.SetDefault("target_defaults.http.http_version", 0)
 	v.SetDefault("target_defaults.http.timeout_s", 15)
 	v.SetDefault("target_defaults.http.allow_cross_host_redirects", false)
 	v.SetDefault("target_defaults.browser.timeout_s", 30)
@@ -376,7 +380,19 @@ func validate(cfg *Config) error {
 
 	validTypes := map[string]bool{"http": true, "browser": true, "dns": true, "websocket": true, "grpc": true, "sftp": true}
 	validAuthTypes := map[string]bool{"bearer": true, "basic": true, "header": true, "query": true}
+	if err := ValidateHTTPVersion(cfg.TargetDefaults.HTTP.HTTPVersion); err != nil {
+		errs = append(errs, "target_defaults.http."+err.Error())
+	}
 	for i, t := range cfg.Targets {
+		if err := ValidateHTTPVersion(t.HTTP.HTTPVersion); err != nil {
+			errs = append(errs, fmt.Sprintf("targets[%d].http.%s", i, err))
+		}
+		if t.Type == "http" && t.HTTP.HTTPVersion == 2 {
+			scheme, _, _ := strings.Cut(t.URL, "://")
+			if !strings.Contains(scheme, "{{") && !strings.EqualFold(scheme, "https") {
+				errs = append(errs, fmt.Sprintf("targets[%d].http.http_version: 2 requires an HTTPS URL", i))
+			}
+		}
 		if t.URL == "" {
 			errs = append(errs, fmt.Sprintf("targets[%d].url must not be empty", i))
 		}

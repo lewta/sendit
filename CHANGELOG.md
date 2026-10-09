@@ -5,11 +5,15 @@
 - Omit URL userinfo from JSONL result URLs, including malformed URLs, and replace associated error text with a generic omission message.
 
 ### Added
+- Added strict `http.http_version` configuration for automatic, HTTP/1.1, and HTTPS-only HTTP/2 policies, with raw type checks across aliases, singleton targets, merged mappings, and dotted defaults (#252).
+- Enforced selected HTTP protocols across redirects without HTTP/1 fallback for forced HTTP/2, and exposed actual response protocol through debug logs and JSONL metadata.
 - Added `sendit replay` for versioned JSONL captures with scaled concurrent timing, source-status filtering, looping, cancellation, and lossless replay output on success (#253).
 - Added safe expanded request snapshots, run identity, monotonic-anchored dispatch timestamps, strict bounded preflight validation, and input/output alias protection. Legacy results and selected records containing configured auth, custom headers, URL userinfo, or SFTP cannot be replayed.
 - Added per-request templating for target URLs, HTTP/gRPC bodies, and WebSocket messages with inline values, newline-delimited variable files, and UUID, timestamp, and sequence built-ins.
 
 ### Changed
+- New replay captures use envelope v2 with explicit requested HTTP version; strict v1 captures remain readable with automatic protocol selection. Generator and dry-run output preserve/display the configured policy.
+- Documented completed HTTP/1.1–HTTP/2 selection and tracked TLS-only HTTP/3 separately in #320.
 - Included command-level integration coverage in `make verify` and added replay decoder fuzzing and encoding benchmarks to CI.
 - Documented replay contracts and capture examples; moved released v1.7.0 and implemented Replay into completed roadmap milestones.
 

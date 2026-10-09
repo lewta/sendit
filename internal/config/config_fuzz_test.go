@@ -45,6 +45,12 @@ targets:
 	f.Add([]byte(`targets: [{url: "https://example.com/{{user", type: http, weight: 1}]`))
 	// Template values with Unicode and escaped JSON.
 	f.Add([]byte(`targets: [{url: "https://example.com", type: http, weight: 1, vars: {name: ["世界"]}, http: {body: "{\"name\":\"{{name}}\"}"}}]`))
+	for _, value := range []string{"0", "1", "2", "3", "null", `"2"`, "true", "2.0", "18446744073709551617"} {
+		f.Add([]byte("h: &h {http_version: " + value + "}\ntargets: [{url: https://example.com, type: http, weight: 1, http: {<<: *h}}]"))
+		f.Add([]byte("targets: {url: https://example.com, type: http, weight: 1, http: {http_version: " + value + "}}"))
+		f.Add([]byte("key: &key http_version\ntargets: [{url: https://example.com, type: http, weight: 1, http: {*key: " + value + "}}]"))
+		f.Add([]byte("target_defaults.http.http_version: " + value + "\ntargets: [{url: https://example.com, type: http, weight: 1}]"))
+	}
 
 	f.Fuzz(func(t *testing.T, data []byte) {
 		dir, err := os.MkdirTemp("", "fuzz-config-*")
@@ -58,6 +64,13 @@ targets:
 			t.Skip()
 		}
 		// Must not panic; validation errors are expected and fine.
-		_, _ = Load(path)
+		cfg, err := Load(path)
+		if err == nil {
+			for _, target := range cfg.Targets {
+				if target.HTTP.HTTPVersion < 0 || target.HTTP.HTTPVersion > 2 {
+					t.Fatal("accepted unsupported HTTP version")
+				}
+			}
+		}
 	})
 }

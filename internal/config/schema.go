@@ -113,6 +113,7 @@ type AuthConfig struct {
 
 // HTTPConfig holds HTTP-specific target settings.
 type HTTPConfig struct {
+	HTTPVersion             int               `mapstructure:"http_version"`
 	Method                  string            `mapstructure:"method"`
 	Headers                 map[string]string `mapstructure:"headers"`
 	Body                    string            `mapstructure:"body"`

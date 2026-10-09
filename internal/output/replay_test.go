@@ -158,7 +158,7 @@ func TestReplayEncodingCompatibility(t *testing.T) {
 	if err := json.Unmarshal(b.Bytes(), &got); err != nil {
 		t.Fatal(err)
 	}
-	if string(got["duration_ms"]) != "42" || string(got["status"]) != "200" || string(got["extra"]) != `"kept"` || !bytes.Contains(got["replay"], []byte(`"version":1`)) {
+	if string(got["duration_ms"]) != "42" || string(got["status"]) != "200" || string(got["extra"]) != `"kept"` || !bytes.Contains(got["replay"], []byte(`"version":2`)) {
 		t.Fatal(b.String())
 	}
 	r.Capture = task.Capture{}

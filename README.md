@@ -247,12 +247,12 @@ Pass `--dry-run` to `sendit start` to preview the effective configuration — ta
 Config: config/example.yaml  ✓ valid
 
 Targets (5):
-  URL                                      TYPE       WEIGHT     SHARE
-  https://httpbin.org/get                  http       10         43.5%
-  https://httpbin.org/status/200           http       5          21.7%
-  https://news.ycombinator.com             browser    3          13.0%
-  example.com                              dns        3          13.0%
-  https://httpbin.org/anything/users/alice/1?request=8d652a44-dc45-47a3-80da-33b47fc94709&at=1791490000 http 2 8.7%
+  URL                                      TYPE       WEIGHT     SHARE    HTTP POLICY
+  https://httpbin.org/get                  http       10         43.5%    auto
+  https://httpbin.org/status/200           http       5          21.7%    auto
+  https://news.ycombinator.com             browser    3          13.0%    -
+  example.com                              dns        3          13.0%    -
+  https://httpbin.org/anything/users/alice/1?request=8d652a44-dc45-47a3-80da-33b47fc94709&at=1791490000 http 2 8.7% auto
   Total weight: 23
 
 Pacing:
@@ -263,6 +263,7 @@ Limits:
 ```
 
 Templated targets show one expanded example URL. UUIDs, timestamps, and randomly selected custom values vary between dry runs.
+`HTTP POLICY` is configured intent (`auto`, `HTTP/1.1`, or `HTTP/2 (HTTPS)`), not a negotiated result; dry-run sends no traffic.
 
 ---
 
@@ -777,6 +778,7 @@ target_defaults:
 | `vars_file` | `{}` | Shared variable-to-file mappings for file-loaded targets |
 | `auth.type` | `""` | Auth type: `bearer` \| `basic` \| `header` \| `query` |
 | `http.method` | `GET` | HTTP verb |
+| `http.http_version` | `0` | `0` automatic, `1` HTTP/1.1, `2` HTTPS-only HTTP/2 without HTTP/1 fallback |
 | `http.timeout_s` | `15` | Request timeout in seconds |
 | `http.allow_cross_host_redirects` | `false` | Follow redirects to a different host. Redirected hosts still use per-domain rate limits. Keep disabled when sending auth headers unless that forwarding is intended. |
 | `browser.timeout_s` | `30` | Page load timeout in seconds |
@@ -820,6 +822,23 @@ Variable names must match `[a-z][a-z0-9_]*`. The reserved built-ins are `{{uuid}
 Expansion is a single pass: template-looking text inside a selected value remains literal. A variable cannot be defined in both `vars` and `vars_file`. Invalid names, empty values, unreadable files, malformed placeholders, and unknown variables fail configuration validation. `target_defaults.vars` and `target_defaults.vars_file` apply to targets loaded through `targets_file`.
 
 Only target URLs, `http.body`, `grpc.body`, and `websocket.send_messages` are templated. Headers, authentication, and other driver settings are unchanged.
+
+#### HTTP version control
+
+```yaml
+targets:
+  - url: https://example.com/api
+    type: http
+    weight: 1
+    http:
+      http_version: 2
+```
+
+`0` or omission preserves automatic negotiation: HTTP/1.1 for plaintext and HTTP/1.1 or HTTP/2 over TLS. `1` sends HTTP/1.1 requests. `2` requires HTTPS and ALPN `h2` before sending the HTTP request, including every followed redirect; there is no fallback to HTTP/1.1 and no plaintext h2c. Certificate verification remains enabled. TLS/protocol failures are normal request errors.
+
+Only integer values 0–2 are accepted; strings, booleans, nulls, floats, and other values fail validation. `target_defaults.http.http_version` applies to file-loaded targets. Known plaintext targets fail config validation for mode 2; templated schemes are checked after expansion before dispatch to the network. Other driver types are unaffected.
+
+The actual final response protocol is logged at debug level and exported as JSONL `http_protocol` (for example `HTTP/1.1` or `HTTP/2.0`). It is omitted when no response exists. New replay captures use envelope v2 and preserve the requested policy; existing v1 captures remain readable as automatic mode. Older binaries that only understand v1 cannot read v2. HTTP/3 is deferred to [#320](https://github.com/lewta/sendit/issues/320).
 
 Non-standard ports are specified directly in the URL — no additional config needed:
 

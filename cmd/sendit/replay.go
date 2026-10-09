@@ -25,6 +25,8 @@ func replayCmd() *cobra.Command {
 		Long: `Replay one capture run in recorded dispatch order with concurrent, scaled
 start timing. Input must contain replay metadata; legacy result files cannot
 reconstruct requests. Auth, custom headers, URL userinfo and SFTP are excluded.
+Reads replay envelopes v1 and v2; writes v2 with the requested HTTP version.
+V1 HTTP captures use automatic negotiation. Forced HTTP/2 requires HTTPS.
 Limits: 256 MiB input, 8 MiB per line, 10,000 records. The whole file is validated
 before traffic. Normal pacing, backoff and resource limits are not applied.
 --filter status=5xx selects original statuses 500–599 while preserving gaps.

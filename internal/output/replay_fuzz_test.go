@@ -9,6 +9,10 @@ import (
 
 func FuzzReplayRecord(f *testing.F) {
 	f.Add([]byte(validReplayLine))
+	for _, policy := range []string{"0", "1", "2", "3", "null", `"2"`, "2.0"} {
+		v2 := strings.Replace(validReplayLine, `"version":1`, `"version":2`, 1)
+		f.Add([]byte(strings.Replace(v2, `"method":"POST"`, `"http_version":`+policy+`,"method":"POST"`, 1)))
+	}
 	f.Add([]byte(strings.Replace(validReplayLine, `"body":"{}"`, `"body":"\ud800"`, 1)))
 	f.Add([]byte(strings.Replace(validReplayLine, "2026-10-08T21:16:33.123456789Z", "2026-10-08T21:16:33+24:00", 1)))
 	for _, s := range []string{`null`, `{"replay":null}`, `{"x":1,"x":2}`, "\xff", `{"sequence":18446744073709551616}`, `{"body":"{\"nested\":{}}"}`} {
@@ -32,7 +36,7 @@ func FuzzReplayRecord(f *testing.F) {
 		if err != nil {
 			return
 		}
-		if r.Envelope.Version != 1 || r.Envelope.Sequence == 0 || !replayRunID.MatchString(r.Envelope.RunID) {
+		if (r.Envelope.Version != 1 && r.Envelope.Version != 2) || r.Envelope.Sequence == 0 || !replayRunID.MatchString(r.Envelope.RunID) {
 			t.Fatal("accepted invalid identity")
 		}
 		if r.Envelope.Replayable {

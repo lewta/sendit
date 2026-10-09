@@ -46,9 +46,10 @@ Features planned for future releases of sendit. Contributions are welcome — op
 - [Request templating ✓](#request-templating-)
 - [v1.7.0 — Reliability contract fixes ✓](#v170--reliability-contract-fixes-)
 - [Replay command ✓](#replay-command-)
+- [HTTP/1.1 and HTTP/2 control ✓](#http11-and-http2-control-)
 
 **Planned**
-- [HTTP version control](#future--http-version-control)
+- [HTTP/3 support](#future--http3-support)
 
 **Research**
 - [Non-standard traffic driver](#research--non-standard-traffic-driver)
@@ -737,17 +738,15 @@ sendit replay --input results.jsonl --filter status=5xx --rate 0.5
 
 ---
 
-## Future — HTTP version control
+## HTTP/1.1 and HTTP/2 control ✓
 
-Explicit HTTP version selection for `http` targets. Today the driver uses Go's standard `http.Transport`, which automatically negotiates HTTP/2 over TLS via ALPN but provides no way to force or observe the negotiated protocol. HTTP/3 (QUIC) is not supported at all.
+Explicit HTTP policy for `http` targets using the Go standard library, completing the approved scope of [#252](https://github.com/lewta/sendit/issues/252).
 
-- `http_version: 1 | 2 | 3` field under the `http:` target block (or as a top-level `target_defaults.http.http_version`)
-- `1` — force HTTP/1.1 (disable `h2` ALPN advertisement)
-- `2` — force HTTP/2; fail fast if the server does not support it
-- `3` — HTTP/3 over QUIC via `github.com/quic-go/quic-go`; plaintext and TLS both supported
-- Default (`0` / omitted) — current behaviour: HTTP/1.1 or HTTP/2 via ALPN negotiation; no HTTP/3
-- Negotiated protocol logged at debug level and included in JSONL result output
-- HTTP/3 is an optional build tag (`sendit_h3`) to keep the default binary dependency-free; a separate `sendit-h3` binary is released alongside the standard binary
+- [x] `http.http_version`: 0 automatic, 1 HTTP/1.1, 2 HTTPS-only HTTP/2; defaults propagate to file-loaded targets.
+- [x] Forced HTTP/2 verifies ALPN h2 before sending HTTP and applies the requirement to redirects; no HTTP/1 fallback or h2c.
+- [x] Actual final response protocol in debug logs and JSONL `http_protocol`; configured policy in generator/dry-run output.
+- [x] Replay v2 preserves requested policy; strict v1 captures remain readable as automatic.
+- [x] Local TLS negotiation, error/no-ALPN, concurrent reuse, redirect, metadata, and capture/replay tests.
 
 ```yaml
 targets:
@@ -757,6 +756,12 @@ targets:
     http:
       http_version: 2   # force HTTP/2; error if server does not support it
 ```
+
+---
+
+## Future — HTTP/3 support
+
+Tracked separately in [#320](https://github.com/lewta/sendit/issues/320). HTTP/3 runs over QUIC with TLS 1.3 and HTTPS; there is no plaintext HTTP/3 mode. Select a maintained CGO-free implementation and decide standard-binary versus optional `sendit_h3`/`sendit-h3` distribution before implementation. Build tags exclude code from a binary, not module dependencies from `go.mod`. Cover transport cleanup, replay policy, release signing/notarization/attestation, and both build variants if separate artifacts are chosen.
 
 ---
 

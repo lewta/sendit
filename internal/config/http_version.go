@@ -37,13 +37,22 @@ func walkHTTPVersionMapping(n *yaml.Node, active map[*yaml.Node]bool, visit func
 		}
 	case yaml.MappingNode:
 		for i := 0; i+1 < len(n.Content); i += 2 {
-			key, value := n.Content[i], n.Content[i+1]
+			key, value := dereferenceYAMLNode(n.Content[i]), n.Content[i+1]
 			if key.Tag == "!!merge" {
 				if err := walkHTTPVersionMapping(value, active, visit); err != nil {
 					return err
 				}
-			} else if err := visit(strings.ToLower(key.Value), value); err != nil {
-				return err
+			} else {
+				name := strings.ToLower(key.Value)
+				// Viper expands dotted mapping keys before weak decoding. Preserve
+				// the original value node/tag while visiting the equivalent path.
+				if first, rest, dotted := strings.Cut(name, "."); dotted {
+					name = first
+					value = &yaml.Node{Kind: yaml.MappingNode, Tag: "!!map", Content: []*yaml.Node{{Kind: yaml.ScalarNode, Tag: "!!str", Value: rest}, value}}
+				}
+				if err := visit(name, value); err != nil {
+					return err
+				}
 			}
 		}
 	}
@@ -85,6 +94,9 @@ func validateRawHTTPVersions(data []byte) error {
 			return checkTarget(value, "target_defaults")
 		case "targets":
 			value = dereferenceYAMLNode(value)
+			if value.Kind == yaml.MappingNode {
+				return checkTarget(value, "targets[0]")
+			}
 			if value.Kind == yaml.SequenceNode {
 				for i, target := range value.Content {
 					if err := checkTarget(target, fmt.Sprintf("targets[%d]", i)); err != nil {

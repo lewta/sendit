@@ -92,3 +92,43 @@ func TestHTTPVersionProgrammaticValidation(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestHTTPVersionViperInputShapes(t *testing.T) {
+	target := "targets: [{url: https://example.com, type: http, weight: 1}]\n"
+	cases := []struct {
+		name, format string
+		defaults     bool
+	}{
+		{"singleton", "targets: {url: https://example.com, type: http, weight: 1, http: {http_version: %s}}\n", false},
+		{"aliased version key", "key: &key http_version\ntargets: [{url: https://example.com, type: http, weight: 1, http: {*key: %s}}]\n", false},
+		{"aliased http key", "key: &key http\ntargets: [{url: https://example.com, type: http, weight: 1, *key: {http_version: %s}}]\n", false},
+		{"aliased targets key", "key: &key targets\n*key: [{url: https://example.com, type: http, weight: 1, http: {http_version: %s}}]\n", false},
+		{"aliased defaults key", "key: &key target_defaults\n*key: {http: {http_version: %s}}\n" + target, true},
+		{"dotted root default", "target_defaults.http.http_version: %s\n" + target, true},
+		{"dotted http default", "target_defaults: {http.http_version: %s}\n" + target, true},
+		{"dotted default root http", "target_defaults.http: {http_version: %s}\n" + target, true},
+	}
+	for _, tc := range cases {
+		for _, value := range []string{"2", `"2"`, "true", "false", "null", "2.0", "3"} {
+			t.Run(tc.name+"/"+value, func(t *testing.T) {
+				cfg, err := Load(writeTemp(t, fmt.Sprintf(tc.format, value)))
+				if value != "2" {
+					if err == nil || !strings.Contains(err.Error(), "http_version") {
+						t.Fatalf("invalid source accepted or wrong error: %v", err)
+					}
+					return
+				}
+				if err != nil {
+					t.Fatal(err)
+				}
+				got := cfg.Targets[0].HTTP.HTTPVersion
+				if tc.defaults {
+					got = cfg.TargetDefaults.HTTP.HTTPVersion
+				}
+				if got != 2 {
+					t.Fatalf("valid policy decoded as %d", got)
+				}
+			})
+		}
+	}
+}

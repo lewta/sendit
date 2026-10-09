@@ -472,4 +472,4 @@ Report a tooling blocker rather than claiming a docs build passed without runnin
 | Local/CI integration, race, fuzz and benchmarks | 1–6 |
 | Docs, examples, roadmap and #253 hygiene | 7 |
 
-Implementation remains gated on the user's review of this plan. Previously selected execution method: **native**, with one independent whole-branch review at the end.
+Execution approved by the user. Execution method: **native**, with one independent whole-branch review at the end. Per-task completion and test evidence are tracked in the execution ledger.

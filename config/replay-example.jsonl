@@ -1,0 +1,1 @@
+{"url":"https://example.com","type":"http","status":503,"replay":{"version":1,"run_id":"405d88de-3fb2-42d8-bfb7-f365907ed78c","sequence":1,"started_at":"2026-10-08T21:16:33.123456789Z","replayable":true,"request":{"url":"https://example.com","type":"http","http":{"method":"POST","body":"{}","timeout_s":15,"allow_cross_host_redirects":false}}}}

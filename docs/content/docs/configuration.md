@@ -183,6 +183,28 @@ Optional result export to a file for offline analysis.
 
 Each JSONL record contains: `ts`, `url`, `type`, `status`, `duration_ms`, `bytes`, `error`. Drivers may add metadata fields; SFTP records include SSH handshake metadata and `sftp_entry_count` for list operations.
 
+### Replay JSONL envelope
+
+New engine results add this envelope; the top-level fields and integer `duration_ms` remain compatible with existing consumers and PCAP export:
+
+```json
+{"ts":"2026-10-08T21:16:34Z","url":"https://example.com/users/1","type":"http","status":200,"duration_ms":42,"bytes":123,"replay":{"version":1,"run_id":"405d88de-3fb2-42d8-bfb7-f365907ed78c","sequence":1,"started_at":"2026-10-08T21:16:33.123456789Z","replayable":true,"request":{"url":"https://example.com/users/1","type":"http","http":{"method":"POST","body":"{\"id\":1}","timeout_s":15,"allow_cross_host_redirects":false}}}}
+```
+
+`run_id` identifies one invocation; reload preserves it and the positive dispatch counter. `started_at` is captured after admission waits, before driver execution, from a wall-clock anchor plus monotonic elapsed time. File order is result serialization order. The request contains only its active driver block, with explicit effective defaults and already-expanded URL/body/messages; variable maps, auth, and custom headers are not serialized.
+
+| Driver block | Required v1 fields |
+|---|---|
+| `http` | `method`, `body`, `timeout_s`, `allow_cross_host_redirects` |
+| `browser` | `scroll`, `wait_for_selector`, `timeout_s` |
+| `dns` | `resolver`, `record_type` |
+| `websocket` | `duration_s`, `send_messages`, `expect_messages` |
+| `grpc` | `body`, `timeout_s`, `tls`, `insecure` |
+
+Every listed field is required and non-null, including false/empty values. Non-replayable envelopes instead have `replayable: false` and a `reason`, without `request`. Reasons are `auth_configured`, `custom_headers`, `url_userinfo`, `unsupported_type` (including SFTP), or `invalid_request`. Ad hoc results without capture metadata omit the envelope and cannot be replayed. `replay` is reserved against driver metadata overrides.
+
+Use `append: false`: the replay command accepts exactly one run and rejects mixed appended sessions. Ordinary engine output remains asynchronous/non-blocking and can drop results when full; sequence gaps are allowed, but missing source requests cannot be recovered. Ordinary output uses `0600` only when creating a file and does not tighten existing permissions. CSV stays result-only. The [replay command](../cli/#replay-flags) has stricter output checks and lossless delivery on success.
+
 ## `metrics`
 
 Optional Prometheus exposition endpoint.

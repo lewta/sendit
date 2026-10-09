@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -147,5 +148,20 @@ func TestDecodeReplayCapturedTypes(t *testing.T) {
 				t.Fatal(rs)
 			}
 		})
+	}
+}
+
+func TestReadReplayCheckedInExample(t *testing.T) {
+	f, err := os.Open("../../config/replay-example.jsonl")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	records, err := ReadReplay(f)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(records) != 1 || !records[0].Envelope.Replayable || records[0].Envelope.Request.HTTP.Method != "POST" {
+		t.Fatal("invalid documented fixture")
 	}
 }

@@ -44,10 +44,10 @@ Features planned for future releases of sendit. Contributions are welcome — op
 - [v1.2.0 — Auth support ✓](#v120--auth-support-)
 - [v1.6.0 — SFTP driver ✓](#v160--sftp-driver-)
 - [Request templating ✓](#request-templating-)
+- [v1.7.0 — Reliability contract fixes ✓](#v170--reliability-contract-fixes-)
+- [Replay command ✓](#replay-command-)
 
 **Planned**
-- [v1.7.0 - Reliability contract fixes](#v170---reliability-contract-fixes)
-- [Replay command](#future--replay-command)
 - [HTTP version control](#future--http-version-control)
 
 **Research**
@@ -688,7 +688,7 @@ targets:
 
 ---
 
-## v1.7.0 - Reliability contract fixes
+## v1.7.0 — Reliability contract fixes ✓
 
 - [x] TUI lifecycle
 - [x] WebSocket query authentication
@@ -719,16 +719,16 @@ targets:
 
 ---
 
-## Future — Replay command
+## Replay command ✓
 
-A `sendit replay` subcommand that reads a JSONL result file produced by `--output` and re-issues the same requests as live traffic — useful for reproducing a traffic pattern, debugging a failure sequence, or warming a cache.
+A `sendit replay` subcommand that reads new replay-capable JSONL from configured result output and reissues expanded requests using the existing drivers. Tracked in [#253](https://github.com/lewta/sendit/issues/253).
 
-- `sendit replay --input results.jsonl` — re-sends each request in the JSONL file in order
-- `--rate` flag to replay at a fraction or multiple of the original rate (e.g. `0.5` for half speed, `2.0` for double)
-- `--filter status=5xx` to replay only failed requests
-- `--loop` to repeat the file in a continuous cycle
-- Uses the existing driver infrastructure — the appropriate driver is selected from the `type` field in each result record
-- Outputs a new JSONL file if `--output` is specified, enabling before/after comparison
+- [x] Versioned expanded request snapshots, per-run identity, and monotonic-anchored dispatch timestamps; legacy telemetry is rejected.
+- [x] Sequence-ordered concurrent scheduling with `--rate` scaling and `--filter status=5xx` preserving selected gaps.
+- [x] `--loop` with a configurable `--loop-delay` after each cycle completes; cancellation and worker/output cleanup.
+- [x] Existing HTTP/browser/DNS/WebSocket/gRPC execution; configured auth, custom headers, URL userinfo, and SFTP excluded from replayable snapshots.
+- [x] Full-file validation (one run, 256 MiB, 8 MiB per line, 10,000 records) before traffic; input/output alias protection.
+- [x] Lossless replay output on success via `--output`, with write/finalization errors surfaced; unit, race, integration, and fuzz coverage.
 
 ```sh
 # Replay last hour's failures at half speed

@@ -1,16 +1,16 @@
 ## [Unreleased]
 
 ### Added
-- Added per-run identity and monotonic-anchored dispatch metadata as groundwork for request replay (#253).
-- Added versioned JSONL replay snapshots excluding configured authentication, custom headers, URL userinfo, and SFTP credentials.
-- Added bounded replay JSONL validation with exact sequence parsing, single-run ordering, strict executable fields, and fuzz coverage.
-- Added concurrent replay scheduling with rate scaling, source-status filtering, loop barriers, cancellation, and lossless serialized result delivery.
-- Added `sendit replay` CLI wiring, non-destructive input/output identity checks, and surfaced output-finalization errors.
+- Added `sendit replay` for versioned JSONL captures with scaled concurrent timing, source-status filtering, looping, cancellation, and lossless replay output on success (#253).
+- Added safe expanded request snapshots, run identity, monotonic-anchored dispatch timestamps, strict bounded preflight validation, and input/output alias protection. Legacy results and selected records containing configured auth, custom headers, URL userinfo, or SFTP cannot be replayed.
 - Added per-request templating for target URLs, HTTP/gRPC bodies, and WebSocket messages with inline values, newline-delimited variable files, and UUID, timestamp, and sequence built-ins.
 
 ### Changed
 - Included command-level integration coverage in `make verify` and added replay decoder fuzzing and encoding benchmarks to CI.
-- Documented the approved replay command design, compatibility and output contracts, acceptance-test coverage, and implementation plan for issue #253; implementation is pending.
+- Documented replay contracts and capture examples; moved released v1.7.0 and implemented Replay into completed roadmap milestones.
+
+### Security
+- Omit URL userinfo from JSONL result URLs and replace associated error text with a generic omission message.
 
 ### Fixed
 - Wait for Apple notarization acceptance and validate final Darwin archive checksums, signatures, and notarization before the release workflow succeeds.

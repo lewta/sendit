@@ -19,12 +19,22 @@ sendit follows a rolling release model. Only the latest stable release receives 
 The [latest stable release](https://github.com/lewta/sendit/releases/latest) receives security updates. Security hardening from the July 2026 Codex Security scan shipped in `v1.2.5` and remains included in current releases. That hardening keeps supported workflows intact while tightening several defaults:
 
 - Cross-host HTTP redirects are blocked by default; set `http.allow_cross_host_redirects: true` only when cross-host redirects are intentional.
-- Opt-in cross-host redirects still pass through per-domain rate limiting before the redirected request is sent.
+- During normal engine runs, opt-in cross-host redirects pass through per-domain rate limiting before the redirected request is sent. Replay intentionally bypasses engine rate limiting to preserve recorded timing.
 - `sendit generate --url` keeps robots.txt sitemap discovery within the seed origin and skips oversized HTML and sitemap responses.
 - The optional Prometheus metrics listener binds to loopback by default because metric labels include target domains; set `metrics.bind_address: 0.0.0.0` only when exposing metrics intentionally.
 - Scheduled pacing remains paused outside active cron windows instead of dispatching after each poll interval.
 
 No CVE has been assigned for this release. See the [v1.2.5 release notes](https://github.com/lewta/sendit/releases/tag/v1.2.5) for the full changelog and artifacts.
+
+## Replay data handling
+
+Replay envelopes exclude configured authentication, custom HTTP headers (including inactive blocks), URL userinfo, and SFTP credentials. Non-replayable records contain a reason instead of a request snapshot; there is no credential-saving override. The decoder checks executable fields rather than trusting a `replayable: true` claim.
+
+JSONL telemetry removes URL userinfo and replaces the associated error text with a generic omission message. This does not redact arbitrary application data in URLs, bodies, messages, metadata, CSV, or logs. Treat captures as sensitive application data; configured-credential exclusion is not general secret detection.
+
+New output files use mode `0600`. The replay command rejects existing POSIX outputs with group/other permissions and rejects input/output file aliases before truncation. Normal engine output keeps existing permissions when appending/truncating. Windows uses native access controls. Output failures may leave partial files; neither mode promises crash-durable transactions.
+
+Proxy settings, proxy credentials, system trust stores, browser state, and destination behavior are not captured; drivers retain their existing environment behavior. Replay can execute up to 10,000 accepted records concurrently and does not apply engine resource/rate/backoff gates. See [CLI validation and execution](../cli/#validation-and-execution).
 
 ## Reporting a vulnerability
 

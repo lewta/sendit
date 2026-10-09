@@ -1,7 +1,11 @@
 ## [Unreleased]
 
 ### Added
+- Added per-run identity and monotonic-anchored dispatch metadata as groundwork for request replay (#253).
 - Added per-request templating for target URLs, HTTP/gRPC bodies, and WebSocket messages with inline values, newline-delimited variable files, and UUID, timestamp, and sequence built-ins.
+
+### Changed
+- Documented the approved replay command design, compatibility and output contracts, acceptance-test coverage, and implementation plan for issue #253; implementation is pending.
 
 ### Fixed
 - Wait for Apple notarization acceptance and validate final Darwin archive checksums, signatures, and notarization before the release workflow succeeds.

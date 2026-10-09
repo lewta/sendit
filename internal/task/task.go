@@ -20,6 +20,7 @@ type Task struct {
 
 // Result holds the outcome of a driver execution.
 type Result struct {
+	Capture    Capture
 	Task       Task
 	StatusCode int
 	Duration   time.Duration

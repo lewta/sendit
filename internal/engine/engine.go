@@ -19,6 +19,7 @@ import (
 
 // Engine orchestrates the dispatch loop.
 type Engine struct {
+	capture    *task.CaptureClock
 	cfg        atomic.Pointer[config.Config]
 	pool       *Pool
 	scheduler  *Scheduler
@@ -52,6 +53,7 @@ func New(cfg *config.Config, m *metrics.Metrics) (*Engine, error) {
 	}
 
 	e := &Engine{
+		capture:   task.NewCaptureClock(),
 		pool:      NewPool(cfg.Limits.MaxWorkers, cfg.Limits.MaxBrowserWorkers),
 		scheduler: NewScheduler(cfg.Pacing),
 		monitor:   resource.New(cfg.Limits.CPUThresholdPct, cfg.Limits.MemoryThresholdMB),
@@ -176,7 +178,13 @@ func (e *Engine) dispatch(ctx context.Context, t task.Task) {
 		Str("type", t.Type).
 		Msg("dispatching task")
 
+	capture, err := e.capture.Next()
+	if err != nil {
+		log.Error().Err(err).Msg("capturing dispatch")
+		return
+	}
 	result := drv.Execute(ctx, t)
+	result.Capture = capture
 
 	e.metrics.Record(result)
 

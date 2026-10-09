@@ -19,12 +19,12 @@ Thanks for your interest in contributing. This document covers everything you ne
 
 ## Prerequisites
 
-- **Go 1.26.6+**
+- **Go 1.26.9+**
 - **Chrome or Chromium** — only required if you work on or test the `browser` driver
 
 ```sh
 # Verify your Go version
-go version  # should print go1.26.6 or later
+go version  # should print go1.26.9 or later
 ```
 
 ---

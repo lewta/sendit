@@ -1,6 +1,6 @@
 module github.com/lewta/sendit
 
-go 1.26.6
+go 1.26.9
 
 require (
 	github.com/charmbracelet/bubbletea v1.3.10
@@ -19,7 +19,7 @@ require (
 	github.com/spf13/viper v1.21.0
 	go.yaml.in/yaml/v3 v3.0.4
 	golang.org/x/crypto v0.57.0
-	golang.org/x/net v0.59.0
+	golang.org/x/net v0.60.0
 	golang.org/x/time v0.16.0
 	google.golang.org/grpc v1.84.0
 	google.golang.org/protobuf v1.36.12

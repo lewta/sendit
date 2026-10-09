@@ -1,5 +1,9 @@
 ## [Unreleased]
 
+### Security
+- Upgraded Go to 1.26.9 and `golang.org/x/net` to v0.60.0 to address the published HTTP, TLS, MIME, and HTML-template vulnerabilities reported by security CI (#318). Aligned local, docs-module, and digest-pinned Docker build toolchains with the fixed version.
+- Omit URL userinfo from JSONL result URLs, including malformed URLs, and replace associated error text with a generic omission message.
+
 ### Added
 - Added `sendit replay` for versioned JSONL captures with scaled concurrent timing, source-status filtering, looping, cancellation, and lossless replay output on success (#253).
 - Added safe expanded request snapshots, run identity, monotonic-anchored dispatch timestamps, strict bounded preflight validation, and input/output alias protection. Legacy results and selected records containing configured auth, custom headers, URL userinfo, or SFTP cannot be replayed.
@@ -8,9 +12,6 @@
 ### Changed
 - Included command-level integration coverage in `make verify` and added replay decoder fuzzing and encoding benchmarks to CI.
 - Documented replay contracts and capture examples; moved released v1.7.0 and implemented Replay into completed roadmap milestones.
-
-### Security
-- Omit URL userinfo from JSONL result URLs, including malformed URLs, and replace associated error text with a generic omission message.
 
 ### Fixed
 - Isolated protocol integration tests and the under-threshold admission test from host CPU saturation using test-only admission settings; production resource limits and explicit resource-gate tests retain their behavior.

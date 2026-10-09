@@ -26,13 +26,26 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+
       - name: Get release tag
         id: tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_TAG: ${{ inputs.tag }}
+          RELEASE_EVENT: ${{ github.event.workflow_run.event }}
+          HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
         run: |
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            echo "value=${{ inputs.tag }}" >> "$GITHUB_OUTPUT"
+          if [[ "${EVENT_NAME}" == "workflow_dispatch" ]]; then
+            echo "value=${INPUT_TAG}" >> "$GITHUB_OUTPUT"
           else
-            echo "value=${{ github.event.workflow_run.head_branch }}" >> "$GITHUB_OUTPUT"
+            TAG="$(.github/scripts/resolve-release-tag.sh \
+              "${RELEASE_EVENT}" \
+              "${HEAD_BRANCH}" \
+              "${HEAD_SHA}")"
+            echo "value=${TAG}" >> "$GITHUB_OUTPUT"
           fi
 
       # Mint a token scoped to only the two repos that need to be updated.

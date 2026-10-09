@@ -30,7 +30,7 @@ appears that cannot be justified by the table below.
 | [`github.com/spf13/viper`](https://github.com/spf13/viper) | v1.21.0 | MIT | Config file loading with environment variable overlay and `mapstructure` unmarshalling |
 | [`go.yaml.in/yaml/v3`](https://pkg.go.dev/go.yaml.in/yaml/v3) | v3.0.4 | MIT | Raw YAML syntax tree used to validate template variable key casing before Viper normalization |
 | [`golang.org/x/crypto`](https://pkg.go.dev/golang.org/x/crypto) | v0.57.0 | BSD-3-Clause | `ssh` subpackage — SSH transport and algorithm policy controls for the `sftp` driver |
-| [`golang.org/x/net`](https://pkg.go.dev/golang.org/x/net) | v0.59.0 | BSD-3-Clause | `html` subpackage — HTML parser used by the `generate` command to extract links |
+| [`golang.org/x/net`](https://pkg.go.dev/golang.org/x/net) | v0.60.0 | BSD-3-Clause | `html` subpackage — HTML parser used by the `generate` command to extract links |
 | [`golang.org/x/time`](https://pkg.go.dev/golang.org/x/time) | v0.16.0 | BSD-3-Clause | `rate` subpackage — token-bucket rate limiter used by `rate_limited` and `scheduled` pacing |
 | [`google.golang.org/grpc`](https://pkg.go.dev/google.golang.org/grpc) | v1.84.0 | Apache-2.0 | gRPC client and server — powers the `grpc` driver; includes reflection client and health service |
 | [`google.golang.org/protobuf`](https://pkg.go.dev/google.golang.org/protobuf) | v1.36.12 | BSD-3-Clause | Dynamic protobuf messages and JSON/protobuf marshaling for the reflection-based `grpc` driver |

@@ -39,6 +39,7 @@ type ReplayRequest struct {
 	GRPC      *ReplayGRPC      `json:"grpc,omitempty"`
 }
 type ReplayHTTP struct {
+	HTTPVersion             int    `json:"http_version"`
 	Method                  string `json:"method"`
 	Body                    string `json:"body"`
 	TimeoutS                int    `json:"timeout_s"`
@@ -69,7 +70,7 @@ func replayEnvelope(r task.Result) *ReplayEnvelope {
 	if r.Capture.RunID == "" || r.Capture.Sequence == 0 || r.Capture.StartedAt.IsZero() {
 		return nil
 	}
-	e := &ReplayEnvelope{Version: 1, RunID: r.Capture.RunID, Sequence: r.Capture.Sequence, StartedAt: r.Capture.StartedAt}
+	e := &ReplayEnvelope{Version: 2, RunID: r.Capture.RunID, Sequence: r.Capture.Sequence, StartedAt: r.Capture.StartedAt}
 	c := r.Task.Config
 	switch {
 	case c.Auth != (config.AuthConfig{}):
@@ -97,7 +98,7 @@ func replayEnvelope(r task.Result) *ReplayEnvelope {
 		if method == "" {
 			method = http.MethodGet
 		}
-		q.HTTP = &ReplayHTTP{method, c.HTTP.Body, positive(c.HTTP.TimeoutS, 15), c.HTTP.AllowCrossHostRedirects}
+		q.HTTP = &ReplayHTTP{HTTPVersion: c.HTTP.HTTPVersion, Method: method, Body: c.HTTP.Body, TimeoutS: positive(c.HTTP.TimeoutS, 15), AllowCrossHostRedirects: c.HTTP.AllowCrossHostRedirects}
 	case "browser":
 		q.Browser = &ReplayBrowser{c.Browser.Scroll, c.Browser.WaitForSelector, positive(c.Browser.TimeoutS, 30)}
 	case "dns":
@@ -152,7 +153,7 @@ func withoutURLUserinfo(raw string) (string, bool) {
 func (r ReplayRequest) Task() task.Task {
 	c := config.TargetConfig{URL: r.URL, Type: r.Type}
 	if v := r.HTTP; v != nil {
-		c.HTTP = config.HTTPConfig{Method: v.Method, Body: v.Body, TimeoutS: v.TimeoutS, AllowCrossHostRedirects: v.AllowCrossHostRedirects}
+		c.HTTP = config.HTTPConfig{HTTPVersion: v.HTTPVersion, Method: v.Method, Body: v.Body, TimeoutS: v.TimeoutS, AllowCrossHostRedirects: v.AllowCrossHostRedirects}
 	}
 	if v := r.Browser; v != nil {
 		c.Browser = config.BrowserConfig{Scroll: v.Scroll, WaitForSelector: v.WaitForSelector, TimeoutS: v.TimeoutS}
@@ -224,6 +225,12 @@ func validateReplayRequest(r ReplayRequest) error {
 		v := r.HTTP
 		if v == nil {
 			return fail("http")
+		}
+		if config.ValidateHTTPVersion(v.HTTPVersion) != nil {
+			return fail("http.http_version")
+		}
+		if v.HTTPVersion == 2 && !strings.HasPrefix(strings.ToLower(r.URL), "https://") {
+			return fail("http.http_version (2 requires HTTPS)")
 		}
 		if v.Method == "" {
 			return fail("http.method")

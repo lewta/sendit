@@ -40,13 +40,17 @@ func printDryRun(path string, cfg *config.Config, duration time.Duration) error 
 	}
 
 	fmt.Printf("Targets (%d):\n", len(sorted))
-	fmt.Printf("  %-40s %-10s %-10s %s\n", "URL", "TYPE", "WEIGHT", "SHARE")
+	fmt.Printf("  %-40s %-10s %-10s %-8s %s\n", "URL", "TYPE", "WEIGHT", "SHARE", "HTTP POLICY")
 	for i, t := range sorted {
 		share := 0.0
 		if totalWeight > 0 {
 			share = float64(t.Weight) / float64(totalWeight) * 100
 		}
-		fmt.Printf("  %-40s %-10s %-10d %.1f%%\n", examples[i].URL, t.Type, t.Weight, share)
+		policy := "-"
+		if t.Type == "http" {
+			policy = map[int]string{0: "auto", 1: "HTTP/1.1", 2: "HTTP/2 (HTTPS)"}[t.HTTP.HTTPVersion]
+		}
+		fmt.Printf("  %-40s %-10s %-10d %-8s %s\n", examples[i].URL, t.Type, t.Weight, fmt.Sprintf("%.1f%%", share), policy)
 	}
 	fmt.Printf("  Total weight: %d\n", totalWeight)
 	fmt.Println()

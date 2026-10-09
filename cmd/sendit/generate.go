@@ -934,6 +934,9 @@ func formatTarget(w io.Writer, t config.TargetConfig) {
 	switch t.Type {
 	case "http", "browser":
 		fmt.Fprintln(w, "    http:")
+		if t.Type == "http" {
+			fmt.Fprintf(w, "      http_version: %d\n", t.HTTP.HTTPVersion)
+		}
 		fmt.Fprintln(w, "      method: GET")
 		fmt.Fprintf(w, "      headers:\n        User-Agent: %q\n", generateUserAgent)
 		fmt.Fprintln(w, "      timeout_s: 15")

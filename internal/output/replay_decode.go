@@ -165,8 +165,8 @@ func DecodeReplayRecord(line []byte) (ReplayRecord, error) {
 		return fail("replay fields")
 	}
 	e := r.Envelope
-	if e.Version != 1 {
-		return fail("replay.version (supported: 1)")
+	if e.Version != 1 && e.Version != 2 {
+		return fail("replay.version (supported: 1, 2)")
 	}
 	if !replayRunID.MatchString(e.RunID) {
 		return fail("replay.run_id")
@@ -202,6 +202,9 @@ func DecodeReplayRecord(line []byte) (ReplayRecord, error) {
 		"dns":       {"resolver", "record_type"},
 		"websocket": {"duration_s", "send_messages", "expect_messages"},
 		"grpc":      {"body", "timeout_s", "tls", "insecure"},
+	}
+	if e.Version == 2 {
+		fields["http"] = append(fields["http"], "http_version")
 	}
 	block, err := replayObject(req[r.Type], fields[r.Type], nil, true, "replay.request."+r.Type)
 	if err != nil {

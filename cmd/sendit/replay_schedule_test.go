@@ -23,7 +23,7 @@ func replayRecords(statuses ...int) []output.ReplayRecord {
 	base := time.Date(2026, 10, 8, 0, 0, 0, 0, time.UTC)
 	for i, status := range statuses {
 		url := fmt.Sprintf("http://example.com/%d", i)
-		records[i] = output.ReplayRecord{Line: i + 1, URL: url, Type: "http", Status: status, Envelope: output.ReplayEnvelope{Version: 1, RunID: "405d88de-3fb2-42d8-bfb7-f365907ed78c", Sequence: uint64(i + 1), StartedAt: base.Add(time.Duration(i) * time.Second), Replayable: true, Request: &output.ReplayRequest{URL: url, Type: "http", HTTP: &output.ReplayHTTP{Method: "GET", Body: "{{literal}}", TimeoutS: 15}}}}
+		records[i] = output.ReplayRecord{Line: i + 1, URL: url, Type: "http", Status: status, Envelope: output.ReplayEnvelope{Version: 2, RunID: "405d88de-3fb2-42d8-bfb7-f365907ed78c", Sequence: uint64(i + 1), StartedAt: base.Add(time.Duration(i) * time.Second), Replayable: true, Request: &output.ReplayRequest{URL: url, Type: "http", HTTP: &output.ReplayHTTP{Method: "GET", Body: "{{literal}}", TimeoutS: 15}}}}
 	}
 	return records
 }

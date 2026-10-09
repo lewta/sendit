@@ -12,6 +12,7 @@
 - Added per-request templating for target URLs, HTTP/gRPC bodies, and WebSocket messages with inline values, newline-delimited variable files, and UUID, timestamp, and sequence built-ins.
 
 ### Changed
+- New replay captures use envelope v2 with explicit requested HTTP version; strict v1 captures remain readable with automatic protocol selection. Generator and dry-run output preserve/display the configured policy.
 - Included command-level integration coverage in `make verify` and added replay decoder fuzzing and encoding benchmarks to CI.
 - Documented replay contracts and capture examples; moved released v1.7.0 and implemented Replay into completed roadmap milestones.
 

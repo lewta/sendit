@@ -2,6 +2,7 @@ package resource
 
 import (
 	"context"
+	"math"
 	"testing"
 	"time"
 )
@@ -22,8 +23,9 @@ func TestNew(t *testing.T) {
 // TestAdmit_UnderThreshold starts the monitor with very permissive thresholds
 // so the system is always under-threshold, and verifies Admit returns quickly.
 func TestAdmit_UnderThreshold(t *testing.T) {
-	// 100% CPU and huge RAM threshold — system will always be admitted.
-	m := New(100.0, 1_000_000)
+	// Test-only threshold above every possible sample: 100 itself still blocks
+	// when CPU is saturated because the production gate uses >=.
+	m := New(math.Inf(1), 1_000_000)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 

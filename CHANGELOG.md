@@ -1,6 +1,7 @@
 ## [Unreleased]
 
 ### Changed
+- Bumped github.com/go-viper/mapstructure/v2 from 2.4.0 to 2.5.0 for upstream fixes.
 - Upgraded chromedp to v0.20.1 and migrated the browser driver to its typed action, CSS selector, and evaluation APIs.
 
 ### Fixed

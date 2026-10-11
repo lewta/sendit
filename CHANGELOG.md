@@ -1,5 +1,8 @@
 ## [Unreleased]
 
+### Changed
+- Bumped github.com/go-viper/mapstructure/v2 from 2.4.0 to 2.5.0 for upstream fixes.
+
 ### Fixed
 - Resolve package-tap updates from the exact release workflow commit, failing on missing or ambiguous releases instead of treating a manual dispatch's branch as its tag.
 

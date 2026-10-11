@@ -4,6 +4,8 @@
 - Bumped github.com/go-viper/mapstructure/v2 from 2.4.0 to 2.5.0 for upstream fixes.
 - Upgraded chromedp to v0.20.1 and migrated the browser driver to its typed action, CSS selector, and evaluation APIs.
 
+- Bumped go.yaml.in/yaml/v3 from 3.0.4 to 3.0.5 for upstream fixes.
+
 ### Fixed
 - Resolve package-tap updates from the exact release workflow commit, failing on missing or ambiguous releases instead of treating a manual dispatch's branch as its tag.
 

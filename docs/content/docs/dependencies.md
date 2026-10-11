@@ -19,7 +19,7 @@ HTTP/1.1 and HTTP/2 selection use Go 1.26.9's standard `net/http.Protocols` and 
 |--------|---------|---------|---------|
 | [`github.com/charmbracelet/bubbletea`](https://github.com/charmbracelet/bubbletea) | v1.3.10 | MIT | Elm-architecture TUI framework — powers the `--tui` terminal dashboard |
 | [`github.com/charmbracelet/lipgloss`](https://github.com/charmbracelet/lipgloss) | v1.1.0 | MIT | Style definitions for the terminal UI (bold labels, colour-coded counters) |
-| [`github.com/chromedp/chromedp`](https://github.com/chromedp/chromedp) | v0.16.0 | MIT | Browser automation via the Chrome DevTools Protocol — powers the `browser` driver |
+| [`github.com/chromedp/chromedp`](https://github.com/chromedp/chromedp) | v0.20.1 | MIT | Browser automation via the Chrome DevTools Protocol — powers the `browser` driver |
 | [`github.com/coder/websocket`](https://github.com/coder/websocket) | v1.8.15 | ISC | WebSocket client — powers the `websocket` driver |
 | [`github.com/go-viper/mapstructure/v2`](https://github.com/go-viper/mapstructure) | v2.4.0 | MIT | Configuration decode hooks and Viper unmarshalling |
 | [`github.com/miekg/dns`](https://github.com/miekg/dns) | v1.1.73 | BSD-3-Clause | Full-featured DNS client and server library — powers the `dns` driver |

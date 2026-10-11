@@ -1043,6 +1043,9 @@ func TestSFTPDriver_DownloadMissingFileMaps404(t *testing.T) {
 
 func requireBrowser(t *testing.T) {
 	t.Helper()
+	if os.Getenv("SENDIT_TEST_BROWSER") != "1" {
+		t.Skip("set SENDIT_TEST_BROWSER=1 with Chrome installed for browser execution smoke")
+	}
 	for _, name := range []string{"google-chrome", "chromium", "chromium-browser"} {
 		if _, err := exec.LookPath(name); err == nil {
 			return

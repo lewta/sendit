@@ -1,5 +1,8 @@
 ## [Unreleased]
 
+### Changed
+- Bumped go.yaml.in/yaml/v3 from 3.0.4 to 3.0.5 for upstream fixes.
+
 ### Fixed
 - Resolve package-tap updates from the exact release workflow commit, failing on missing or ambiguous releases instead of treating a manual dispatch's branch as its tag.
 

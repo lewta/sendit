@@ -3,6 +3,7 @@
 ### Changed
 - Bumped github.com/go-viper/mapstructure/v2 from 2.4.0 to 2.5.0 for upstream fixes.
 - Upgraded chromedp to v0.20.1 and migrated the browser driver to its typed action, CSS selector, and evaluation APIs.
+- Bumped actions/upload-artifact from 7.0.1 to 7.0.2 for upstream fixes.
 
 - Bumped go.yaml.in/yaml/v3 from 3.0.4 to 3.0.5 for upstream fixes.
 

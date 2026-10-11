@@ -1,5 +1,8 @@
 ## [Unreleased]
 
+### Changed
+- Upgraded chromedp to v0.20.1 and migrated the browser driver to its typed action, CSS selector, and evaluation APIs.
+
 ### Fixed
 - Resolve package-tap updates from the exact release workflow commit, failing on missing or ambiguous releases instead of treating a manual dispatch's branch as its tag.
 

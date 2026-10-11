@@ -11,6 +11,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync/atomic"
@@ -1040,12 +1041,71 @@ func TestSFTPDriver_DownloadMissingFileMaps404(t *testing.T) {
 
 // --- Browser driver ---
 
-func TestBrowserDriver_Skipped(t *testing.T) {
-	// The browser driver requires a real Chrome/Chromium binary and is not
-	// suitable for unit testing. Each task spawns its own chromedp.ExecAllocator
-	// which requires Chrome to be installed. This test exists to document the
-	// gap explicitly. Run manual smoke tests with `sendit start` and a
-	// type:browser target to exercise the browser driver.
-	t.Skip("browser driver requires Chrome — tested manually via sendit start")
-	_ = strings.NewReader("") // suppress unused import if test body is empty
+func requireBrowser(t *testing.T) {
+	t.Helper()
+	for _, name := range []string{"google-chrome", "chromium", "chromium-browser"} {
+		if _, err := exec.LookPath(name); err == nil {
+			return
+		}
+	}
+	for _, path := range []string{
+		"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+		"/Applications/Chromium.app/Contents/MacOS/Chromium",
+	} {
+		if _, err := os.Stat(path); err == nil {
+			return
+		}
+	}
+	t.Skip("browser driver requires Chrome or Chromium")
+}
+
+func browserTask(rawURL string, cfg config.BrowserConfig) task.Task {
+	c := config.TargetConfig{URL: rawURL, Type: "browser", Browser: cfg}
+	return task.Task{URL: rawURL, Type: "browser", Config: c}
+}
+
+func TestBrowserDriverWaitsForVisibleSelectorAndScrolls(t *testing.T) {
+	requireBrowser(t)
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "text/html")
+		_, _ = io.WriteString(w, `<!doctype html>
+<style>#ready { display: none } body { min-height: 4000px }</style>
+<div id="ready">ready</div>
+<script>setTimeout(() => { document.querySelector('#ready').style.display = 'block' }, 100)</script>`)
+	}))
+	defer srv.Close()
+
+	result := driver.NewBrowserDriver().Execute(context.Background(), browserTask(srv.URL, config.BrowserConfig{
+		Scroll:          true,
+		WaitForSelector: "#ready",
+		TimeoutS:        10,
+	}))
+	if result.Error != nil {
+		t.Fatalf("Execute() error = %v", result.Error)
+	}
+	if result.StatusCode != http.StatusOK {
+		t.Errorf("StatusCode = %d, want %d", result.StatusCode, http.StatusOK)
+	}
+}
+
+func TestBrowserDriverSelectorTimeout(t *testing.T) {
+	requireBrowser(t)
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "text/html")
+		_, _ = io.WriteString(w, `<!doctype html><p>selector never appears</p>`)
+	}))
+	defer srv.Close()
+
+	result := driver.NewBrowserDriver().Execute(context.Background(), browserTask(srv.URL, config.BrowserConfig{
+		WaitForSelector: "#missing",
+		TimeoutS:        1,
+	}))
+	if result.Error == nil {
+		t.Fatal("Execute() error = nil, want selector timeout")
+	}
+	if !strings.Contains(result.Error.Error(), "browser:") {
+		t.Errorf("Execute() error = %q, want browser context", result.Error)
+	}
 }

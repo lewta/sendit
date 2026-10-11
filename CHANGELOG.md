@@ -1,5 +1,8 @@
 ## [Unreleased]
 
+### Changed
+- Bumped actions/upload-artifact from 7.0.1 to 7.0.2 for upstream fixes.
+
 ### Fixed
 - Resolve package-tap updates from the exact release workflow commit, failing on missing or ambiguous releases instead of treating a manual dispatch's branch as its tag.
 

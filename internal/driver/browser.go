@@ -45,23 +45,23 @@ func (d *BrowserDriver) Execute(ctx context.Context, t task.Task) task.Result {
 
 	start := time.Now()
 
-	actions := []chromedp.Action{
+	actions := []chromedp.Action[chromedp.Void]{
 		chromedp.Navigate(t.URL),
 	}
 
 	if cfg.WaitForSelector != "" {
-		actions = append(actions, chromedp.WaitVisible(cfg.WaitForSelector, chromedp.ByQuery))
+		actions = append(actions, chromedp.WaitVisible(chromedp.CSS(cfg.WaitForSelector)))
 	}
 
 	if cfg.Scroll {
 		actions = append(actions,
-			chromedp.Evaluate(`window.scrollTo(0, document.body.scrollHeight / 2)`, nil),
+			chromedp.Evaluate[chromedp.Void](`window.scrollTo(0, document.body.scrollHeight / 2)`),
 			chromedp.Sleep(500*time.Millisecond),
-			chromedp.Evaluate(`window.scrollTo(0, document.body.scrollHeight)`, nil),
+			chromedp.Evaluate[chromedp.Void](`window.scrollTo(0, document.body.scrollHeight)`),
 		)
 	}
 
-	err := chromedp.Run(timeoutCtx, actions...)
+	err := chromedp.Do(timeoutCtx, actions...)
 	elapsed := time.Since(start)
 
 	if err != nil {

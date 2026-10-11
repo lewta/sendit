@@ -1,6 +1,7 @@
 ## [Unreleased]
 
 ### Changed
+- Upgraded chromedp to v0.20.1 and migrated the browser driver to its typed action, CSS selector, and evaluation APIs.
 - Bumped actions/upload-artifact from 7.0.1 to 7.0.2 for upstream fixes.
 
 ### Fixed

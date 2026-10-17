@@ -1,5 +1,8 @@
 ## [Unreleased]
 
+### Changed
+- Bumped goreleaser/goreleaser-action from v7.2.3 to v7.3.0, enabling reuse of GoReleaser from the runner tool cache and including upstream dependency fixes.
+
 ## [1.8.1] - 2026-10-11
 
 ### Changed

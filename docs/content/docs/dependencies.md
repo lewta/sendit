@@ -24,7 +24,7 @@ HTTP/1.1 and HTTP/2 selection use Go 1.26.9's standard `net/http.Protocols` and 
 | [`github.com/go-viper/mapstructure/v2`](https://github.com/go-viper/mapstructure) | v2.5.0 | MIT | Configuration decode hooks and Viper unmarshalling |
 | [`github.com/miekg/dns`](https://github.com/miekg/dns) | v1.1.73 | BSD-3-Clause | Full-featured DNS client and server library — powers the `dns` driver |
 | [`github.com/pkg/sftp`](https://github.com/pkg/sftp) | v1.13.11 | BSD-2-Clause | SFTP client and test server — powers the `sftp` driver |
-| [`github.com/prometheus/client_golang`](https://github.com/prometheus/client_golang) | v1.24.1 | Apache-2.0 | Prometheus metrics exposition (`/metrics` endpoint) |
+| [`github.com/prometheus/client_golang`](https://github.com/prometheus/client_golang) | v1.25.0 | Apache-2.0 | Prometheus metrics exposition (`/metrics` endpoint) |
 | [`github.com/robfig/cron/v3`](https://github.com/robfig/cron) | v3.0.1 | MIT | Cron expression parser — used by `scheduled` pacing mode to define active windows |
 | [`github.com/rs/zerolog`](https://github.com/rs/zerolog) | v1.35.1 | MIT | Zero-allocation structured logger; `zerolog.Nop()` used internally for no-op metrics |
 | [`github.com/shirou/gopsutil/v3`](https://github.com/shirou/gopsutil) | v3.24.5 | BSD-3-Clause | Cross-platform CPU and memory utilisation polling — powers the resource admission gate |

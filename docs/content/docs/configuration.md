@@ -186,6 +186,8 @@ Optional result export to a file for offline analysis.
 
 Each JSONL record contains: `ts`, `url`, `type`, `status`, `duration_ms`, `bytes`, `error`. Drivers may add metadata fields; SFTP records include SSH handshake metadata and `sftp_entry_count` for list operations.
 
+CSV and JSONL remove URL userinfo, including from malformed URLs, and replace associated error text with a generic omission message. Other URL data, bodies, messages, metadata, and logs are not covered by this redaction.
+
 ### Replay JSONL envelope
 
 New engine results write envelope **v2**; v1 captures remain readable with automatic HTTP policy. V2 requires `http_version` in HTTP snapshots and captures requested policy, independently of the observed top-level `http_protocol`. The top-level fields and integer `duration_ms` remain compatible with existing consumers and PCAP export. V1-only sendit binaries reject v2 envelopes:

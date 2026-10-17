@@ -2,6 +2,7 @@
 
 ### Changed
 - Bumped golang.org/x/net from v0.60.0 to v0.61.0 and aligned the golang.org/x module set for upstream fixes.
+- Bumped github.com/prometheus/client_golang from v1.24.1 to v1.25.0 for upstream fixes and behavior changes.
 
 ## [1.8.1] - 2026-10-11
 

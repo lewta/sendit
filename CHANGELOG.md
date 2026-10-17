@@ -1,5 +1,8 @@
 ## [Unreleased]
 
+### Changed
+- Bumped github.com/chromedp/chromedp from v0.20.1 to v0.21.0 for upstream fixes and module consolidation.
+
 ## [1.8.1] - 2026-10-11
 
 ### Changed

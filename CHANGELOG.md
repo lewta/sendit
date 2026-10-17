@@ -1,5 +1,8 @@
 ## [Unreleased]
 
+### Fixed
+- Honor cancellation and timeouts during SSH handshake and SFTP startup so stalled connections cannot block engine shutdown; keep completed connections reusable.
+
 ### Changed
 - Bumped golang.org/x/net from v0.60.0 to v0.61.0 and aligned the golang.org/x module set for upstream fixes.
 - Bumped github.com/prometheus/client_golang from v1.24.1 to v1.25.0 for upstream fixes and behavior changes.

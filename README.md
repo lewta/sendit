@@ -1086,6 +1086,8 @@ URL format: `grpc://host:port/Service/Method` (plaintext) or `grpcs://host:port/
 
 Executes SFTP `upload`, `download`, and `list` operations over SSH. By default, host keys are verified against `~/.ssh/known_hosts`; set `sftp.insecure: true` only for trusted lab or ephemeral hosts. Connections are cached per address, username, auth material, and SSH policy so targets with stricter algorithm settings do not reuse weaker sessions.
 
+SSH handshake and SFTP startup honor `sftp.timeout_s` and shutdown cancellation, mapping either to status 504. Completed connections remain reusable after their original task context ends. In-progress file operations are not guaranteed to stop immediately on cancellation.
+
 | SFTP condition | HTTP equivalent | Effect |
 |----------------|----------------|--------|
 | Success | 200 | success |

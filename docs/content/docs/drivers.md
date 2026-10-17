@@ -284,6 +284,8 @@ targets:
 
 Executes SFTP operations over SSH using [github.com/pkg/sftp](https://github.com/pkg/sftp) and [golang.org/x/crypto/ssh](https://pkg.go.dev/golang.org/x/crypto/ssh).
 
+SSH handshake and SFTP startup honor `timeout_s` and shutdown cancellation, mapping either to status 504. Completed connections remain reusable after their original task context ends. In-progress file operations are not guaranteed to stop immediately on cancellation.
+
 ```yaml
 targets:
   - url: sftp://sftp.example.com/uploads/test.bin

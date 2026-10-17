@@ -1,6 +1,12 @@
 ## [Unreleased]
 
 ### Changed
+- Bumped golang.org/x/net from v0.60.0 to v0.61.0 and aligned the golang.org/x module set for upstream fixes.
+- Bumped github.com/prometheus/client_golang from v1.24.1 to v1.25.0 for upstream fixes and behavior changes.
+- Bumped github.com/chromedp/chromedp from v0.20.1 to v0.21.0 for upstream fixes and module consolidation.
+- Bumped the github/codeql-action group from v4.38.2 to v4.38.3 for upstream fixes.
+- Bumped ossf/scorecard-action from v2.4.4 to v2.5.0, updating Scorecard to v5.6.0 and avoiding token-value logging during option validation.
+- Bumped goreleaser/goreleaser-action from v7.2.3 to v7.3.0, enabling reuse of GoReleaser from the runner tool cache and including upstream dependency fixes.
 - Bumped actions/create-github-app-token from v3.2.0 to v3.3.0 for updated permission inputs and upstream dependency fixes.
 
 ## [1.8.1] - 2026-10-11

@@ -1,5 +1,8 @@
 ## [Unreleased]
 
+### Changed
+- Bumped the github/codeql-action group from v4.38.2 to v4.38.3 for upstream fixes.
+
 ## [1.8.1] - 2026-10-11
 
 ### Changed

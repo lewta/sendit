@@ -7,6 +7,7 @@
 - Bumped the github/codeql-action group from v4.38.2 to v4.38.3 for upstream fixes.
 - Bumped ossf/scorecard-action from v2.4.4 to v2.5.0, updating Scorecard to v5.6.0 and avoiding token-value logging during option validation.
 - Bumped goreleaser/goreleaser-action from v7.2.3 to v7.3.0, enabling reuse of GoReleaser from the runner tool cache and including upstream dependency fixes.
+- Bumped actions/create-github-app-token from v3.2.0 to v3.3.0 for updated permission inputs and upstream dependency fixes.
 
 ## [1.8.1] - 2026-10-11
 

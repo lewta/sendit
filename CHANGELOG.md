@@ -1,5 +1,8 @@
 ## [Unreleased]
 
+### Changed
+- Bumped golang.org/x/crypto from v0.57.0 to v0.58.0 and aligned the golang.org/x module set for upstream fixes.
+
 ## [1.8.1] - 2026-10-11
 
 ### Changed

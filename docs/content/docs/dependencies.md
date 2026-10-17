@@ -19,20 +19,20 @@ HTTP/1.1 and HTTP/2 selection use Go 1.26.9's standard `net/http.Protocols` and 
 |--------|---------|---------|---------|
 | [`github.com/charmbracelet/bubbletea`](https://github.com/charmbracelet/bubbletea) | v1.3.10 | MIT | Elm-architecture TUI framework — powers the `--tui` terminal dashboard |
 | [`github.com/charmbracelet/lipgloss`](https://github.com/charmbracelet/lipgloss) | v1.1.0 | MIT | Style definitions for the terminal UI (bold labels, colour-coded counters) |
-| [`github.com/chromedp/chromedp`](https://github.com/chromedp/chromedp) | v0.20.1 | MIT | Browser automation via the Chrome DevTools Protocol — powers the `browser` driver |
+| [`github.com/chromedp/chromedp`](https://github.com/chromedp/chromedp) | v0.21.0 | MIT | Browser automation via the Chrome DevTools Protocol — powers the `browser` driver |
 | [`github.com/coder/websocket`](https://github.com/coder/websocket) | v1.8.15 | ISC | WebSocket client — powers the `websocket` driver |
 | [`github.com/go-viper/mapstructure/v2`](https://github.com/go-viper/mapstructure) | v2.5.0 | MIT | Configuration decode hooks and Viper unmarshalling |
 | [`github.com/miekg/dns`](https://github.com/miekg/dns) | v1.1.73 | BSD-3-Clause | Full-featured DNS client and server library — powers the `dns` driver |
 | [`github.com/pkg/sftp`](https://github.com/pkg/sftp) | v1.13.11 | BSD-2-Clause | SFTP client and test server — powers the `sftp` driver |
-| [`github.com/prometheus/client_golang`](https://github.com/prometheus/client_golang) | v1.24.1 | Apache-2.0 | Prometheus metrics exposition (`/metrics` endpoint) |
+| [`github.com/prometheus/client_golang`](https://github.com/prometheus/client_golang) | v1.25.0 | Apache-2.0 | Prometheus metrics exposition (`/metrics` endpoint) |
 | [`github.com/robfig/cron/v3`](https://github.com/robfig/cron) | v3.0.1 | MIT | Cron expression parser — used by `scheduled` pacing mode to define active windows |
 | [`github.com/rs/zerolog`](https://github.com/rs/zerolog) | v1.35.1 | MIT | Zero-allocation structured logger; `zerolog.Nop()` used internally for no-op metrics |
 | [`github.com/shirou/gopsutil/v3`](https://github.com/shirou/gopsutil) | v3.24.5 | BSD-3-Clause | Cross-platform CPU and memory utilisation polling — powers the resource admission gate |
 | [`github.com/spf13/cobra`](https://github.com/spf13/cobra) | v1.10.2 | Apache-2.0 | CLI framework — commands, flags, and shell completion generation |
 | [`github.com/spf13/viper`](https://github.com/spf13/viper) | v1.21.0 | MIT | Config file loading with environment variable overlay and `mapstructure` unmarshalling |
 | [`go.yaml.in/yaml/v3`](https://pkg.go.dev/go.yaml.in/yaml/v3) | v3.0.5 | MIT | Raw YAML syntax tree used to validate template variable key casing before Viper normalization |
-| [`golang.org/x/crypto`](https://pkg.go.dev/golang.org/x/crypto) | v0.57.0 | BSD-3-Clause | `ssh` subpackage — SSH transport and algorithm policy controls for the `sftp` driver |
-| [`golang.org/x/net`](https://pkg.go.dev/golang.org/x/net) | v0.60.0 | BSD-3-Clause | `html` subpackage — HTML parser used by the `generate` command to extract links |
+| [`golang.org/x/crypto`](https://pkg.go.dev/golang.org/x/crypto) | v0.58.0 | BSD-3-Clause | `ssh` subpackage — SSH transport and algorithm policy controls for the `sftp` driver |
+| [`golang.org/x/net`](https://pkg.go.dev/golang.org/x/net) | v0.61.0 | BSD-3-Clause | `html` subpackage — HTML parser used by the `generate` command to extract links |
 | [`golang.org/x/time`](https://pkg.go.dev/golang.org/x/time) | v0.16.0 | BSD-3-Clause | `rate` subpackage — token-bucket rate limiter used by `rate_limited` and `scheduled` pacing |
 | [`google.golang.org/grpc`](https://pkg.go.dev/google.golang.org/grpc) | v1.84.0 | Apache-2.0 | gRPC client and server — powers the `grpc` driver; includes reflection client and health service |
 | [`google.golang.org/protobuf`](https://pkg.go.dev/google.golang.org/protobuf) | v1.36.12 | BSD-3-Clause | Dynamic protobuf messages and JSON/protobuf marshaling for the reflection-based `grpc` driver |

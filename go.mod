@@ -5,7 +5,7 @@ go 1.26.9
 require (
 	github.com/charmbracelet/bubbletea v1.3.10
 	github.com/charmbracelet/lipgloss v1.1.0
-	github.com/chromedp/chromedp v0.20.1
+	github.com/chromedp/chromedp v0.21.0
 	github.com/coder/websocket v1.8.15
 	github.com/cucumber/godog v0.16.0
 	github.com/go-viper/mapstructure/v2 v2.5.0

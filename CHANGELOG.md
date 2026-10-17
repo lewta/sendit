@@ -4,6 +4,7 @@
 - Bumped golang.org/x/net from v0.60.0 to v0.61.0 and aligned the golang.org/x module set for upstream fixes.
 - Bumped github.com/prometheus/client_golang from v1.24.1 to v1.25.0 for upstream fixes and behavior changes.
 - Bumped github.com/chromedp/chromedp from v0.20.1 to v0.21.0 for upstream fixes and module consolidation.
+- Bumped the github/codeql-action group from v4.38.2 to v4.38.3 for upstream fixes.
 
 ## [1.8.1] - 2026-10-11
 

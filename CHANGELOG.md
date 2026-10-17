@@ -1,5 +1,8 @@
 ## [Unreleased]
 
+### Changed
+- Bumped actions/create-github-app-token from v3.2.0 to v3.3.0 for updated permission inputs and upstream dependency fixes.
+
 ## [1.8.1] - 2026-10-11
 
 ### Changed

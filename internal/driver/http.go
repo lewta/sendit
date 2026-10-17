@@ -155,7 +155,10 @@ func (d *HTTPDriver) Execute(ctx context.Context, t task.Task) task.Result {
 	}
 	defer resp.Body.Close()
 
-	n, _ := io.Copy(io.Discard, resp.Body)
+	n, err := io.Copy(io.Discard, resp.Body)
+	if err != nil {
+		err = fmt.Errorf("reading response body: %w", redactQueryAuthError(err, req.URL.String(), t.Config.Auth))
+	}
 
 	return task.Result{
 		Task:       t,
@@ -163,5 +166,6 @@ func (d *HTTPDriver) Execute(ctx context.Context, t task.Task) task.Result {
 		Duration:   elapsed,
 		BytesRead:  n,
 		Meta:       meta,
+		Error:      err,
 	}
 }

@@ -793,6 +793,8 @@ target_defaults:
 
 > **Note:** HTTP header map keys are lowercased by the YAML parser (e.g. `User-Agent` is stored as `user-agent`). This applies to both inline targets and `target_defaults`.
 
+HTTP response-body read failures (including truncation, cancellation, and timeout) are request errors in traffic runs, probe, and replay, even after a successful status. Results retain the response status, protocol, and bytes read before failure. HTTP duration continues to measure time through response headers, not body completion.
+
 ### `targets`
 
 List of endpoints to request. Each target has a `weight` controlling selection frequency relative to the others. Selection uses the Vose alias method (O(1) per pick).

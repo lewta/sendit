@@ -1,7 +1,7 @@
 GO ?= go
 GOLANGCI_LINT ?= golangci-lint
 
-.PHONY: build test test-race integration lint release-check verify
+.PHONY: build test test-race test-browser integration lint release-check verify
 
 build:
 	$(GO) build ./cmd/sendit
@@ -11,6 +11,9 @@ test:
 
 test-race:
 	$(GO) test -race ./...
+
+test-browser:
+	SENDIT_TEST_BROWSER=1 $(GO) test -race -tags integration -run '^(TestBrowserDriver|TestIntegrationReplayBrowser)' ./internal/driver ./cmd/sendit
 
 integration:
 	$(GO) test -tags integration -race -v ./...

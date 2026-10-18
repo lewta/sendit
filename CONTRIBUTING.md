@@ -20,12 +20,17 @@ Thanks for your interest in contributing. This document covers everything you ne
 ## Prerequisites
 
 - **Go 1.26.9+**
+- **golangci-lint**, pinned alongside Go in `.mise.toml`
 - **Chrome or Chromium** — only required if you work on or test the `browser` driver
 
+With [mise](https://mise.jdx.dev/) installed, provision the pinned tools and run verification:
+
 ```sh
-# Verify your Go version
-go version  # should print go1.26.9 or later
+mise install
+mise exec -- make verify
 ```
+
+If mise asks you to trust the configuration, review `.mise.toml` and run `mise trust` before installation. `mise exec` supplies the pinned tools without shell activation. If you already manage compatible tools on PATH, run the Make targets directly.
 
 ---
 
@@ -70,7 +75,7 @@ Use the imperative form with a short type prefix:
 
 ```
 fix: correct rate limit not resetting after reload
-feature: add websocket probe support
+feat: add websocket probe support
 docs: update configuration reference for pacing modes
 ci: pin govulncheck action to avoid duplicate auth header
 build: replace deprecated goreleaser archives.format field
@@ -109,21 +114,11 @@ sendit requires tests for all major new functionality. This applies to every PR 
 - Tests for trivial wrappers, generated code, or one-line functions where the test would only mirror the implementation
 - End-to-end tests that require external services (e.g. live DNS resolvers, real HTTPS endpoints) — use stubs or the existing integration test harness instead
 
-**Running the full test matrix locally before opening a PR:**
+Run the canonical `make verify` gate before opening or updating a PR. The Makefile defines its checks, including race-enabled tests, all-package integration tests, and release-script checks.
 
-```sh
-# Unit tests with race detector
-go test -race ./...
+For browser-driver, chromedp, or browser-replay changes, also run `make test-browser`. It enables the browser driver and replay tests and fails if Chrome or Chromium is unavailable. These execution tests are opt-in and are not part of the default `make verify` run.
 
-# Integration tests
-go test -tags integration -race -v ./internal/engine/...
-
-# Fuzz targets (30 s each — same duration as CI)
-go test -fuzz=FuzzLoad          -fuzztime=30s ./internal/config/
-go test -fuzz=FuzzSelector      -fuzztime=30s ./internal/task/
-go test -fuzz=FuzzClassifyError -fuzztime=30s ./internal/ratelimit/
-go test -fuzz=FuzzWriteRecord   -fuzztime=30s ./internal/pcap/
-```
+For parser changes, run the relevant fuzz target through `scripts/fuzz.sh`; the CI workflow lists the current targets and durations.
 
 ---
 
@@ -136,24 +131,23 @@ make test
 # Unit tests with race detector (required before opening a PR)
 make test-race
 
-# Integration tests (spins up local HTTP, DNS, and WebSocket servers)
+# Integration tests across all packages, using local test servers
 make integration
+
+# Browser driver and replay execution tests (requires Chrome or Chromium)
+make test-browser
 
 # Linter (golangci-lint v2)
 make lint
 
-# Canonical pre-PR verification (build, lint, race tests, integration tests)
+# Canonical pre-PR verification
 make verify
 
 # Validate a config file
 ./sendit validate --config config/example.yaml
 ```
 
-If `golangci-lint` is not installed:
-
-```sh
-go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.12.2
-```
+Prefix a target with `mise exec --` to use the pinned tools without changing your shell configuration.
 
 ---
 

@@ -92,9 +92,16 @@ func toRecord(r task.Result) record {
 	if r.Error != nil {
 		errStr = r.Error.Error()
 	}
+	url := r.Task.URL
+	if redacted, hasUserinfo := withoutURLUserinfo(url); hasUserinfo {
+		url = redacted
+		if errStr != "" {
+			errStr = "error omitted: target URL contains userinfo"
+		}
+	}
 	return record{
 		TS:         time.Now().UTC().Format(time.RFC3339),
-		URL:        r.Task.URL,
+		URL:        url,
 		Type:       r.Task.Type,
 		Status:     r.StatusCode,
 		DurationMs: r.Duration.Milliseconds(),
@@ -116,12 +123,6 @@ func (w *Writer) runJSONL(bw *bufio.Writer) {
 
 func toJSONLRecord(r task.Result) map[string]any {
 	rec := toRecord(r)
-	if redacted, hasUserinfo := withoutURLUserinfo(rec.URL); hasUserinfo {
-		rec.URL = redacted
-		if rec.Error != "" {
-			rec.Error = "error omitted: target URL contains userinfo"
-		}
-	}
 	out := map[string]any{
 		"ts":          rec.TS,
 		"url":         rec.URL,

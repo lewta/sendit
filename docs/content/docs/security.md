@@ -30,7 +30,7 @@ No CVE has been assigned for this release. See the [v1.2.5 release notes](https:
 
 Replay envelopes exclude configured authentication, custom HTTP headers (including inactive blocks), URL userinfo, and SFTP credentials. Non-replayable records contain a reason instead of a request snapshot; there is no credential-saving override. The decoder checks executable fields rather than trusting a `replayable: true` claim.
 
-JSONL telemetry removes URL userinfo and replaces the associated error text with a generic omission message. This does not redact arbitrary application data in URLs, bodies, messages, metadata, CSV, or logs. Treat captures as sensitive application data; configured-credential exclusion is not general secret detection.
+CSV and JSONL telemetry remove URL userinfo, including from malformed URLs, and replace the associated error text with a generic omission message. This does not redact arbitrary application data in URLs, bodies, messages, metadata, or logs. Treat captures as sensitive application data; configured-credential exclusion is not general secret detection.
 
 New output files use mode `0600`. The replay command rejects existing POSIX outputs with group/other permissions and rejects input/output file aliases before truncation. Normal engine output keeps existing permissions when appending/truncating. Windows uses native access controls. Output failures may leave partial files; neither mode promises crash-durable transactions.
 

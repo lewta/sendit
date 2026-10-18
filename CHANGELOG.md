@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+## [1.8.2] - 2026-10-18
+
 ### Fixed
 - Report truncated, canceled, and timed-out HTTP response-body reads as failures while retaining partial byte counts, response status, and protocol metadata.
 - Honor cancellation and timeouts during SSH handshake and SFTP startup so stalled connections cannot block engine shutdown; keep completed connections reusable.

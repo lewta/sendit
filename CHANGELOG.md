@@ -1,5 +1,11 @@
 ## [Unreleased]
 
+### Added
+- Pin golangci-lint alongside Go for mise setup and add `make test-browser` for explicit browser-driver and replay verification.
+
+### Changed
+- Fail requested browser tests when Chrome or Chromium is unavailable and align agent, contributor, and PR checklists with the canonical Make verification targets.
+
 ## [1.8.2] - 2026-10-18
 
 ### Fixed

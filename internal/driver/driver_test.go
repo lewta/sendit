@@ -1059,7 +1059,7 @@ func requireBrowser(t *testing.T) {
 			return
 		}
 	}
-	t.Skip("browser driver requires Chrome or Chromium")
+	t.Fatal("browser driver requires Chrome or Chromium")
 }
 
 func browserTask(rawURL string, cfg config.BrowserConfig) task.Task {

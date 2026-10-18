@@ -45,6 +45,14 @@ HTTP/1.1 and HTTP/2 selection use Go 1.26.9's standard `net/http.Protocols` and 
 |--------|---------|---------|---------|
 | [`github.com/cucumber/godog`](https://github.com/cucumber/godog) | v0.16.0 | MIT | Cucumber/Gherkin BDD test framework — powers the `features/auth.feature` behavioural tests for the auth block |
 
+## Development tools
+
+The repository's `.mise.toml` pins Go and golangci-lint. `mise install` provisions both; `mise exec -- make verify` runs the canonical pre-PR gate without shell activation. See the [contributor setup guide](https://github.com/lewta/sendit/blob/main/CONTRIBUTING.md#prerequisites) for installation and configuration trust.
+
+Browser-driver, chromedp, and browser-replay changes also require `mise exec -- make test-browser` with Chrome or Chromium installed. Browser execution tests are opt-in and are not included in the default gate. The browser target fails if the browser is unavailable.
+
+These are development requirements, not additional runtime dependencies of the sendit binary.
+
 ## Alternatives considered
 
 The following alternatives were evaluated during the v0.13.3 audit and ruled out:

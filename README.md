@@ -1108,16 +1108,19 @@ JSONL output includes SFTP metadata when available: `sftp_server_version`, `sftp
 
 ## Running Tests
 
+`mise install` provisions the Go and golangci-lint versions pinned in `.mise.toml`. Use `mise exec -- make verify` without shell activation, or run the targets directly when compatible tools are on PATH. See [Contributing](CONTRIBUTING.md#prerequisites) for setup.
+
 ```sh
 make test        # unit tests
 make test-race   # unit tests with the race detector
 make integration # full pipeline integration tests
+make test-browser # browser driver and replay tests; requires Chrome or Chromium
 make lint        # golangci-lint
 make verify      # canonical pre-PR verification
 ```
 
 `make verify` builds the CLI, runs the linter, executes the full race-enabled
-test suite, and runs the integration suite.
+test suite, and runs the integration and release-script checks. Browser execution tests are opt-in: run `make test-browser` for browser-driver, chromedp, or browser-replay changes. The browser target fails when Chrome or Chromium is unavailable instead of reporting skipped tests as successful verification.
 
 Integration tests spin up local HTTP, DNS, WebSocket, gRPC, and SFTP servers and exercise the complete dispatch pipeline including backoff, graceful shutdown, and the resource gate.
 

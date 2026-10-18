@@ -13,9 +13,9 @@ This file is the tool-neutral source of truth for contributors and coding agents
 
 ## Toolchain and verification
 
-- Go 1.26.9 or newer is required. `.mise.toml` is the canonical local toolchain declaration.
-- Chrome or Chromium is only required for browser-driver work.
-- Run `make verify` before opening or updating a pull request. It builds, lints, runs race-enabled tests, and runs integration tests.
+- Go 1.26.9 or newer is required. `.mise.toml` pins Go and golangci-lint; provision both with `mise install`.
+- Run `make verify` before opening or updating a pull request. It is the canonical gate; use `mise exec -- make verify` when the pinned tools are not on PATH.
+- For browser-driver, chromedp, or browser-replay changes, also run `make test-browser` with Chrome or Chromium installed. This opt-in gate fails when the browser is unavailable; `make verify` does not run browser execution tests by default.
 - Use narrower Make targets during development: `make test`, `make test-race`, `make integration`, and `make lint`.
 - New behavior requires unit tests for happy and meaningful error paths. Dispatch or driver changes require integration coverage; new parsers should add fuzz coverage where practical.
 

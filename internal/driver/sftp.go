@@ -131,6 +131,9 @@ func (d *SFTPDriver) Execute(ctx context.Context, t task.Task) task.Result {
 }
 
 func (d *SFTPDriver) getConn(ctx context.Context, addr, cacheKey string, cfg config.SFTPConfig, meta map[string]string) (*sftpConnection, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	authMaterial := sftpAuthMaterial(cfg)
 	var stale *sftpConnection
 
@@ -162,9 +165,15 @@ func (d *SFTPDriver) getConn(ctx context.Context, addr, cacheKey string, cfg con
 		return nil, err
 	}
 
+	stopCancellation := context.AfterFunc(ctx, func() { _ = rawConn.Close() })
+	defer stopCancellation()
+
 	sshConn, chans, reqs, err := ssh.NewClientConn(rawConn, addr, sshCfg)
 	if err != nil {
 		_ = rawConn.Close()
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
 		return nil, err
 	}
 
@@ -174,7 +183,16 @@ func (d *SFTPDriver) getConn(ctx context.Context, addr, cacheKey string, cfg con
 	sftpClient, err := sftp.NewClient(sshClient)
 	if err != nil {
 		_ = sshClient.Close()
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
 		return nil, err
+	}
+
+	if !stopCancellation() || ctx.Err() != nil {
+		_ = sftpClient.Close()
+		_ = sshClient.Close()
+		return nil, ctx.Err()
 	}
 
 	conn := &sftpConnection{ssh: sshClient, client: sftpClient, authMaterial: authMaterial}

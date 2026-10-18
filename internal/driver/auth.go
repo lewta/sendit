@@ -92,11 +92,13 @@ func authQueryURL(urlStr string, cfg config.AuthConfig) (string, error) {
 
 type queryAuthError struct {
 	err     error
+	cause   error // Used only for identity checks; never unwrap an unsafe message.
 	message string
 }
 
-func (e *queryAuthError) Error() string { return e.message }
-func (e *queryAuthError) Unwrap() error { return e.err }
+func (e *queryAuthError) Error() string        { return e.message }
+func (e *queryAuthError) Unwrap() error        { return e.err }
+func (e *queryAuthError) Is(target error) bool { return errors.Is(e.cause, target) }
 
 func redactQueryAuthError(err error, authenticatedURL string, cfg config.AuthConfig) error {
 	if err == nil || cfg.Type != "query" {
@@ -117,7 +119,11 @@ func redactQueryAuthError(err error, authenticatedURL string, cfg config.AuthCon
 
 	var urlErr *url.Error
 	if !errors.As(err, &urlErr) {
-		return &queryAuthError{message: redact(err.Error())}
+		message := redact(err.Error())
+		if message == err.Error() {
+			return err
+		}
+		return &queryAuthError{cause: err, message: message}
 	}
 	sanitized := *urlErr
 	sanitized.URL = redact(sanitized.URL)

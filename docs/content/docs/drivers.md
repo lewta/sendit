@@ -77,6 +77,8 @@ The same selected or generated value is reused across all fields in one request.
 
 Sends an HTTP/HTTPS request using Go's standard `net/http` client.
 
+Truncated, canceled, or timed-out response-body reads are request errors, even after a successful status, in traffic runs, probe, and replay. Results retain the response status, protocol metadata, and partial byte count. HTTP duration measures time through response headers, not body completion.
+
 ```yaml
 targets:
   - url: "https://example.com/api"

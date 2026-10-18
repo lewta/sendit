@@ -8,6 +8,9 @@ var rootCmd = &cobra.Command{
 	Long: `sendit simulates realistic user web traffic across HTTP, headless
 browser, DNS, and WebSocket protocols.
 
+HTTP response-body read failures count as request errors, even after a
+successful status, in traffic runs, probe, and replay.
+
 Targets are defined in a YAML config file under 'targets' (inline) and/or
 loaded from a plain-text file via 'targets_file'. Both can be used together.
 

@@ -978,6 +978,8 @@ Each JSONL record contains: `ts`, `url`, `type`, `status`, `duration_ms`, `bytes
 New engine records also contain a versioned `replay` envelope with run ID, dispatch sequence, monotonic-anchored start timestamp, and an eligible expanded request snapshot (or a non-replayable reason). The envelope is additive; `duration_ms` stays an integer and PCAP export still accepts these records. Ordinary engine output remains non-blocking and may drop records under pressure; replay cannot recover dropped source traffic. Use `append: false` for a single-run replay input. Ordinary output's mode `0600` applies to file creation, not an existing file's permissions.
 CSV output writes a header row when `append: false`.
 
+CSV and JSONL remove URL userinfo, including from malformed URLs, and replace associated error text with a generic omission message. Other URL data, bodies, messages, metadata, and logs are not covered by this redaction.
+
 ### `metrics`
 
 Optional Prometheus exposition.

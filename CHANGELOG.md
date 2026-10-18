@@ -2,6 +2,7 @@
 
 ### Fixed
 - Report truncated, canceled, and timed-out HTTP response-body reads as failures while retaining partial byte counts, response status, and protocol metadata.
+- Remove URL userinfo from CSV result URLs, including malformed URLs, and omit associated error text, matching JSONL credential protection.
 
 ### Changed
 - Bumped golang.org/x/net from v0.60.0 to v0.61.0 and aligned the golang.org/x module set for upstream fixes.

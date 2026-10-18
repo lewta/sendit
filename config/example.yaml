@@ -70,7 +70,7 @@ target_defaults:
   sftp:
     port: 22
     operation: upload
-    timeout_s: 30
+    timeout_s: 30                  # includes SSH handshake and SFTP startup; setup also stops on shutdown
     insecure: false
 
 targets:

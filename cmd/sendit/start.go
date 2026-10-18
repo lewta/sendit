@@ -80,6 +80,9 @@ policy; debug logs and JSONL http_protocol report the actual response.
 SFTP connection setup (SSH handshake and SFTP startup) honors sftp.timeout_s
 and shutdown cancellation; both map to status 504.
 
+CSV and JSONL output remove URL userinfo and omit associated error text.
+Other URL data, bodies, messages, metadata, and logs are not redacted.
+
 Targets may define 'vars' candidate lists and 'vars_file' mappings to
 newline-delimited files. {{uuid}}, {{timestamp}}, {{seq}}, and custom
 {{name}} values expand per request in URLs, HTTP/gRPC bodies, and WebSocket

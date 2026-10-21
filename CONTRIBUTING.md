@@ -19,7 +19,7 @@ Thanks for your interest in contributing. This document covers everything you ne
 
 ## Prerequisites
 
-- **Go 1.26.9+**
+- **Go 1.26.10+**
 - **golangci-lint**, pinned alongside Go in `.mise.toml`
 - **Chrome or Chromium** — only required if you work on or test the `browser` driver
 

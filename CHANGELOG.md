@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+## [1.8.3] - 2026-10-21
+
 ### Security
 - Upgrade Go to 1.26.10 across local, docs-module, and digest-pinned Docker build toolchains to block trust in the intermediate certificate authorities affected by CVE-2026-111943.
 

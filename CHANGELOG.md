@@ -1,5 +1,8 @@
 ## [Unreleased]
 
+### Security
+- Upgrade Go to 1.26.10 across local, docs-module, and digest-pinned Docker build toolchains to block trust in the intermediate certificate authorities affected by CVE-2026-111943.
+
 ### Added
 - Pin golangci-lint alongside Go for mise setup and add `make test-browser` for explicit browser-driver and replay verification.
 

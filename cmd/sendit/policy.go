@@ -27,7 +27,7 @@ func (f *configPolicyFlags) register(cmd *cobra.Command) {
 	flags.StringArrayVar(&f.readRoots, "allow-read-root", nil, "Grant an absolute existing read directory (repeatable)")
 	flags.StringVar(&f.outputRoot, "allow-output-root", "", "Grant one absolute existing output directory")
 	flags.BoolVar(&f.overwrite, "allow-overwrite", false, "Grant output overwrite permission; explicit false narrows trusted mode")
-	flags.StringArrayVar(&f.privateNetworks, "allow-private-network", nil, "Grant a private network CIDR (repeatable; mapped IPv6 prefixes rejected)")
+	flags.StringArrayVar(&f.privateNetworks, "allow-private-network", nil, "Grant a nonpublic or special-use network CIDR (repeatable; mapped IPv6 prefixes rejected)")
 }
 
 func (f *configPolicyFlags) build(cmd *cobra.Command) (policy.Access, error) {

@@ -156,9 +156,9 @@ Browser history weights are derived from visit count (capped at 10) so frequentl
 | `--allow-read-root /absolute/dir` | None | Canonical existing read directory; repeatable |
 | `--allow-output-root /absolute/dir` | None | One canonical existing output directory |
 | `--allow-overwrite` | Denied in restricted mode | Separate overwrite grant; `=false` also narrows trusted mode |
-| `--allow-private-network CIDR` | None | Private-address prefix grant; repeatable, IPv4-mapped IPv6 prefixes rejected |
+| `--allow-private-network CIDR` | None | Nonpublic or special-use prefix grant; repeatable, IPv4-mapped IPv6 prefixes rejected |
 
-Trusted mode preserves existing behavior. Explicit flags narrow the corresponding capability even in trusted mode. Restricted mode starts with no environment, read, output, overwrite, or private-network grants; its address policy permits public unicast destinations. Invalid flags fail before reading the config. These flags belong to configuration loading and are not yet available on `generate`, `probe`, or `replay`.
+Trusted mode preserves existing behavior. Explicit flags narrow the corresponding capability even in trusted mode. Restricted mode starts with no environment, read, output, overwrite, or private-network grants; its address policy permits ordinary public destinations under an explicit IANA-based classification. Special-use addresses require grants, including benchmark, documentation, protocol-assignment, and transition ranges. IPv6 allocations newer than the policy snapshot fail closed until a policy update or explicit grant. Invalid flags fail before reading the config. These flags belong to configuration loading and are not yet available on `generate`, `probe`, or `replay`.
 
 ```sh
 sendit validate -c external.yaml --config-trust=restricted \

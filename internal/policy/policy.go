@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"net/netip"
 	"os"
-	"path/filepath"
 	"regexp"
 	"slices"
 	"strings"
@@ -191,14 +190,14 @@ func (a Access) CheckOutputPath(path string, overwrite bool) error {
 	if err != nil {
 		return err
 	}
-	if a.outputRoot != "" && within(a.outputRoot, p) && p != a.outputRoot {
+	if a.outputRoot != "" && within(a.outputRoot, p) && !within(p, a.outputRoot) {
 		return nil
 	}
 	return fmt.Errorf("config policy: output path denied: %s", p)
 }
 
 // AllowsAddress permits public unicast destinations in restricted mode and
-// requires a matching grant for private, loopback, link-local, or shared space.
+// requires a matching grant for special-use or reserved address space.
 // IPv4-mapped IPv6 is checked as IPv4. Invalid, zoned, unspecified, multicast,
 // and broadcast addresses are never destinations, even with a CIDR grant.
 func (a Access) AllowsAddress(addr netip.Addr) bool {
@@ -217,8 +216,7 @@ func (a Access) AllowsAddress(addr netip.Addr) bool {
 			return true
 		}
 	}
-	shared := netip.MustParsePrefix("100.64.0.0/10")
-	return addr.IsGlobalUnicast() && !addr.IsPrivate() && !addr.IsLoopback() && !addr.IsLinkLocalUnicast() && !shared.Contains(addr)
+	return publicDestination(addr)
 }
 
 func normalize(g Grants) (Grants, error) {
@@ -277,40 +275,6 @@ func canonicalRoot(path string) (string, error) {
 		return "", fmt.Errorf("config policy: root must be an existing directory: %s", p)
 	}
 	return p, nil
-}
-
-func canonicalPath(path string, missingLeaf bool) (string, error) {
-	if !filepath.IsAbs(path) || strings.ContainsAny(path, "*?[]\x00") || strings.HasPrefix(path, "//") || strings.Contains(path, `\`) {
-		return "", errors.New("config policy: path must be absolute and unambiguous")
-	}
-	for _, part := range strings.Split(filepath.ToSlash(path), "/") {
-		if part == "." || part == ".." {
-			return "", errors.New("config policy: path traversal components are forbidden")
-		}
-	}
-	clean := filepath.Clean(path)
-	p, err := filepath.EvalSymlinks(clean)
-	if err == nil {
-		return p, nil
-	}
-	if missingLeaf && os.IsNotExist(err) {
-		// A dangling final symlink is not a nonexistent leaf.
-		if _, statErr := os.Lstat(clean); os.IsNotExist(statErr) {
-			parent, parentErr := filepath.EvalSymlinks(filepath.Dir(clean))
-			if parentErr == nil {
-				info, statErr := os.Stat(parent)
-				if statErr == nil && info.IsDir() {
-					return filepath.Join(parent, filepath.Base(clean)), nil
-				}
-			}
-		}
-	}
-	return "", fmt.Errorf("config policy: cannot resolve path: %s", clean)
-}
-
-func within(root, path string) bool {
-	rel, err := filepath.Rel(root, path)
-	return err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) && !filepath.IsAbs(rel)
 }
 
 func withinAny(roots []string, path string) bool {

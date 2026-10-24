@@ -11,6 +11,9 @@
 - Reject HTTPS-to-HTTP redirects at every HTTP driver hop before sending the cleartext request, including traffic runs, probe, and replay.
 - Preserve credential-free sendit-only Compose operation by moving optional dashboards into the explicitly selected `docker-compose.observability.yml`; check no-profile rendering without Grafana credentials alongside authenticated and local-demo policies.
 
+### Fixed
+- Require explicit policy grants for special-use network destinations and fail closed for reserved/unallocated IPv6 space. Support native Windows drive and UNC grants with metadata-based junction/symlink resolution and platform-aware containment while retaining strict POSIX path rules.
+
 ### Changed
 - Bumped github/codeql-action group (init/autobuild/analyze/upload-sarif) from v4.38.3 to v4.39.1 for upstream fixes.
 

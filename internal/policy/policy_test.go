@@ -74,7 +74,11 @@ func TestInvalidOperatorGrants(t *testing.T) {
 			t.Fatalf("accepted name %q", name)
 		}
 	}
-	for _, root := range []string{"", ".", "relative", "/tmp/*", "/tmp/../tmp", "/tmp/./x", `C:\data`, "//ambiguous/root", "/tmp/no-such-sendit-policy-root"} {
+	invalidRoots := []string{"", ".", "relative", "/tmp/*", "/tmp/../tmp", "/tmp/./x", "/tmp/no-such-sendit-policy-root"}
+	if runtime.GOOS != "windows" {
+		invalidRoots = append(invalidRoots, `C:\data`, "//ambiguous/root")
+	}
+	for _, root := range invalidRoots {
 		if _, err := New(ModeRestricted, Grants{ReadRoots: []string{root}}); err == nil {
 			t.Fatalf("accepted root %q", root)
 		}

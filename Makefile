@@ -1,7 +1,7 @@
 GO ?= go
 GOLANGCI_LINT ?= golangci-lint
 
-.PHONY: build test test-race test-browser integration lint release-check verify
+.PHONY: build test test-race test-browser integration lint release-check compose-security verify
 
 build:
 	$(GO) build ./cmd/sendit
@@ -25,4 +25,7 @@ release-check:
 	.github/scripts/verify-macos-release_test.sh
 	.github/scripts/resolve-release-tag_test.sh
 
-verify: build lint test-race integration release-check
+compose-security:
+	GO="$(GO)" bash docker/verify-compose-security.sh
+
+verify: build lint test-race integration release-check compose-security

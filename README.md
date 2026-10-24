@@ -797,7 +797,7 @@ target_defaults:
 | `http.method` | `GET` | HTTP verb |
 | `http.http_version` | `0` | `0` automatic, `1` HTTP/1.1, `2` HTTPS-only HTTP/2 without HTTP/1 fallback |
 | `http.timeout_s` | `15` | Request timeout in seconds |
-| `http.allow_cross_host_redirects` | `false` | Follow redirects to a different host. Redirected hosts still use per-domain rate limits. Keep disabled when sending auth headers unless that forwarding is intended. |
+| `http.allow_cross_host_redirects` | `false` | Follow redirects to a different host. Redirected hosts still use per-domain rate limits. HTTPS-to-HTTP redirects are always rejected before a cleartext request is sent. |
 | `browser.timeout_s` | `30` | Page load timeout in seconds |
 | `dns.resolver` | `8.8.8.8:53` | DNS resolver address |
 | `dns.record_type` | `A` | DNS record type |
@@ -854,6 +854,8 @@ targets:
 ```
 
 `0` or omission preserves automatic negotiation: HTTP/1.1 for plaintext and HTTP/1.1 or HTTP/2 over TLS. `1` sends HTTP/1.1 requests. `2` requires HTTPS and ALPN `h2` before sending the HTTP request, including every followed redirect; there is no fallback to HTTP/1.1 and no plaintext h2c. Certificate verification remains enabled. TLS/protocol failures are normal request errors.
+
+Every HTTP mode rejects an HTTPS-to-HTTP redirect at any hop before sending the cleartext request. `allow_cross_host_redirects` can permit a host change, but it never permits a scheme downgrade. HTTP-to-HTTP and HTTPS-to-HTTPS redirects retain their existing behavior.
 
 Only integer values 0–2 are accepted; strings, booleans, nulls, floats, and other values fail validation. `target_defaults.http.http_version` applies to file-loaded targets. Known plaintext targets fail config validation for mode 2; templated schemes are checked after expansion before dispatch to the network. Other driver types are unaffected.
 

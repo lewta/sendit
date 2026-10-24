@@ -19,6 +19,7 @@ sendit follows a rolling release model. Only the latest stable release receives 
 The [latest stable release](https://github.com/lewta/sendit/releases/latest) receives security updates. Security hardening from the July 2026 Codex Security scan shipped in `v1.2.5` and remains included in current releases. That hardening keeps supported workflows intact while tightening several defaults:
 
 - Cross-host HTTP redirects are blocked by default; set `http.allow_cross_host_redirects: true` only when cross-host redirects are intentional.
+- HTTPS-to-HTTP redirects are rejected at every hop before a cleartext request is sent; cross-host permission does not override the downgrade check.
 - During normal engine runs, opt-in cross-host redirects pass through per-domain rate limiting before the redirected request is sent. Replay intentionally bypasses engine rate limiting to preserve recorded timing.
 - `sendit generate --url` keeps robots.txt sitemap discovery within the seed origin and skips oversized HTML and sitemap responses.
 - The optional Prometheus metrics listener binds to loopback by default because metric labels include target domains; set `metrics.bind_address: 0.0.0.0` only when exposing metrics intentionally.

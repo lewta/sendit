@@ -9,7 +9,7 @@ A **driver** is responsible for executing a single request and returning a resul
 
 ## Replay support
 
-`sendit replay` reuses HTTP, browser, DNS, WebSocket, and gRPC drivers with their captured expanded settings. Browser replay requires Chrome; gRPC still uses server reflection. Same-host HTTP redirects retain normal behavior and cross-host redirects follow the captured `allow_cross_host_redirects` setting, without the engine's redirect rate limiter.
+`sendit replay` reuses HTTP, browser, DNS, WebSocket, and gRPC drivers with their captured expanded settings. Browser replay requires Chrome; gRPC still uses server reflection. HTTP-to-HTTP and HTTPS-to-HTTPS redirects retain normal behavior, cross-host redirects follow the captured `allow_cross_host_redirects` setting without the engine's redirect rate limiter, and HTTPS-to-HTTP redirects are always rejected.
 
 Targets with any populated auth field, custom HTTP headers (even in an inactive block), URL userinfo, or SFTP are marked non-replayable. Snapshots contain only the active block: HTTP method/body/timeout/redirect policy; browser scroll/selector/timeout; DNS resolver/record type; WebSocket messages/duration/expected count; gRPC body/timeout/TLS settings. Values already expanded by templating are replayed literally.
 
@@ -102,7 +102,7 @@ targets:
 | `headers` | `{}` | Key-value map of request headers |
 | `body` | `""` | Optional request body; supports request templates |
 | `timeout_s` | `15` | Per-request timeout (seconds) |
-| `allow_cross_host_redirects` | `false` | Follow redirects to a different host. Redirected hosts still use per-domain rate limits. Keep disabled when sending auth headers unless that forwarding is intended. |
+| `allow_cross_host_redirects` | `false` | Follow redirects to a different host. Redirected hosts still use per-domain rate limits. HTTPS-to-HTTP redirects are always rejected before a cleartext request is sent. |
 
 > **Note:** HTTP header map keys are lowercased by the YAML parser (e.g. `User-Agent` is stored as `user-agent`). This is standard YAML behaviour.
 
@@ -119,7 +119,7 @@ targets:
 
 Mode `0` preserves automatic HTTP/1.1 for plaintext and ALPN negotiation of HTTP/1.1 or HTTP/2 for HTTPS. Mode `1` sends HTTP/1.1 requests. Mode `2` requires HTTPS with ALPN `h2`; an HTTP/1-only or no-ALPN server fails before the HTTP request is transmitted. Normal certificate verification remains enabled. No plaintext h2c or HTTP/3 is implemented; HTTP/3 is tracked in [#320](https://github.com/lewta/sendit/issues/320).
 
-The policy applies to every redirect hop. A forced-H2 request cannot follow a redirect to plaintext or send an HTTP/1 request to an incompatible destination. Existing cross-host permission, auth, timeout, and engine redirect-limiter behavior is retained. Distinct transports are reused safely for concurrent mixed policies. HTTP protocol controls do not change browser, WebSocket or gRPC transports.
+The policy applies to every redirect hop. Every HTTP mode rejects an HTTPS-to-HTTP redirect before sending the cleartext request; `allow_cross_host_redirects` never overrides that rule. A forced-H2 request also cannot send an HTTP/1 request to an incompatible destination. HTTP-to-HTTP and HTTPS-to-HTTPS redirects retain the existing cross-host permission, auth, timeout, and engine redirect-limiter behavior. Distinct transports are reused safely for concurrent mixed policies. HTTP protocol controls do not change browser, WebSocket or gRPC transports.
 
 `http_protocol` in JSONL and debug logs reports the actual final response protocol (`HTTP/1.1`, `HTTP/2.0`, etc.), including policy-stopped redirects. No response means no protocol metadata. It is independent of requested `http_version`, which is preserved in v2 replay snapshots. V1 replay input remains automatic. Dry-run displays configured policy only and sends no traffic.
 

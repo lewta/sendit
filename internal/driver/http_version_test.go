@@ -187,11 +187,13 @@ func TestHTTPVersionRedirectPolicy(t *testing.T) {
 			t.Fatalf("redirect %s: %+v", path, r)
 		}
 	}
-	if badCalls.Load() != 0 || limited.Load() != 3 {
+	// The plaintext destination is rejected before redirected-host admission;
+	// the two secure destinations still pass through the limiter.
+	if badCalls.Load() != 0 || limited.Load() != 2 {
 		t.Fatalf("bad requests %d; limiter %d", badCalls.Load(), limited.Load())
 	}
 	stopped := d.Execute(context.Background(), httpVersionTask(source.URL, 2))
-	if stopped.Error != nil || stopped.StatusCode != 307 || stopped.Meta["http_protocol"] != "HTTP/2.0" {
+	if stopped.Error == nil || stopped.StatusCode != 0 || stopped.Meta["http_protocol"] != "HTTP/2.0" {
 		t.Fatal(stopped)
 	}
 }

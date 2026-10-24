@@ -3,6 +3,7 @@ package driver
 import (
 	"context"
 	"crypto/tls"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -62,6 +63,8 @@ func NewHTTPDriverWithRedirectLimiter(redirectLimiter RedirectLimiter) *HTTPDriv
 // Apply the scheme requirement to every RoundTrip, including redirect hops.
 type httpsOnlyTransport struct{ *http.Transport }
 
+var errRedirectDowngrade = errors.New("redirect from HTTPS to HTTP is not allowed")
+
 func (t httpsOnlyTransport) RoundTrip(r *http.Request) (*http.Response, error) {
 	if r.URL.Scheme != "https" {
 		return nil, fmt.Errorf("http_version 2 requires HTTPS; cleartext HTTP/2 is not supported")
@@ -75,7 +78,12 @@ func (d *HTTPDriver) redirectPolicy(allowCrossHost bool) func(req *http.Request,
 			return nil
 		}
 
-		if strings.EqualFold(req.URL.Host, via[len(via)-1].URL.Host) {
+		previous := via[len(via)-1]
+		if strings.EqualFold(previous.URL.Scheme, "https") && strings.EqualFold(req.URL.Scheme, "http") {
+			return errRedirectDowngrade
+		}
+
+		if strings.EqualFold(req.URL.Host, previous.URL.Host) {
 			return nil
 		}
 

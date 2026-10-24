@@ -160,7 +160,7 @@ target_defaults:
 | `http.method` | `GET` | HTTP verb |
 | `http.http_version` | `0` | `0` automatic, `1` HTTP/1.1, `2` HTTPS-only HTTP/2 without fallback |
 | `http.timeout_s` | `15` | Request timeout (seconds) |
-| `http.allow_cross_host_redirects` | `false` | Follow redirects to a different host. Redirected hosts still use per-domain rate limits. Keep disabled when sending auth headers unless that forwarding is intended. |
+| `http.allow_cross_host_redirects` | `false` | Follow redirects to a different host. Redirected hosts still use per-domain rate limits. HTTPS-to-HTTP redirects are always rejected before a cleartext request is sent. |
 | `browser.timeout_s` | `30` | Page load timeout (seconds) |
 | `dns.resolver` | `8.8.8.8:53` | DNS resolver address |
 | `dns.record_type` | `A` | DNS record type |

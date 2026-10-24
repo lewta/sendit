@@ -118,6 +118,20 @@ go build -o sendit ./cmd/sendit
 # config valid
 ```
 
+Configs are trusted operator input by default (`--config-trust=trusted`), preserving existing behavior. For downloaded, CI-supplied, or multi-tenant configs, select the opt-in restricted policy and supply grants only through operator-controlled CLI arguments:
+
+```sh
+./sendit validate --config external.yaml --config-trust=restricted \
+  --allow-env API_TOKEN --allow-read-root /srv/sendit/inputs
+./sendit start --config external.yaml --dry-run --config-trust=restricted \
+  --allow-env API_TOKEN --allow-read-root /srv/sendit/inputs \
+  --allow-output-root /srv/sendit/results
+```
+
+Grant directories must already exist. `start` and `validate` share the same policy flags. Dry-run and validation show requested versus granted names and normalized paths, never environment values or file contents in the policy summary. YAML `capability_requests` can only narrow these grants, and SIGHUP cannot restore a permission removed by an accepted reload. A process restart with explicit operator grants is required to broaden authority.
+
+This policy contract is not a sandbox: dispatch-time environment access, hardened variable-file reads, safe output opening, and per-connection crawler enforcement are not yet wired to it. Continue reviewing configs and isolating execution until those boundaries enforce the policy. See the [configuration reference](docs/content/docs/configuration.md) and [security scope](docs/content/docs/security.md).
+
 ### Run
 
 ```sh

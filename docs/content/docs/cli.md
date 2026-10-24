@@ -147,6 +147,33 @@ Browser history weights are derived from visit count (capped at 10) so frequentl
 
 ## `start` flags
 
+### Configuration policy flags (`start` and `validate`)
+
+| Flag | Default | Meaning |
+|---|---|---|
+| `--config-trust=trusted\|restricted` | `trusted` | Operator-selected authority mode; YAML cannot select it |
+| `--allow-env NAME` | None | Exact, case-sensitive environment name; repeatable, no wildcards |
+| `--allow-read-root /absolute/dir` | None | Canonical existing read directory; repeatable |
+| `--allow-output-root /absolute/dir` | None | One canonical existing output directory |
+| `--allow-overwrite` | Denied in restricted mode | Separate overwrite grant; `=false` also narrows trusted mode |
+| `--allow-private-network CIDR` | None | Private-address prefix grant; repeatable, IPv4-mapped IPv6 prefixes rejected |
+
+Trusted mode preserves existing behavior. Explicit flags narrow the corresponding capability even in trusted mode. Restricted mode starts with no environment, read, output, overwrite, or private-network grants; its address policy permits public unicast destinations. Invalid flags fail before reading the config. These flags belong to configuration loading and are not yet available on `generate`, `probe`, or `replay`.
+
+```sh
+sendit validate -c external.yaml --config-trust=restricted \
+  --allow-env API_TOKEN --allow-read-root /srv/sendit/inputs
+sendit start -c external.yaml --dry-run --config-trust=restricted \
+  --allow-output-root /srv/sendit/results --allow-overwrite \
+  --allow-private-network 10.20.0.0/16
+```
+
+`validate` and `start --dry-run` add a `Config policy:` summary with mode, explicit requested fields, and effective grants. `null` requests mean inherited; `[]` means explicitly removed. Trusted mode emits at most one broad-capability warning per command, including across reloads. Policy diagnostics contain names and normalized paths, not resolved values. Existing dry-run target examples can still contain application data.
+
+SIGHUP loads against the last accepted effective policy. A rejected config or engine reload keeps that policy. Omitted requests inherit it; removed grants cannot return without an operator-controlled restart. See [request syntax](../configuration/#capability_requests) and [current enforcement limits](../security/#configuration-trust-policy).
+
+### Runtime flags
+
 | Flag | Short | Default | Description |
 |---|---|---|---|
 | `--config` | `-c` | `config/example.yaml` | Path to YAML config file |

@@ -1,3 +1,16 @@
+# Configs are trusted operator input by default. For external/CI configs use
+# --config-trust=restricted and operator-controlled --allow-* flags.
+# This policy contract is not yet enforced by every runtime I/O boundary;
+# review docs/content/docs/security.md before relying on it for isolation.
+# Optional requests can only narrow CLI authority; omitted fields inherit it.
+# Empty lists remove grants permanently for this process across SIGHUP reloads.
+# capability_requests:
+#   env_names: []
+#   read_roots: []
+#   output_root: ""
+#   overwrite: false
+#   private_networks: []
+
 pacing:
   mode: human                   # human | rate_limited | scheduled | burst
   requests_per_minute: 20

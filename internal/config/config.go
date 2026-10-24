@@ -2,6 +2,7 @@ package config
 
 import (
 	"bufio"
+	"bytes"
 	"errors"
 	"fmt"
 	"math"
@@ -13,6 +14,7 @@ import (
 	"strings"
 
 	"github.com/go-viper/mapstructure/v2"
+	"github.com/lewta/sendit/internal/policy"
 	"github.com/robfig/cron/v3"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/viper"
@@ -20,18 +22,34 @@ import (
 
 // Load reads the YAML config at path, applies defaults, and validates.
 func Load(path string) (*Config, error) {
+	return LoadWithPolicy(path, policy.Trusted())
+}
+
+// LoadWithPolicy loads under an immutable operator ceiling. Raw policy checks
+// and request narrowing precede Viper decoding and all secondary file reads.
+func LoadWithPolicy(path string, access policy.Access) (*Config, error) {
+	if access.Mode() != policy.ModeTrusted && access.Mode() != policy.ModeRestricted {
+		return nil, errors.New("config policy: uninitialized access")
+	}
+	rawConfig, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("reading config: %w", err)
+	}
+	requests, err := parseCapabilityRequests(rawConfig)
+	if err != nil {
+		return nil, err
+	}
+	effective, err := access.Narrow(requests)
+	if err != nil {
+		return nil, err
+	}
 	v := viper.New()
-	v.SetConfigFile(path)
 	v.SetConfigType("yaml")
 
 	setDefaults(v)
 
-	if err := v.ReadInConfig(); err != nil {
+	if err := v.ReadConfig(bytes.NewReader(rawConfig)); err != nil {
 		return nil, fmt.Errorf("reading config: %w", err)
-	}
-	rawConfig, err := os.ReadFile(path)
-	if err != nil {
-		return nil, fmt.Errorf("reading config for variable validation: %w", err)
 	}
 	if err := validateRawVariableNames(rawConfig); err != nil {
 		return nil, fmt.Errorf("invalid config: %w", err)
@@ -55,6 +73,8 @@ func Load(path string) (*Config, error) {
 	))); err != nil {
 		return nil, fmt.Errorf("unmarshalling config: %w", err)
 	}
+	cfg.access = effective
+	cfg.capabilityRequests = canonicalRequests(requests, effective)
 
 	if cfg.TargetsFile != "" {
 		if err := loadTargetsFile(&cfg); err != nil {

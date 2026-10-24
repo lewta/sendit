@@ -1,17 +1,31 @@
 package config
 
+import "github.com/lewta/sendit/internal/policy"
+
 // Config is the root configuration structure.
 type Config struct {
-	Pacing         PacingConfig         `mapstructure:"pacing"`
-	Limits         LimitsConfig         `mapstructure:"limits"`
-	RateLimits     RateLimitsConfig     `mapstructure:"rate_limits"`
-	Backoff        BackoffConfig        `mapstructure:"backoff"`
-	Targets        []TargetConfig       `mapstructure:"targets"`
-	TargetsFile    string               `mapstructure:"targets_file"`
-	TargetDefaults TargetDefaultsConfig `mapstructure:"target_defaults"`
-	Output         OutputConfig         `mapstructure:"output"`
-	Metrics        MetricsConfig        `mapstructure:"metrics"`
-	Daemon         DaemonConfig         `mapstructure:"daemon"`
+	// Only the loader sets authority. YAML decoding cannot populate these fields.
+	access             policy.Access
+	capabilityRequests policy.Requests
+	Pacing             PacingConfig         `mapstructure:"pacing"`
+	Limits             LimitsConfig         `mapstructure:"limits"`
+	RateLimits         RateLimitsConfig     `mapstructure:"rate_limits"`
+	Backoff            BackoffConfig        `mapstructure:"backoff"`
+	Targets            []TargetConfig       `mapstructure:"targets"`
+	TargetsFile        string               `mapstructure:"targets_file"`
+	TargetDefaults     TargetDefaultsConfig `mapstructure:"target_defaults"`
+	Output             OutputConfig         `mapstructure:"output"`
+	Metrics            MetricsConfig        `mapstructure:"metrics"`
+	Daemon             DaemonConfig         `mapstructure:"daemon"`
+}
+
+// Access returns the effective immutable policy for downstream consumers.
+func (c *Config) Access() policy.Access { return c.access }
+
+// CapabilityRequests returns a copy of explicit, normalized requests. Nil
+// fields mean omitted/inherited; empty lists mean explicitly removed.
+func (c *Config) CapabilityRequests() policy.Requests {
+	return canonicalRequests(c.capabilityRequests, c.access)
 }
 
 // TargetDefaultsConfig holds fallback values applied to every target loaded

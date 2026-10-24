@@ -4,6 +4,7 @@
 - Require operator-supplied Grafana administrator credentials and loopback-only publication in the optional observability profile; provide an explicit local anonymous Viewer override and pin Prometheus 3.15.1/Grafana 13.2.4 image digests.
 
 ### Added
+- Add an immutable, operator-owned configuration policy with trusted compatibility mode, opt-in restricted mode, shared `start`/`validate` grant flags, request-only YAML narrowing, value-free policy summaries, and monotonic authority across accepted SIGHUP reloads. Reject authority-shaped YAML before secondary file reads. Runtime environment, hardened file/output, and crawler enforcement remain separate follow-up work; this contract is not yet a sandbox.
 - Include local observability policy, unsafe-fixture regression checks, and credential-free Compose rendering checks in `make verify` (requires Docker CLI with Compose, without starting containers).
 
 ### Fixed

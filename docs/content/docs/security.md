@@ -27,6 +27,16 @@ The [latest stable release](https://github.com/lewta/sendit/releases/latest) rec
 
 No CVE has been assigned for this release. See the [v1.2.5 release notes](https://github.com/lewta/sendit/releases/tag/v1.2.5) for the full changelog and artifacts.
 
+## Configuration trust policy
+
+Target configs are trusted operator input by default. `start` and `validate` accept `--config-trust=restricted` and explicit grants for environment names, read roots, one output root, overwrite, and private-network CIDRs. Prefer this mode for downloaded, CI-supplied, or multi-tenant configs. Grant authority comes only from CLI arguments controlled by the operator; YAML requests can only retain or narrow it. Accepted reloads cannot broaden or restore removed authority. Invalid policy flags fail before config reads, and authority-shaped YAML is rejected before secondary file reads or engine startup.
+
+This release establishes the shared immutable policy and reload contract. It does **not** yet enforce that contract at dispatch-time environment resolution, variable-file opening, output creation/truncation, or each crawler connection. `validate` can still read configured secondary files, and ordinary runtime behavior at those boundaries remains unchanged. Restricted mode is not an isolation boundary yet; continue reviewing configs and using process/filesystem/network isolation appropriate to their source.
+
+Path checks resolve symlinks and enforce directory containment, reject sibling-prefix escapes and traversal components, require read paths to exist, and allow only a missing final output filename under an existing parent. They are preflight checks and cannot prevent races between checking and opening a file. The address policy normalizes IPv4-mapped IPv6, requires grants for private, loopback, link-local, and shared addresses, and never authorizes unspecified, multicast, broadcast, or zoned addresses. Actual connection-time checks are a separate enforcement step.
+
+Policy summaries contain only mode, capability names, normalized paths, prefixes, and permission bits. They do not resolve or print environment values, file contents, or credentials. Existing dry-run examples and other logs may still include application data; the policy summary does not provide general redaction.
+
 ## Replay data handling
 
 Replay envelopes exclude configured authentication, custom HTTP headers (including inactive blocks), URL userinfo, and SFTP credentials. Non-replayable records contain a reason instead of a request snapshot; there is no credential-saving override. The decoder checks executable fields rather than trusting a `replayable: true` claim.

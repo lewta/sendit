@@ -570,8 +570,6 @@ The `docker/` directory contains a ready-to-use Docker setup. The image is built
 cp docker/config.yaml docker/my-config.yaml
 
 # 2. Build and run (config is mounted as a volume)
-# Export GRAFANA_ADMIN_USER and GRAFANA_ADMIN_PASSWORD from your secret manager.
-# Compose requires these inputs when parsing the optional observability services.
 cd docker
 docker compose up --build
 ```
@@ -580,11 +578,11 @@ Prometheus metrics are exposed on port **9090**. A liveness probe is available a
 
 ### With Prometheus + Grafana
 
-Export `GRAFANA_ADMIN_USER` and `GRAFANA_ADMIN_PASSWORD` from your operator-managed secret store before using Compose. Both must be nonempty; Compose fails without them, including when rendering the file without the observability profile. No default administrator credentials are supplied. Avoid saving credentials in the repository or sharing rendered Compose output, which contains them.
+The base `docker-compose.yml` runs sendit without Grafana credentials. To add dashboards, explicitly select `docker-compose.observability.yml` and export `GRAFANA_ADMIN_USER` and `GRAFANA_ADMIN_PASSWORD` from your operator-managed secret store. Both must be nonempty; selecting this extra file fails without them. No default administrator credentials are supplied. Avoid saving credentials in the repository or sharing rendered observability Compose output, which contains them.
 
 ```sh
 cd docker
-docker compose --profile observability up --build
+docker compose -f docker-compose.yml -f docker-compose.observability.yml --profile observability up --build
 ```
 
 This starts three containers:
@@ -600,10 +598,10 @@ Open Grafana at `http://127.0.0.1:3000` and sign in using the supplied administr
 For a local demo with anonymous **Viewer** access, explicitly add the local override (administrator credentials are still required):
 
 ```sh
-docker compose -f docker-compose.yml -f docker-compose.local-anonymous-viewer.yml --profile observability up --build
+docker compose -f docker-compose.yml -f docker-compose.observability.yml -f docker-compose.local-anonymous-viewer.yml --profile observability up --build
 ```
 
-The demo remains bound to loopback and is inappropriate for remote exposure. Anonymous visitors cannot administer Grafana. Existing users of the optional profile must supply administrator credentials and use the loopback URL; persisted Grafana databases retain their existing accounts, so use Grafana's supported credential reset procedure if needed. Remote access requires a separately designed authenticated deployment. The Prometheus and sendit published ports retain their existing behavior.
+The demo remains bound to loopback and is inappropriate for remote exposure. Anonymous visitors cannot administer Grafana. Existing users of the optional profile must add `-f docker-compose.yml -f docker-compose.observability.yml` to their command, supply administrator credentials, and use the loopback URL; persisted Grafana databases retain their existing accounts, so use Grafana's supported credential reset procedure if needed. Remote access requires a separately designed authenticated deployment. The Prometheus and sendit published ports retain their existing behavior.
 
 Run `make compose-security` (also included in `make verify`) to check the source and rendered configurations with test placeholders only. These checks require Docker CLI with Compose, Go, and no running containers or Docker daemon.
 
@@ -630,7 +628,8 @@ The `--foreground` flag is set in the image entrypoint — PID files are not use
 | File | Description |
 |------|-------------|
 | `docker/Dockerfile` | Multi-stage build (`golang:1.26.10-alpine3.24` → `alpine`) |
-| `docker/docker-compose.yml` | sendit + optional Prometheus/Grafana via `--profile observability` |
+| `docker/docker-compose.yml` | sendit alone; no Grafana credentials required |
+| `docker/docker-compose.observability.yml` | Explicit authenticated Prometheus/Grafana addition via `--profile observability` |
 | `docker/docker-compose.local-anonymous-viewer.yml` | Explicit loopback-only anonymous Viewer demo |
 | `docker/verify-compose-security.sh` | Local policy and Compose rendering regression checks |
 | `docker/config.yaml` | Docker-ready example config (metrics enabled, JSON logs) |

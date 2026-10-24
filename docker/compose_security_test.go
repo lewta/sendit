@@ -117,9 +117,12 @@ func preflight(path string, demo bool, render func() ([]byte, error)) error {
 	return checkPolicy(data, demo, true)
 }
 
-func renderConfig(t *testing.T, files []string, user, password string) ([]byte, error) {
+func renderConfig(t *testing.T, files []string, user, password string, profiles ...string) ([]byte, error) {
 	t.Helper()
-	args := []string{"compose", "--env-file", "/dev/null", "--profile", "observability"}
+	args := []string{"compose", "--env-file", "/dev/null"}
+	for _, profile := range profiles {
+		args = append(args, "--profile", profile)
+	}
 	for _, file := range files {
 		args = append(args, "-f", file)
 	}
@@ -141,7 +144,13 @@ func renderConfig(t *testing.T, files []string, user, password string) ([]byte, 
 	}
 	// Do not inherit developer credentials, .env files or Docker contexts. Only
 	// placeholders are rendered, and output is never logged (even on failure).
-	cmd.Env = []string{"PATH=" + os.Getenv("PATH"), "HOME=" + t.TempDir(), "DOCKER_CONFIG=" + dockerConfig, "GRAFANA_ADMIN_USER=" + user, "GRAFANA_ADMIN_PASSWORD=" + password}
+	cmd.Env = []string{"PATH=" + os.Getenv("PATH"), "HOME=" + t.TempDir(), "DOCKER_CONFIG=" + dockerConfig}
+	if user != "" {
+		cmd.Env = append(cmd.Env, "GRAFANA_ADMIN_USER="+user)
+	}
+	if password != "" {
+		cmd.Env = append(cmd.Env, "GRAFANA_ADMIN_PASSWORD="+password)
+	}
 	output, err := cmd.Output()
 	if err != nil {
 		return nil, fmt.Errorf("docker compose config failed (output withheld)")
@@ -149,9 +158,23 @@ func renderConfig(t *testing.T, files []string, user, password string) ([]byte, 
 	return output, nil
 }
 
+func TestSenditOnlyComposeNeedsNoGrafanaCredentials(t *testing.T) {
+	data, err := renderConfig(t, []string{"docker-compose.yml"}, "", "")
+	if err != nil {
+		t.Fatal("sendit-only Compose must render without Grafana credentials:", err)
+	}
+	var cfg compose
+	if err := yaml.Unmarshal(data, &cfg); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := cfg.Services["sendit"]; !ok || len(cfg.Services) != 1 {
+		t.Fatal("sendit-only composition must contain only sendit")
+	}
+}
+
 func TestComposeSecurity(t *testing.T) {
-	if err := preflight("docker-compose.yml", false, func() ([]byte, error) {
-		return renderConfig(t, []string{"docker-compose.yml"}, "policy-test-user", "policy-test-password")
+	if err := preflight("docker-compose.observability.yml", false, func() ([]byte, error) {
+		return renderConfig(t, []string{"docker-compose.yml", "docker-compose.observability.yml"}, "policy-test-user", "policy-test-password", "observability")
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -163,7 +186,7 @@ func TestComposeSecurity(t *testing.T) {
 	if err := yaml.Unmarshal(data, &override); err != nil {
 		t.Fatal(err)
 	}
-	base, err := os.ReadFile("docker-compose.yml")
+	base, err := os.ReadFile("docker-compose.observability.yml")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -186,7 +209,7 @@ func TestComposeSecurity(t *testing.T) {
 	if err := checkPolicy(merged, true, false); err != nil {
 		t.Fatal(err)
 	}
-	rendered, err := renderConfig(t, []string{"docker-compose.yml", "docker-compose.local-anonymous-viewer.yml"}, "policy-test-user", "policy-test-password")
+	rendered, err := renderConfig(t, []string{"docker-compose.yml", "docker-compose.observability.yml", "docker-compose.local-anonymous-viewer.yml"}, "policy-test-user", "policy-test-password", "observability")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -194,8 +217,8 @@ func TestComposeSecurity(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, inputs := range [][2]string{{"", "policy-test-password"}, {"policy-test-user", ""}, {"", ""}} {
-		for _, files := range [][]string{{"docker-compose.yml"}, {"docker-compose.yml", "docker-compose.local-anonymous-viewer.yml"}} {
-			if _, err := renderConfig(t, files, inputs[0], inputs[1]); err == nil {
+		for _, files := range [][]string{{"docker-compose.yml", "docker-compose.observability.yml"}, {"docker-compose.yml", "docker-compose.observability.yml", "docker-compose.local-anonymous-viewer.yml"}} {
+			if _, err := renderConfig(t, files, inputs[0], inputs[1], "observability"); err == nil {
 				t.Fatal("Compose accepted missing authentication input")
 			}
 		}

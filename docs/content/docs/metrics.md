@@ -72,3 +72,25 @@ scrape_configs:
 ## No-op mode
 
 When `metrics.enabled: false` (the default), sendit uses a no-op metrics implementation internally — there are no nil pointer checks and no Prometheus HTTP listener is started.
+
+## Optional Docker dashboards
+
+The base `docker/docker-compose.yml` runs sendit without Grafana credentials. Explicitly add `docker/docker-compose.observability.yml` for the `observability` profile with Prometheus 3.15.1 and Grafana 13.2.4, pinned to immutable multi-platform image digests. Supply nonempty `GRAFANA_ADMIN_USER` and `GRAFANA_ADMIN_PASSWORD` through an operator-managed environment before selecting this extra file. Missing or empty values fail immediately during interpolation. Do not commit these values or share rendered observability Compose output.
+
+```sh
+cd docker
+# Export the two administrator variables from your secret store first.
+docker compose -f docker-compose.yml -f docker-compose.observability.yml --profile observability up --build
+```
+
+Grafana requires sign-in at `http://127.0.0.1:3000`; its published port binds only to loopback. Existing profile users must add the explicit `-f docker-compose.yml -f docker-compose.observability.yml` file selection, provide credentials, and switch to this local URL. Grafana's administrator environment variables initialize new databases; existing persisted accounts require Grafana's supported reset procedure to change credentials. The sendit service and Prometheus published port are unchanged.
+
+For an explicitly local demo, retain the administrator environment variables and add the anonymous Viewer override:
+
+```sh
+docker compose -f docker-compose.yml -f docker-compose.observability.yml -f docker-compose.local-anonymous-viewer.yml --profile observability up --build
+```
+
+This grants anonymous Viewer access only, remains loopback-only, and is inappropriate for remote exposure. Design remote access separately with authentication. Review upstream releases when updating the pinned versions and digests.
+
+`make compose-security`, included in `make verify`, checks both configurations using placeholder credentials and rejects unsafe fixture variants. It requires Go and Docker CLI with Compose, but never starts containers or needs a Docker daemon.

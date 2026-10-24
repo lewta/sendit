@@ -1,0 +1,10 @@
+# Local-only demo. Never expose this composition remotely.
+# Combine with docker-compose.yml and docker-compose.observability.yml.
+# Credentials remain required for the administrator account.
+services:
+  grafana:
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+    ports:
+      - "127.0.0.1:3000:3000"

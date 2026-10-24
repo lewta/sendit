@@ -1,5 +1,14 @@
 ## [Unreleased]
 
+### Security
+- Require operator-supplied Grafana administrator credentials and loopback-only publication in the optional observability profile; provide an explicit local anonymous Viewer override and pin Prometheus 3.15.1/Grafana 13.2.4 image digests.
+
+### Added
+- Include local observability policy, unsafe-fixture regression checks, and credential-free Compose rendering checks in `make verify` (requires Docker CLI with Compose, without starting containers).
+
+### Fixed
+- Preserve credential-free sendit-only Compose operation by moving optional dashboards into the explicitly selected `docker-compose.observability.yml`; check no-profile rendering without Grafana credentials alongside authenticated and local-demo policies.
+
 ### Changed
 - Bumped github/codeql-action group (init/autobuild/analyze/upload-sarif) from v4.38.3 to v4.39.1 for upstream fixes.
 

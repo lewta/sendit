@@ -9,27 +9,5 @@ services:
       - "9090:9090"
     restart: unless-stopped
 
-  # ── optional observability stack ─────────────────────────────────────────
-  # Start with: docker compose --profile observability up
-  prometheus:
-    image: prom/prometheus:latest
-    profiles: [observability]
-    volumes:
-      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
-    ports:
-      - "9091:9090"
-    restart: unless-stopped
-    depends_on:
-      - sendit
-
-  grafana:
-    image: grafana/grafana:latest
-    profiles: [observability]
-    environment:
-      - GF_AUTH_ANONYMOUS_ENABLED=true
-      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
-    ports:
-      - "3000:3000"
-    restart: unless-stopped
-    depends_on:
-      - prometheus
+# Optional dashboards require explicitly adding docker-compose.observability.yml.
+# See README for the authenticated profile and local anonymous Viewer demo.

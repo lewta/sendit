@@ -1,9 +1,11 @@
 package pcap_test
 
 import (
+	"bytes"
 	"encoding/binary"
 	"encoding/json"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -164,6 +166,33 @@ func TestExport(t *testing.T) {
 	}
 }
 
+func TestExportRejectsOutputAliasesWithoutTruncation(t *testing.T) {
+	inPath := filepath.Join(t.TempDir(), "input.jsonl")
+	line := `{"ts":"2026-10-25T00:00:00Z","url":"https://example.com","type":"http","status":200}` + "\n"
+	if err := os.WriteFile(inPath, []byte(line), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	for name, link := range map[string]func(string, string) error{"symlink": os.Symlink, "hardlink": os.Link} {
+		t.Run(name, func(t *testing.T) {
+			victim := filepath.Join(t.TempDir(), "victim")
+			if err := os.WriteFile(victim, []byte("preserve"), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			alias := filepath.Join(t.TempDir(), "output.pcap")
+			if err := link(victim, alias); err != nil {
+				t.Skipf("%s unavailable: %v", name, err)
+			}
+			if err := pcap.Export(inPath, alias); err == nil {
+				t.Fatal("output alias accepted")
+			}
+			got, err := os.ReadFile(victim)
+			if err != nil || string(got) != "preserve" {
+				t.Fatalf("denial modified victim: %q, %v", got, err)
+			}
+		})
+	}
+}
+
 func TestExportReplayEnvelope(t *testing.T) {
 	inPath := t.TempDir() + "/capture.jsonl"
 	f, err := os.Create(inPath)
@@ -191,5 +220,20 @@ func TestExportReplayEnvelope(t *testing.T) {
 	}
 	if !strings.Contains(string(data), "duration_ms=42") {
 		t.Fatal("additive envelope broke PCAP export")
+	}
+}
+
+func TestExportRejectsInputOutputAliasBeforeTruncation(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "capture.jsonl")
+	want := []byte(`{"ts":"2026-01-01T00:00:00Z","url":"https://example.com","type":"http","status":200}` + "\n")
+	if err := os.WriteFile(path, want, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := pcap.Export(path, path); err == nil {
+		t.Fatal("input/output alias accepted")
+	}
+	got, err := os.ReadFile(path)
+	if err != nil || !bytes.Equal(got, want) {
+		t.Fatalf("alias rejection modified input: %q, %v", got, err)
 	}
 }

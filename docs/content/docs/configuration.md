@@ -13,7 +13,7 @@ All supplied schedule entries are validated even when scheduled pacing is not ac
 
 ## `capability_requests`
 
-Optional requests narrow the operator's immutable policy. They never grant authority or choose a mode. Existing configs that omit this block retain the selected operator policy; the default CLI mode is `trusted`. Choose `--config-trust=restricted` with explicit CLI grants for downloaded, CI-supplied, and multi-tenant configs, while observing the [current enforcement limits](../security/#configuration-trust-policy).
+Optional requests narrow the operator's immutable policy. They never grant authority or choose a mode. Existing configs that omit this block retain the selected operator policy; the default CLI mode is `trusted`. Choose `--config-trust=restricted` with explicit CLI grants for downloaded, CI-supplied, and multi-tenant configs, while observing the [remaining non-sandbox boundaries](../security/#configuration-trust-policy).
 
 ```yaml
 capability_requests:
@@ -30,7 +30,9 @@ On Windows, native drive paths (`C:\Sendit\inputs`) and UNC paths (`\\fileserver
 
 Omit a field to inherit its current ceiling. Use `env_names: []`, `read_roots: []`, `private_networks: []`, `output_root: ""`, or `overwrite: false` to remove authority. `null` is not a request value. Requests require literal mappings and typed values: aliases, anchors, merges, dotted request keys, duplicate/conflicting keys, and unknown request fields are rejected. Operator-shaped fields such as `config_trust`, `policy`, `grants`, and `allow_env` are invalid YAML authority. Ordinary data keys in variables and headers, and existing pacing modes, remain supported.
 
-SIGHUP inherits the last accepted effective policy. An omitted field cannot restore an earlier permission. Rejected reloads keep the running policy; broadening it requires restarting with explicit operator authority. The config loader reads one snapshot of the YAML and checks request syntax/authority before secondary file reads.
+SIGHUP inherits the last accepted effective policy. An omitted field cannot restore an earlier permission. Rejected reloads keep the running policy; broadening it requires restarting with explicit operator authority. Output settings, including an operator-supplied `--capture` destination, are fixed for the process lifetime; a reload that changes or revokes authority for an active sink is rejected and requires a restart. The config loader reads one snapshot of the YAML and checks request syntax/authority before secondary file reads.
+
+Restricted reads cover `targets_file`, every `vars_file`, file-backed SFTP private keys, and the default `~/.ssh/known_hosts` used when SFTP host-key verification is enabled. Grant the containing absolute directories with `--allow-read-root`; inline SFTP keys do not need a file grant. Secondary target/variable files are limited to 8 MiB and must remain regular files with stable identity while opened. Authentication environment variables are checked again when a request resolves them. Result and capture outputs are rechecked at open/commit and need `--allow-overwrite` before truncating an existing file.
 
 ## `pacing`
 

@@ -20,6 +20,35 @@ import (
 	"github.com/spf13/viper"
 )
 
+const maxSecondaryFileBytes int64 = 8 << 20
+
+type loadOptions struct {
+	pcapOverride *string
+	activeOutput *OutputConfig
+}
+
+// LoadOption supplies operator-owned runtime context that is not read from
+// YAML. Options cannot grant policy authority.
+type LoadOption func(*loadOptions)
+
+// WithPCAPOverride applies the operator's --capture destination before output
+// authorization and validation.
+func WithPCAPOverride(path string) LoadOption {
+	return func(options *loadOptions) {
+		value := path
+		options.pcapOverride = &value
+	}
+}
+
+// WithActiveOutput identifies the already-open output settings during reload.
+// An unchanged sink needs containment authority but no new overwrite grant.
+func WithActiveOutput(output OutputConfig) LoadOption {
+	return func(options *loadOptions) {
+		value := output
+		options.activeOutput = &value
+	}
+}
+
 // Load reads the YAML config at path, applies defaults, and validates.
 func Load(path string) (*Config, error) {
 	return LoadWithPolicy(path, policy.Trusted())
@@ -27,9 +56,15 @@ func Load(path string) (*Config, error) {
 
 // LoadWithPolicy loads under an immutable operator ceiling. Raw policy checks
 // and request narrowing precede Viper decoding and all secondary file reads.
-func LoadWithPolicy(path string, access policy.Access) (*Config, error) {
+func LoadWithPolicy(path string, access policy.Access, supplied ...LoadOption) (*Config, error) {
 	if access.Mode() != policy.ModeTrusted && access.Mode() != policy.ModeRestricted {
 		return nil, errors.New("config policy: uninitialized access")
+	}
+	var options loadOptions
+	for _, apply := range supplied {
+		if apply != nil {
+			apply(&options)
+		}
 	}
 	rawConfig, err := os.ReadFile(path)
 	if err != nil {
@@ -75,13 +110,34 @@ func LoadWithPolicy(path string, access policy.Access) (*Config, error) {
 	}
 	cfg.access = effective
 	cfg.capabilityRequests = canonicalRequests(requests, effective)
+	if options.pcapOverride != nil {
+		cfg.Output.PCAPFile = *options.pcapOverride
+	}
+	if err := authorizeTargetAuth(effective, cfg.Targets, cfg.TargetDefaults.Auth); err != nil {
+		return nil, err
+	}
 
 	if cfg.TargetsFile != "" {
-		if err := loadTargetsFile(&cfg); err != nil {
+		if err := loadTargetsFile(&cfg, effective); err != nil {
 			return nil, fmt.Errorf("targets_file: %w", err)
 		}
 	}
-	if err := loadVariableFiles(&cfg, filepath.Dir(path)); err != nil {
+	if err := authorizeTargetAuth(effective, cfg.Targets, AuthConfig{}); err != nil {
+		return nil, err
+	}
+	if err := authorizeSFTPReads(effective, cfg.Targets); err != nil {
+		return nil, err
+	}
+	var outputErr error
+	if options.activeOutput != nil && cfg.Output == *options.activeOutput {
+		outputErr = authorizeContinuingOutputs(effective, cfg.Output)
+	} else {
+		outputErr = authorizeOutputs(effective, cfg.Output)
+	}
+	if outputErr != nil {
+		return nil, outputErr
+	}
+	if err := loadVariableFiles(&cfg, filepath.Dir(path), effective); err != nil {
 		return nil, fmt.Errorf("loading template variables: %w", err)
 	}
 
@@ -175,17 +231,16 @@ func warnLiteralTokens(cfg *Config) {
 //
 // Lines beginning with '#' and blank lines are ignored. Weight defaults to
 // target_defaults.weight when omitted.
-func loadTargetsFile(cfg *Config) error {
-	f, err := os.Open(cfg.TargetsFile)
+func loadTargetsFile(cfg *Config, access policy.Access) error {
+	data, err := readSecondaryFile(cfg.TargetsFile, access, maxSecondaryFileBytes)
 	if err != nil {
 		return fmt.Errorf("opening %q: %w", cfg.TargetsFile, err)
 	}
-	defer f.Close()
 
 	d := cfg.TargetDefaults
 	validTypes := map[string]bool{"http": true, "browser": true, "dns": true, "websocket": true, "grpc": true, "sftp": true}
 
-	scanner := bufio.NewScanner(f)
+	scanner := bufio.NewScanner(bytes.NewReader(data))
 	lineNum := 0
 	for scanner.Scan() {
 		lineNum++
@@ -240,7 +295,8 @@ func loadTargetsFile(cfg *Config) error {
 	return nil
 }
 
-func loadVariableFiles(cfg *Config, configDir string) error {
+func loadVariableFiles(cfg *Config, configDir string, access policy.Access) error {
+	cache := make(map[string][]byte)
 	for i := range cfg.Targets {
 		target := &cfg.Targets[i]
 		target.Vars = cloneVariables(target.Vars)
@@ -261,9 +317,17 @@ func loadVariableFiles(cfg *Config, configDir string) error {
 			if !filepath.IsAbs(path) {
 				path = filepath.Join(configDir, path)
 			}
-			data, err := os.ReadFile(path)
+			key, err := filepath.Abs(path)
 			if err != nil {
-				return fmt.Errorf("targets[%d].vars_file.%s: reading %q: %w", i, name, path, err)
+				return fmt.Errorf("targets[%d].vars_file.%s: resolving %q: %w", i, name, path, err)
+			}
+			data, ok := cache[key]
+			if !ok {
+				data, err = readSecondaryFile(path, access, maxSecondaryFileBytes)
+				if err != nil {
+					return fmt.Errorf("targets[%d].vars_file.%s: reading %q: %w", i, name, path, err)
+				}
+				cache[key] = data
 			}
 			var values []string
 			for _, line := range strings.Split(string(data), "\n") {
@@ -281,6 +345,106 @@ func loadVariableFiles(cfg *Config, configDir string) error {
 		}
 	}
 	return nil
+}
+
+func authorizeTargetAuth(access policy.Access, targets []TargetConfig, defaults AuthConfig) error {
+	authorize := func(path string, auth AuthConfig) error {
+		checks := []struct {
+			literal string
+			name    string
+		}{
+			{auth.Token, auth.TokenEnv},
+			{auth.Username, auth.UsernameEnv},
+			{auth.Password, auth.PasswordEnv},
+		}
+		for _, check := range checks {
+			if check.literal == "" && check.name != "" {
+				if err := access.CheckEnvName(check.name); err != nil {
+					return fmt.Errorf("%s: %w", path, err)
+				}
+			}
+		}
+		return nil
+	}
+	if err := authorize("target_defaults.auth", defaults); err != nil {
+		return err
+	}
+	for i, target := range targets {
+		if err := authorize(fmt.Sprintf("targets[%d].auth", i), target.Auth); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func authorizeOutputs(access policy.Access, output OutputConfig) error {
+	check := func(path string, appendMode bool) error {
+		if path == "" {
+			return nil
+		}
+		overwrite := false
+		if _, err := os.Stat(path); err == nil {
+			overwrite = !appendMode
+		} else if !os.IsNotExist(err) {
+			return err
+		}
+		return access.CheckOutputPath(path, overwrite)
+	}
+	if output.Enabled {
+		if err := check(output.File, output.Append); err != nil {
+			return fmt.Errorf("output.file: %w", err)
+		}
+	}
+	if err := check(output.PCAPFile, false); err != nil {
+		return fmt.Errorf("output.pcap_file: %w", err)
+	}
+	return nil
+}
+
+func authorizeContinuingOutputs(access policy.Access, output OutputConfig) error {
+	check := func(label, path string) error {
+		if path == "" {
+			return nil
+		}
+		if err := access.CheckOutputPath(path, false); err != nil {
+			return fmt.Errorf("%s: %w", label, err)
+		}
+		return nil
+	}
+	if output.Enabled {
+		if err := check("output.file", output.File); err != nil {
+			return err
+		}
+	}
+	return check("output.pcap_file", output.PCAPFile)
+}
+
+func authorizeSFTPReads(access policy.Access, targets []TargetConfig) error {
+	for i, target := range targets {
+		if target.Type != "sftp" {
+			continue
+		}
+		if key := target.SFTP.PrivateKey; key != "" && !strings.Contains(key, "BEGIN ") {
+			if err := access.CheckReadPath(key); err != nil {
+				return fmt.Errorf("targets[%d].sftp.private_key: %w", i, err)
+			}
+		}
+		if !target.SFTP.Insecure {
+			home, err := os.UserHomeDir()
+			if err != nil {
+				return fmt.Errorf("targets[%d].sftp known_hosts: %w", i, err)
+			}
+			knownHosts := filepath.Join(home, ".ssh", "known_hosts")
+			if err := access.CheckReadPath(knownHosts); err != nil {
+				return fmt.Errorf("targets[%d].sftp known_hosts: %w", i, err)
+			}
+		}
+	}
+	return nil
+}
+
+func readSecondaryFile(path string, access policy.Access, maxBytes int64) ([]byte, error) {
+	return policy.ReadFile(access, path, maxBytes)
 }
 
 func cloneVariables(values map[string][]string) map[string][]string {

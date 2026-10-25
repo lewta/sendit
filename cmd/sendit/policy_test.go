@@ -85,7 +85,7 @@ func TestPolicyCommandDiagnosticsHideValues(t *testing.T) {
 			path := writePolicyConfig(t, "targets: [{url: https://example.com, type: http, weight: 1, auth: {type: bearer, token_env: POLICY_TEST_TOKEN}}]\n")
 			args := []string{"--config", path}
 			if mode == "restricted" {
-				args = append(args, "--config-trust", mode)
+				args = append(args, "--config-trust", mode, "--allow-env", "POLICY_TEST_TOKEN")
 			}
 			if cmd.Name() == "start" {
 				args = append(args, "--dry-run")
@@ -151,6 +151,64 @@ func TestReloadPolicyUsesLastAcceptedCeiling(t *testing.T) {
 	access, err = reloadConfig(path, access, accept)
 	if err != nil || access.CheckEnvName("A") == nil {
 		t.Fatal("accepted reload did not remove grant")
+	}
+}
+
+func TestReloadConfigPreservesCaptureOverrideAndRejectsItsRevocation(t *testing.T) {
+	root := t.TempDir()
+	capture := filepath.Join(root, "capture.pcap")
+	access, err := policy.New(policy.ModeRestricted, policy.Grants{OutputRoot: &root})
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := writePolicyConfig(t, policyConfig)
+	initial, err := config.LoadWithPolicy(path, access, config.WithPCAPOverride(capture))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if initial.Output.PCAPFile != capture {
+		t.Fatalf("initial capture = %q", initial.Output.PCAPFile)
+	}
+	if err := os.WriteFile(capture, []byte("preserve"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	accepted := 0
+	accept := func(next *config.Config) error {
+		accepted++
+		if next.Output != initial.Output {
+			return fmt.Errorf("capture override lost: %+v", next.Output)
+		}
+		return nil
+	}
+	reloadOptions := []config.LoadOption{config.WithPCAPOverride(capture), config.WithActiveOutput(initial.Output)}
+	current, err := reloadConfig(path, initial.Access(), accept, reloadOptions...)
+	if err != nil || accepted != 1 {
+		t.Fatalf("unchanged capture reload: accepted=%d err=%v", accepted, err)
+	}
+
+	data := policyConfig + "capability_requests: {output_root: ''}\n"
+	if err := os.WriteFile(path, []byte(data), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	after, err := reloadConfig(path, current, accept, reloadOptions...)
+	if err == nil || !strings.Contains(err.Error(), "output path denied") || accepted != 1 {
+		t.Fatalf("capture revocation: accepted=%d err=%v", accepted, err)
+	}
+	if err := after.CheckOutputPath(capture, false); err != nil {
+		t.Fatalf("rejected reload changed ceiling: %v", err)
+	}
+	got, err := os.ReadFile(capture)
+	if err != nil || string(got) != "preserve" {
+		t.Fatalf("reload modified capture: %q, %v", got, err)
+	}
+
+	denied, err := policy.New(policy.ModeRestricted, policy.Grants{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := config.LoadWithPolicy(writePolicyConfig(t, policyConfig), denied, config.WithPCAPOverride(filepath.Join(t.TempDir(), "denied.pcap"))); err == nil || !strings.Contains(err.Error(), "output path denied") {
+		t.Fatalf("initial capture bypassed policy: %v", err)
 	}
 }
 

@@ -42,7 +42,191 @@ func TestAuthorityYAMLRejectedBeforeSecondaryRead(t *testing.T) {
 	}
 }
 
+func TestRestrictedPolicyEnforcesSecondaryReadGrants(t *testing.T) {
+	root := t.TempDir()
+	outside := t.TempDir()
+	varsPath := filepath.Join(root, "values.txt")
+	targetsPath := filepath.Join(root, "targets.txt")
+	if err := os.WriteFile(varsPath, []byte("alice\nbob\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(targetsPath, []byte("https://example.com/{{user}} http\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	granted, err := policy.New(policy.ModeRestricted, policy.Grants{ReadRoots: []string{root}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	data := fmt.Sprintf("targets_file: %q\ntarget_defaults: {vars_file: {user: %q}}\n", targetsPath, varsPath)
+	cfg, err := LoadWithPolicy(writeTemp(t, data), granted)
+	if err != nil {
+		t.Fatalf("granted secondary reads: %v", err)
+	}
+	if got := cfg.Targets[0].Vars["user"]; !reflect.DeepEqual(got, []string{"alice", "bob"}) {
+		t.Fatalf("loaded values = %v", got)
+	}
+
+	denied, err := policy.New(policy.ModeRestricted, policy.Grants{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for name, yaml := range map[string]string{
+		"targets_file": fmt.Sprintf("targets_file: %q\ntarget_defaults: {vars: {user: [safe]}}\n", targetsPath),
+		"vars_file":    fmt.Sprintf("targets: [{url: 'https://example.com/{{user}}', type: http, weight: 1, vars_file: {user: %q}}]\n", varsPath),
+		"escape":       fmt.Sprintf("targets: [{url: 'https://example.com/{{user}}', type: http, weight: 1, vars_file: {user: %q}}]\n", filepath.Join(root, "..", filepath.Base(outside), "secret")),
+	} {
+		t.Run(name, func(t *testing.T) {
+			_, err := LoadWithPolicy(writeTemp(t, yaml), denied)
+			if err == nil || !strings.Contains(err.Error(), "config policy") {
+				t.Fatalf("expected read-policy denial, got %v", err)
+			}
+		})
+	}
+}
+
+func TestRestrictedPolicyRejectsUnsafeVariableFiles(t *testing.T) {
+	root := t.TempDir()
+	access, err := policy.New(policy.ModeRestricted, policy.Grants{ReadRoots: []string{root}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	load := func(path string) error {
+		_, err := LoadWithPolicy(writeTemp(t, fmt.Sprintf("targets: [{url: 'https://example.com/{{user}}', type: http, weight: 1, vars_file: {user: %q}}]\n", path)), access)
+		return err
+	}
+
+	oversized := filepath.Join(root, "oversized.txt")
+	f, err := os.Create(oversized)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := f.Truncate(9 << 20); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := load(oversized); err == nil || !strings.Contains(err.Error(), "too large") {
+		t.Fatalf("oversized variable file: %v", err)
+	}
+
+	nonRegular := filepath.Join(root, "values-dir")
+	if err := os.Mkdir(nonRegular, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := load(nonRegular); err == nil || !strings.Contains(err.Error(), "regular file") {
+		t.Fatalf("non-regular variable file: %v", err)
+	}
+
+	outside := filepath.Join(t.TempDir(), "secret.txt")
+	secret := "do-not-read-" + filepath.Base(root)
+	if err := os.WriteFile(outside, []byte(secret), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(root, "escape.txt")
+	if err := os.Symlink(outside, link); err == nil {
+		if err := load(link); err == nil || !strings.Contains(err.Error(), "config policy") || strings.Contains(err.Error(), secret) {
+			t.Fatalf("symlink escape: %v", err)
+		}
+	}
+}
+
+func TestRestrictedPolicyAuthorizesEffectiveAuthWithoutResolvingValues(t *testing.T) {
+	const allowed = "SENDIT_ALLOWED_TOKEN"
+	t.Setenv(allowed, "")
+	granted, err := policy.New(policy.ModeRestricted, policy.Grants{EnvNames: []string{allowed}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for name, yaml := range map[string]string{
+		"inline":  "targets: [{url: https://example.com, type: http, weight: 1, auth: {type: bearer, token_env: " + allowed + "}}]\n",
+		"literal": "targets: [{url: https://example.com, type: http, weight: 1, auth: {type: bearer, token: literal, token_env: DENIED}}]\n",
+	} {
+		t.Run(name, func(t *testing.T) {
+			if _, err := LoadWithPolicy(writeTemp(t, yaml), granted); err != nil {
+				t.Fatalf("authorized/deferred auth rejected: %v", err)
+			}
+		})
+	}
+
+	targets := writeTempFile(t, "targets.txt", "https://example.com http\n")
+	denied, err := policy.New(policy.ModeRestricted, policy.Grants{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for name, yaml := range map[string]string{
+		"inline":   "targets: [{url: https://example.com, type: http, weight: 1, auth: {type: bearer, token_env: DENIED}}]\n",
+		"defaults": fmt.Sprintf("targets_file: %q\ntarget_defaults: {auth: {type: basic, username: user, password_env: DENIED}}\n", targets),
+	} {
+		t.Run(name, func(t *testing.T) {
+			_, err := LoadWithPolicy(writeTemp(t, yaml), denied)
+			if err == nil || !strings.Contains(err.Error(), "environment variable denied: DENIED") {
+				t.Fatalf("expected env-policy denial, got %v", err)
+			}
+		})
+	}
+}
+
+func TestRestrictedPolicyPreflightsSFTPKeyReads(t *testing.T) {
+	root := t.TempDir()
+	key := filepath.Join(root, "id_test")
+	if err := os.WriteFile(key, []byte("private-key-marker"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	data := fmt.Sprintf("targets: [{url: 'sftp://example.com/upload', type: sftp, weight: 1, sftp: {username: test, private_key: %q, insecure: true}}]\n", key)
+	path := writeTemp(t, data)
+	denied, err := policy.New(policy.ModeRestricted, policy.Grants{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := LoadWithPolicy(path, denied); err == nil || !strings.Contains(err.Error(), "read path denied") || strings.Contains(err.Error(), "private-key-marker") {
+		t.Fatalf("denied SFTP key error = %v", err)
+	}
+	granted, err := policy.New(policy.ModeRestricted, policy.Grants{ReadRoots: []string{root}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := LoadWithPolicy(path, granted); err != nil {
+		t.Fatalf("granted SFTP key: %v", err)
+	}
+}
+
+func TestRestrictedPolicyPreflightsOutputIntent(t *testing.T) {
+	root := t.TempDir()
+	existing := filepath.Join(root, "existing.jsonl")
+	if err := os.WriteFile(existing, []byte("preserve"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	rootGrant := root
+	withoutOverwrite, err := policy.New(policy.ModeRestricted, policy.Grants{OutputRoot: &rootGrant})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for name, yaml := range map[string]string{
+		"truncate": fmt.Sprintf("output: {enabled: true, file: %q, append: false}\ntargets: [{url: https://example.com, type: http, weight: 1}]\n", existing),
+		"pcap":     fmt.Sprintf("output: {pcap_file: %q}\ntargets: [{url: https://example.com, type: http, weight: 1}]\n", existing),
+	} {
+		t.Run(name, func(t *testing.T) {
+			_, err := LoadWithPolicy(writeTemp(t, yaml), withoutOverwrite)
+			if err == nil || !strings.Contains(err.Error(), "overwrite denied") {
+				t.Fatalf("expected overwrite denial, got %v", err)
+			}
+			got, readErr := os.ReadFile(existing)
+			if readErr != nil || string(got) != "preserve" {
+				t.Fatalf("denial modified output: %q, %v", got, readErr)
+			}
+		})
+	}
+	appendYAML := fmt.Sprintf("output: {enabled: true, file: %q, append: true}\ntargets: [{url: https://example.com, type: http, weight: 1}]\n", existing)
+	if _, err := LoadWithPolicy(writeTemp(t, appendYAML), withoutOverwrite); err != nil {
+		t.Fatalf("append should not require truncation grant: %v", err)
+	}
+}
+
 func TestLoadWithPolicyTrustedCompatibility(t *testing.T) {
+	if got := (&Config{}).Access().Mode(); got != policy.ModeTrusted {
+		t.Fatalf("programmatic config access mode = %q", got)
+	}
 	dir := t.TempDir()
 	vars := filepath.Join(dir, "values.txt")
 	targets := filepath.Join(dir, "targets.txt")

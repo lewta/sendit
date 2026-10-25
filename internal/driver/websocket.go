@@ -31,13 +31,13 @@ func (d *WebSocketDriver) Execute(ctx context.Context, t task.Task) task.Result 
 	defer cancel()
 
 	start := time.Now()
-	dialURL, err := authQueryURL(t.URL, t.Config.Auth)
+	dialURL, err := authQueryURL(connCtx, t.URL, t.Config.Auth)
 	if err != nil {
 		return task.Result{Task: t, Duration: time.Since(start), Error: err}
 	}
 
 	dialOpts := &websocket.DialOptions{}
-	if hdrs, err := authHeaders(t.Config.Auth); err != nil {
+	if hdrs, err := authHeaders(connCtx, t.Config.Auth); err != nil {
 		return task.Result{Task: t, Duration: time.Since(start), Error: err}
 	} else if hdrs != nil {
 		dialOpts.HTTPHeader = hdrs

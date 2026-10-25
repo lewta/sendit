@@ -136,7 +136,7 @@ func (d *HTTPDriver) Execute(ctx context.Context, t task.Task) task.Result {
 		req.Header.Set(k, v)
 	}
 
-	if err := applyAuth(req, t.Config.Auth); err != nil {
+	if err := applyAuth(reqCtx, req, t.Config.Auth); err != nil {
 		return task.Result{Task: t, Error: err}
 	}
 

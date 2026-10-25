@@ -14,6 +14,7 @@ import (
 
 	"github.com/lewta/sendit/internal/driver"
 	"github.com/lewta/sendit/internal/output"
+	"github.com/lewta/sendit/internal/policy"
 	"github.com/lewta/sendit/internal/task"
 	"github.com/spf13/cobra"
 )
@@ -117,27 +118,22 @@ func openReplayOutput(input *os.File, outputPath string) (*os.File, error) {
 	} else if !os.IsNotExist(err) {
 		return nil, err
 	}
-	// Verify the opened inode before any truncation, including hard-link aliases.
-	f, err := os.OpenFile(outputPath, os.O_CREATE|os.O_WRONLY, 0o600)
+	// Verify the opened inode before any truncation, including aliases created
+	// after the initial stat.
+	prepared, err := policy.PrepareExplicitOutput(outputPath, false)
 	if err != nil {
 		return nil, err
 	}
-	reject := func(err error) (*os.File, error) { return nil, errors.Join(err, f.Close()) }
-	info, err := f.Stat()
-	if err != nil {
-		return reject(err)
-	}
-	if !info.Mode().IsRegular() || os.SameFile(inInfo, info) {
+	reject := func(err error) (*os.File, error) { return nil, errors.Join(err, prepared.Abort()) }
+	if prepared.SameInfo(inInfo) {
 		return reject(fmt.Errorf("--output must be a different regular file"))
 	}
-	if runtime.GOOS != "windows" && info.Mode().Perm()&0o077 != 0 {
+	if runtime.GOOS != "windows" && prepared.Mode().Perm()&0o077 != 0 {
 		return reject(fmt.Errorf("existing --output must have no group/other permission bits (use mode 0600)"))
 	}
-	if err := f.Truncate(0); err != nil {
-		return reject(err)
-	}
-	if _, err := f.Seek(0, io.SeekStart); err != nil {
-		return reject(err)
+	f, err := prepared.Commit()
+	if err != nil {
+		return nil, err
 	}
 	return f, nil
 }

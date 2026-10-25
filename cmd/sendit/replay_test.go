@@ -196,6 +196,36 @@ func TestOpenReplayOutputAliasesAndPermissions(t *testing.T) {
 	}
 }
 
+func TestOpenReplayOutputRejectsUnrelatedAliasesWithoutTruncation(t *testing.T) {
+	inputPath := writeReplayFile(t, replayRecords(200))
+	input, err := os.Open(inputPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer input.Close()
+
+	for name, link := range map[string]func(string, string) error{"symlink": os.Symlink, "hardlink": os.Link} {
+		t.Run(name, func(t *testing.T) {
+			victim := filepath.Join(t.TempDir(), "victim")
+			if err := os.WriteFile(victim, []byte("preserve"), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			alias := filepath.Join(t.TempDir(), "output.jsonl")
+			if err := link(victim, alias); err != nil {
+				t.Skipf("%s unavailable: %v", name, err)
+			}
+			if f, err := openReplayOutput(input, alias); err == nil {
+				_ = f.Close()
+				t.Fatal("unrelated output alias accepted")
+			}
+			got, err := os.ReadFile(victim)
+			if err != nil || string(got) != "preserve" {
+				t.Fatalf("denial modified victim: %q, %v", got, err)
+			}
+		})
+	}
+}
+
 type replayFailWriter struct{ err error }
 
 func (w replayFailWriter) Write([]byte) (int, error) { return 0, w.err }

@@ -2,8 +2,10 @@ package engine
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/url"
+	"os"
 	"sync/atomic"
 
 	"github.com/lewta/sendit/internal/config"
@@ -11,6 +13,7 @@ import (
 	"github.com/lewta/sendit/internal/metrics"
 	"github.com/lewta/sendit/internal/output"
 	"github.com/lewta/sendit/internal/pcap"
+	"github.com/lewta/sendit/internal/policy"
 	"github.com/lewta/sendit/internal/ratelimit"
 	"github.com/lewta/sendit/internal/resource"
 	"github.com/lewta/sendit/internal/task"
@@ -80,20 +83,51 @@ func New(cfg *config.Config, m *metrics.Metrics) (*Engine, error) {
 		"sftp":      driver.NewSFTPDriver(),
 	}
 
+	var preparedOutput, preparedPCAP *policy.PreparedOutput
+	abortPrepared := func() error {
+		// Close the later, non-owning handle first. On Windows an open second
+		// handle prevents the creator from removing a denied new destination.
+		return errors.Join(preparedPCAP.Abort(), preparedOutput.Abort())
+	}
 	if cfg.Output.Enabled {
-		w, err := output.New(cfg.Output)
+		preparedOutput, err = policy.PrepareOutput(cfg.Access(), cfg.Output.File, cfg.Output.Append)
 		if err != nil {
 			return nil, fmt.Errorf("creating output writer: %w", err)
 		}
-		e.writer = w
+	}
+	if cfg.Output.PCAPFile != "" {
+		preparedPCAP, err = policy.PrepareOutput(cfg.Access(), cfg.Output.PCAPFile, false)
+		if err != nil {
+			return nil, errors.Join(fmt.Errorf("creating pcap writer: %w", err), abortPrepared())
+		}
+	}
+	if preparedOutput.SameFile(preparedPCAP) {
+		return nil, errors.Join(errors.New("output and pcap destinations refer to the same file"), abortPrepared())
 	}
 
-	if cfg.Output.PCAPFile != "" {
-		pw, err := pcap.New(cfg.Output.PCAPFile)
-		if err != nil {
-			return nil, fmt.Errorf("creating pcap writer: %w", err)
+	var outputFile, pcapFile *os.File
+	if preparedOutput != nil {
+		f, commitErr := preparedOutput.Commit()
+		if commitErr != nil {
+			return nil, errors.Join(fmt.Errorf("creating output writer: %w", commitErr), abortPrepared())
 		}
-		e.pcapWriter = pw
+		outputFile = f
+	}
+	if preparedPCAP != nil {
+		f, commitErr := preparedPCAP.Commit()
+		if commitErr != nil {
+			if outputFile != nil {
+				_ = outputFile.Close()
+			}
+			return nil, fmt.Errorf("creating pcap writer: %w", commitErr)
+		}
+		pcapFile = f
+	}
+	if outputFile != nil {
+		e.writer = output.NewFromFile(cfg.Output, outputFile)
+	}
+	if pcapFile != nil {
+		e.pcapWriter = pcap.NewFromFile(pcapFile)
 	}
 
 	return e, nil
@@ -183,6 +217,7 @@ func (e *Engine) dispatch(ctx context.Context, t task.Task) {
 		log.Error().Err(err).Msg("capturing dispatch")
 		return
 	}
+	ctx = policy.WithAccess(ctx, e.cfg.Load().Access())
 	result := drv.Execute(ctx, t)
 	result.Capture = capture
 
@@ -257,9 +292,13 @@ func (e *Engine) dispatch(ctx context.Context, t task.Task) {
 
 // Reload atomically applies a new configuration to the running engine.
 // Targets, rate limits, backoff, and pacing are updated in-place.
-// Changes to pacing mode, resource limits, or scheduled windows require a restart.
+// Changes to output settings, pacing mode, resource limits, or scheduled windows
+// require a restart.
 func (e *Engine) Reload(newCfg *config.Config) error {
 	old := e.cfg.Load()
+	if old.Output != newCfg.Output {
+		return errors.New("hot-reload: output settings require restart")
+	}
 
 	// Log target diff.
 	logTargetsDiff(old.Targets, newCfg.Targets)

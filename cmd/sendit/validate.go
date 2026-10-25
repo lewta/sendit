@@ -21,8 +21,8 @@ func validateCmd() *cobra.Command {
 Configs are trusted operator input by default. --config-trust=restricted
 selects the same operator-granted policy as start. capability_requests in
 YAML can only narrow it. The summary prints names and paths, never resolved
-values. This contract is not yet enforced at every runtime I/O boundary;
-secondary files are still read by validation. See the security documentation.
+values. Secondary target and variable files are read only through granted
+roots. Restricted mode is not a process sandbox; see the security documentation.
 
 Checks all config fields, pacing modes, concurrency limits, per-target
 settings, and backoff parameters. All supplied schedule entries must use

@@ -76,8 +76,8 @@ func reportConfigPolicy(cmd *cobra.Command, cfg *config.Config, summary bool) er
 
 // reloadConfig advances authority only after the entire replacement is
 // accepted. Failed loads and engine rejections retain the previous ceiling.
-func reloadConfig(path string, current policy.Access, accept func(*config.Config) error) (policy.Access, error) {
-	cfg, err := config.LoadWithPolicy(path, current)
+func reloadConfig(path string, current policy.Access, accept func(*config.Config) error, options ...config.LoadOption) (policy.Access, error) {
+	cfg, err := config.LoadWithPolicy(path, current, options...)
 	if err != nil {
 		return current, err
 	}

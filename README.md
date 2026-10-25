@@ -130,7 +130,7 @@ Configs are trusted operator input by default (`--config-trust=trusted`), preser
 
 Grant directories must already exist. `start` and `validate` share the same policy flags. Dry-run and validation show requested versus granted names and normalized paths, never environment values or file contents in the policy summary. YAML `capability_requests` can only narrow these grants, and SIGHUP cannot restore a permission removed by an accepted reload. A process restart with explicit operator grants is required to broaden authority.
 
-This policy contract is not a sandbox: dispatch-time environment access, hardened variable-file reads, safe output opening, and per-connection crawler enforcement are not yet wired to it. Continue reviewing configs and isolating execution until those boundaries enforce the policy. See the [configuration reference](docs/content/docs/configuration.md) and [security scope](docs/content/docs/security.md).
+Restricted mode enforces target/variable/SFTP key file reads, authentication environment names, and local result/PCAP output paths at their effect boundaries. Output opens reject symlink and hard-link aliases and recheck identity before truncation. This is not a process sandbox or a general destination allow-list: browser execution, daemon/PID behavior, metrics listeners, and ordinary target-driver connections retain their documented behavior. See the [configuration reference](docs/content/docs/configuration.md) and [security scope](docs/content/docs/security.md).
 
 ### Run
 
@@ -168,7 +168,7 @@ target_defaults:
 ## CLI Commands
 
 ```
-sendit generate [--targets-file <path>] [--url <url>] [--from-history chrome|firefox|safari] [--from-bookmarks chrome|firefox|safari] [--output <file>]
+sendit generate [--targets-file <path>] [--url <url>] [--allow-private-network <cidr>] [--from-history chrome|firefox|safari] [--from-bookmarks chrome|firefox|safari] [--output <file>]
 sendit start    [-c <path>] [--foreground] [--log-level debug|info|warn|error] [--dry-run] [--capture <file>] [--duration <duration>] [--tui]
 sendit probe    <target>   [--type http|dns|websocket] [--interval 1s] [--timeout 5s] [--send <msg>]
 sendit pinch    <host:port> [--type tcp|udp] [--interval 1s] [--timeout 5s]
@@ -302,7 +302,9 @@ The targets file format is `<url> <type> [weight]` per line — the same format 
 sendit generate --url https://example.com --depth 2 --max-pages 50 --output config/generated.yaml
 ```
 
-The crawler fetches the seed URL, parses `<a href>` links, and follows in-domain links breadth-first. `robots.txt` is respected by default; sitemap URLs and redirects discovered through robots.txt are only fetched when they stay on the seed origin. HTML pages larger than 5 MiB and sitemap XML larger than 1 MiB are skipped. Pass `--ignore-robots` to skip robots.txt enforcement.
+The crawler fetches the seed URL, parses `<a href>` links, and follows same-origin links breadth-first. It permits ordinary public destinations by default and checks every resolved address immediately before each connection. A literal private IP is not implicit permission; use repeatable `--allow-private-network CIDR` grants for intentional lab/private crawls. Ambient proxy variables are not used by the crawler.
+
+`robots.txt` is respected by default; sitemap URLs and redirects are kept on the seed origin. Oversized HTML (5 MiB), sitemap (1 MiB), or robots (256 KiB) responses fail the crawl clearly. Absolute ceilings also bound discovered URLs (8,192), queued entries (4,096), sitemap entries (2,048) and depth (4), robots metadata (1,024), redirects (10), URL length (8,192 bytes), and total response bytes (64 MiB). Pass `--ignore-robots` to skip robots.txt enforcement. Generated, replay, and PCAP export destinations reject symlink/hard-link aliases before overwrite.
 
 ### From browser history
 
@@ -341,6 +343,7 @@ sendit generate --url https://example.com --from-history chrome --history-limit 
 | `--depth` | `2` | Maximum crawl depth |
 | `--max-pages` | `50` | Maximum number of pages to discover |
 | `--ignore-robots` | `false` | Skip `robots.txt` enforcement during crawl |
+| `--allow-private-network CIDR` | None | Allow a nonpublic or special-use crawler destination; repeatable |
 | `--from-history` | `""` | Harvest visited URLs from browser history: `chrome` \| `firefox` \| `safari` |
 | `--from-bookmarks` | `""` | Harvest bookmarked URLs: `chrome` \| `firefox` \| `safari` |
 | `--history-limit` | `100` | Maximum URLs to import from history (ordered by visit count descending) |

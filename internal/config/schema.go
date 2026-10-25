@@ -20,7 +20,14 @@ type Config struct {
 }
 
 // Access returns the effective immutable policy for downstream consumers.
-func (c *Config) Access() policy.Access { return c.access }
+// Programmatically constructed legacy Config values have no loader-owned
+// policy and retain the historical trusted behavior.
+func (c *Config) Access() policy.Access {
+	if c.access.Mode() != policy.ModeTrusted && c.access.Mode() != policy.ModeRestricted {
+		return policy.Trusted()
+	}
+	return c.access
+}
 
 // CapabilityRequests returns a copy of explicit, normalized requests. Nil
 // fields mean omitted/inherited; empty lists mean explicitly removed.

@@ -62,8 +62,9 @@ loaded from a plain-text file via 'targets_file:', or both combined.
 Configs are trusted operator input by default. --config-trust=restricted
 selects an operator-granted policy; YAML capability_requests only narrow it.
 SIGHUP retains the last accepted ceiling and cannot restore removed grants.
-The shared policy contract is not yet enforced at every runtime I/O boundary;
-review the security documentation before using it as an isolation boundary.
+Restricted mode enforces configured secondary reads, auth environment names,
+and local result/PCAP outputs. It is not a process sandbox or a general target
+network allow-list; review the remaining boundaries in the security docs.
 
 targets_file format (one entry per line):
   <url> <type> [weight]
@@ -101,19 +102,20 @@ Active network requests receive the canceled context and may abort.
 
 Send SIGHUP to reload the config without restarting. Targets, rate limits,
 backoff, and pacing are updated atomically with no dropped requests. Changes
-to pacing mode or resource limits (workers, cpu, memory) require a restart.`,
+to output settings, pacing mode, or resource limits (workers, cpu, memory)
+require a restart.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			operatorAccess, err := policyFlags.build(cmd)
 			if err != nil {
 				return err
 			}
-			cfg, err := config.LoadWithPolicy(cfgPath, operatorAccess)
+			var loadOptions []config.LoadOption
+			if capturePath != "" {
+				loadOptions = append(loadOptions, config.WithPCAPOverride(capturePath))
+			}
+			cfg, err := config.LoadWithPolicy(cfgPath, operatorAccess, loadOptions...)
 			if err != nil {
 				return err
-			}
-
-			if capturePath != "" {
-				cfg.Output.PCAPFile = capturePath
 			}
 
 			// burst mode requires --duration so runs are always time-bounded.
@@ -167,6 +169,8 @@ to pacing mode or resource limits (workers, cpu, memory) require a restart.`,
 			}
 
 			// Hot-reload on SIGHUP.
+			reloadOptions := append([]config.LoadOption(nil), loadOptions...)
+			reloadOptions = append(reloadOptions, config.WithActiveOutput(cfg.Output))
 			sighupCh := make(chan os.Signal, 1)
 			signal.Notify(sighupCh, syscall.SIGHUP)
 			go func() {
@@ -178,7 +182,7 @@ to pacing mode or resource limits (workers, cpu, memory) require a restart.`,
 						return
 					case <-sighupCh:
 						log.Info().Str("config", cfgPath).Msg("SIGHUP received, reloading config")
-						nextAccess, err := reloadConfig(cfgPath, currentAccess, eng.Reload)
+						nextAccess, err := reloadConfig(cfgPath, currentAccess, eng.Reload, reloadOptions...)
 						if err != nil {
 							log.Error().Err(err).Msg("hot-reload: replacement rejected, keeping current")
 							continue

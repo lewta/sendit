@@ -1,5 +1,6 @@
-// Package policy defines operator-owned configuration authority. Checks are
-// preflight decisions, not atomic file opens or per-connection network guards.
+// Package policy defines operator-owned configuration authority. Callers use
+// its predicates at preflight and again at the relevant file or connection
+// boundary; the package also provides hardened output preparation helpers.
 package policy
 
 import (

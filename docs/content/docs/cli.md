@@ -8,7 +8,7 @@ description: "All sendit commands and their flags."
 ## Commands
 
 ```
-sendit generate [--targets-file <path>] [--url <url>] [--from-history chrome|firefox|safari] [--from-bookmarks chrome|firefox|safari] [--output <file>]
+sendit generate [--targets-file <path>] [--url <url>] [--allow-private-network <cidr>] [--from-history chrome|firefox|safari] [--from-bookmarks chrome|firefox|safari] [--output <file>]
 sendit start    [-c <path>] [--foreground] [--log-level debug|info|warn|error] [--dry-run] [--capture <file>] [--duration <duration>] [--tui]
 sendit probe    <target>    [--type http|dns|websocket] [--interval 1s] [--timeout 5s] [--send <msg>]
 sendit pinch    <host:port> [--type tcp|udp] [--interval 1s] [--timeout 5s]
@@ -87,7 +87,7 @@ Replay reads envelopes v1 and v2 and writes v2. V2 HTTP snapshots include the re
 - **Looping:** wait for every request and its output, then the unscaled loop delay. Explicit zero delay is supported. Output uses a fresh run ID and continuous sequence across loops; replaying it later remains subject to input limits.
 - **Shutdown:** Ctrl-C/SIGTERM stops scheduling, cancels calls, waits for replay workers, and finalizes output. Existing driver close/exchange latency still applies; this does not promise immediate network quiescence.
 - **Results:** final stdout is `Replayed N requests; M failures.` Go errors or classified status failures count, including returned cancellation failures. Request failures continue and exit successfully. Parsing/setup/output failures exit nonzero. Successful output retains every executed result; output write failure cancels remaining work, flush/close errors are surfaced, and partial files may remain.
-- **Files:** input/output identity is checked before truncation, including relative/symlink/hard-link aliases. New outputs use mode `0600`; on POSIX existing outputs with group/other permissions are rejected. Windows uses native access controls. Concurrent external replacement of these paths is unsupported.
+- **Files:** input/output identity is checked before truncation, including relative/symlink/hard-link aliases. Identity and link count are rechecked immediately before commit. New outputs use mode `0600`; on POSIX existing outputs with group/other permissions are rejected. Windows uses native access controls.
 
 URLs, bodies, and messages may contain application secrets despite configured-credential exclusions. Proxy/environment state and remote responses are not recorded. See [replay data handling](../security/#replay-data-handling).
 
@@ -101,6 +101,7 @@ URLs, bodies, and messages may contain application secrets despite configured-cr
 | `--depth` | `2` | Maximum crawl depth |
 | `--max-pages` | `50` | Maximum number of pages to discover |
 | `--ignore-robots` | `false` | Skip `robots.txt` enforcement during crawl |
+| `--allow-private-network CIDR` | None | Allow a nonpublic or special-use crawler destination; repeatable |
 | `--from-history` | `""` | Harvest visited URLs from browser history: `chrome` \| `firefox` \| `safari` |
 | `--from-bookmarks` | `""` | Harvest bookmarked URLs: `chrome` \| `firefox` \| `safari` |
 | `--history-limit` | `100` | Maximum URLs to import from history, ordered by visit count |
@@ -121,9 +122,14 @@ sendit generate --url https://example.com --depth 2 --output config/generated.ya
 
 # Skip robots.txt enforcement
 sendit generate --url https://example.com --ignore-robots --output config/generated.yaml
+
+# Intentionally crawl a private lab subnet
+sendit generate --url http://10.20.0.4 --allow-private-network 10.20.0.0/16 --output config/generated.yaml
 ```
 
-When crawling from a seed URL, page links are kept in-domain. `robots.txt` is respected by default, and sitemap URLs or redirects discovered through robots.txt are only fetched when they remain on the seed origin. HTML pages larger than 5 MiB and sitemap XML larger than 1 MiB are skipped.
+When crawling from a seed URL, links, sitemaps, and redirects stay on the seed origin. The crawler permits ordinary public destinations by default, disables ambient proxies, and checks every DNS answer immediately before each connection. Mixed public/private answers are denied without dialing; DNS is resolved again for each new connection. A literal private seed does not grant itself access—use repeatable `--allow-private-network CIDR` flags for intentional lab/private crawls.
+
+`robots.txt` is respected by default. Oversized HTML (5 MiB), sitemap (1 MiB), or robots (256 KiB) responses fail clearly. Absolute ceilings bound discovered URLs (8,192), queued entries (4,096), sitemap entries (2,048) and depth (4), robots metadata (1,024), redirects (10), URL length (8,192 bytes), and total response bytes (64 MiB). Generated output rejects symlink and hard-link aliases before overwrite.
 
 ### Generate from browser history / bookmarks
 
@@ -158,7 +164,7 @@ Browser history weights are derived from visit count (capped at 10) so frequentl
 | `--allow-overwrite` | Denied in restricted mode | Separate overwrite grant; `=false` also narrows trusted mode |
 | `--allow-private-network CIDR` | None | Nonpublic or special-use prefix grant; repeatable, IPv4-mapped IPv6 prefixes rejected |
 
-Trusted mode preserves existing behavior. Explicit flags narrow the corresponding capability even in trusted mode. Restricted mode starts with no environment, read, output, overwrite, or private-network grants; its address policy permits ordinary public destinations under an explicit IANA-based classification. Special-use addresses require grants, including benchmark, documentation, protocol-assignment, and transition ranges. IPv6 allocations newer than the policy snapshot fail closed until a policy update or explicit grant. Invalid flags fail before reading the config. These flags belong to configuration loading and are not yet available on `generate`, `probe`, or `replay`.
+Trusted mode preserves existing behavior. Explicit flags narrow the corresponding capability even in trusted mode. Restricted mode starts with no environment, read, output, overwrite, or private-network grants. Invalid flags fail before reading the config. These configuration-loading flags are not available on `probe` or `replay`. `generate --url` independently uses public-only address policy and accepts its own repeatable `--allow-private-network CIDR` flag; it does not inherit YAML or `start` grants.
 
 ```sh
 sendit validate -c external.yaml --config-trust=restricted \
@@ -170,7 +176,7 @@ sendit start -c external.yaml --dry-run --config-trust=restricted \
 
 `validate` and `start --dry-run` add a `Config policy:` summary with mode, explicit requested fields, and effective grants. `null` requests mean inherited; `[]` means explicitly removed. Trusted mode emits at most one broad-capability warning per command, including across reloads. Policy diagnostics contain names and normalized paths, not resolved values. Existing dry-run target examples can still contain application data.
 
-SIGHUP loads against the last accepted effective policy. A rejected config or engine reload keeps that policy. Omitted requests inherit it; removed grants cannot return without an operator-controlled restart. See [request syntax](../configuration/#capability_requests) and [current enforcement limits](../security/#configuration-trust-policy).
+SIGHUP loads against the last accepted effective policy. A rejected config or engine reload keeps that policy. Omitted requests inherit it; removed grants cannot return without an operator-controlled restart. See [request syntax](../configuration/#capability_requests) and [remaining non-sandbox boundaries](../security/#configuration-trust-policy).
 
 ### Runtime flags
 

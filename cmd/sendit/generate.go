@@ -7,6 +7,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"encoding/xml"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -19,6 +20,7 @@ import (
 	"time"
 
 	"github.com/lewta/sendit/internal/config"
+	"github.com/lewta/sendit/internal/policy"
 	"github.com/spf13/cobra"
 	"golang.org/x/net/html"
 	"howett.net/plist"
@@ -45,6 +47,7 @@ func generateCmd() *cobra.Command {
 		fromBookmarks string
 		historyLimit  int
 		output        string
+		privateCIDRs  []string
 	)
 
 	cmd := &cobra.Command{
@@ -62,9 +65,16 @@ Output is written to stdout by default; use --output to write to a file.
 The generated config uses sensible defaults for pacing, limits, and backoff
 that can be tuned before running. Validate with 'sendit validate --config'.
 
+URL crawls allow ordinary public destinations by default, disable ambient
+proxies, and check every resolved address before dialing. A literal private
+seed is not implicit permission; grant intentional lab/private destinations
+with repeatable --allow-private-network CIDR flags. Crawl discovery, redirects,
+robots/sitemap metadata, response sizes, and total bytes have hard ceilings.
+
 Examples:
   sendit generate --targets-file config/targets.txt
   sendit generate --url https://example.com --depth 2 --output config/generated.yaml
+  sendit generate --url http://10.20.0.4 --allow-private-network 10.20.0.0/16
   sendit generate --from-history chrome --history-limit 50 --output config/generated.yaml
   sendit generate --from-bookmarks firefox --output config/generated.yaml
   sendit generate --url https://example.com --from-history chrome --output config/gen.yaml`,
@@ -74,6 +84,12 @@ Examples:
 			}
 			if crawl && seedURL == "" {
 				return fmt.Errorf("--crawl requires --url <seed-url>")
+			}
+			if depth < 0 {
+				return fmt.Errorf("--depth must be non-negative")
+			}
+			if maxPages < 1 {
+				return fmt.Errorf("--max-pages must be positive")
 			}
 
 			var targets []config.TargetConfig
@@ -87,7 +103,14 @@ Examples:
 			}
 
 			if crawl {
-				ts, err := targetsFromCrawl(seedURL, depth, maxPages, ignoreRobots)
+				access, err := crawlAccess(privateCIDRs)
+				if err != nil {
+					return err
+				}
+				opts := defaultCrawlOptions(maxPages)
+				opts.ctx = cmd.Context()
+				opts.access = access
+				ts, err := targetsFromCrawlWithOptions(seedURL, depth, ignoreRobots, opts)
 				if err != nil {
 					return fmt.Errorf("--url crawl: %w", err)
 				}
@@ -126,6 +149,7 @@ Examples:
 	cmd.Flags().IntVar(&depth, "depth", 2, "Maximum crawl depth (used with --url)")
 	cmd.Flags().IntVar(&maxPages, "max-pages", 50, "Maximum number of pages to discover (used with --url)")
 	cmd.Flags().BoolVar(&ignoreRobots, "ignore-robots", false, "Skip robots.txt enforcement during crawl")
+	cmd.Flags().StringArrayVar(&privateCIDRs, "allow-private-network", nil, "Allow crawler connections to a nonpublic or special-use CIDR (repeatable)")
 	cmd.Flags().StringVar(&fromHistory, "from-history", "", "Harvest visited URLs from local browser history (chrome|firefox|safari)")
 	cmd.Flags().StringVar(&fromBookmarks, "from-bookmarks", "", "Harvest bookmarked URLs from local browser bookmarks (chrome|firefox|safari)")
 	cmd.Flags().IntVar(&historyLimit, "history-limit", 100, "Cap the number of URLs imported from history (ordered by visit count)")
@@ -190,50 +214,99 @@ func targetsFromFile(path string) ([]config.TargetConfig, error) {
 // parsed for additional URLs rather than included as targets themselves.
 // Respects robots.txt unless ignoreRobots is true.
 func targetsFromCrawl(seedURL string, maxDepth, maxPages int, ignoreRobots bool) ([]config.TargetConfig, error) {
+	opts := defaultCrawlOptions(maxPages)
+	return targetsFromCrawlWithOptions(seedURL, maxDepth, ignoreRobots, opts)
+}
+
+func targetsFromCrawlWithOptions(seedURL string, maxDepth int, ignoreRobots bool, opts crawlOptions) ([]config.TargetConfig, error) {
+	if maxDepth < 0 {
+		return nil, fmt.Errorf("crawl depth must be non-negative")
+	}
 	base, err := url.Parse(seedURL)
 	if err != nil {
 		return nil, fmt.Errorf("invalid seed URL %q: %w", seedURL, err)
 	}
-	if base.Scheme != "http" && base.Scheme != "https" {
-		return nil, fmt.Errorf("seed URL must be http:// or https://; got scheme %q", base.Scheme)
+	if (base.Scheme != "http" && base.Scheme != "https") || base.Hostname() == "" || base.User != nil {
+		return nil, fmt.Errorf("seed URL must be an http:// or https:// origin without user information")
 	}
 	normalizeCrawlURL(base)
+	if len(base.String()) > maxCrawlURLBytes {
+		return nil, &crawlLimitError{message: fmt.Sprintf("crawler URL exceeds %d bytes", maxCrawlURLBytes)}
+	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	if opts.ctx == nil {
+		opts.ctx = context.Background()
+	}
+	if opts.access.Mode() != policy.ModeTrusted && opts.access.Mode() != policy.ModeRestricted {
+		return nil, fmt.Errorf("crawler policy is uninitialized")
+	}
+	opts.runtime = opts.runtime.normalized()
+	ctx, cancel := context.WithTimeout(opts.ctx, 60*time.Second)
 	defer cancel()
 
-	client := newCrawlHTTPClient(base, 10*time.Second)
+	client := newCrawlHTTPClientWithLimits(base, opts.access, opts.runtime, 10*time.Second, opts.limits.maxRedirects)
+	robotsClient := newCrawlHTTPClientWithLimits(base, opts.access, opts.runtime, 5*time.Second, opts.limits.maxRedirects)
+	budget := &crawlBudget{limits: opts.limits}
 
 	var disallowed, sitemaps []string
 	if !ignoreRobots {
-		disallowed, sitemaps = fetchRobotsInfo(ctx, newCrawlHTTPClient(base, 5*time.Second), base)
+		disallowed, sitemaps, err = fetchRobotsInfoWithBudget(ctx, robotsClient, base, budget)
+		if err != nil && crawlFatalError(err) {
+			return nil, err
+		}
 	}
 
 	type queueItem struct {
-		u       string
-		depth   int
-		sitemap bool // true: parse as sitemap XML, not an HTML crawl target
+		u            string
+		depth        int
+		sitemap      bool // true: parse as sitemap XML, not an HTML crawl target
+		sitemapDepth int
 	}
 
-	visited := map[string]bool{base.String(): true}
-	queue := []queueItem{{base.String(), 0, false}}
+	visited := make(map[string]bool)
+	queue := make([]queueItem, 0, min(opts.limits.maxQueued, 64))
+	enqueue := func(raw string, depth int, sitemap bool, sitemapDepth int) error {
+		if len(raw) > maxCrawlURLBytes {
+			return &crawlLimitError{message: fmt.Sprintf("crawler URL exceeds %d bytes", maxCrawlURLBytes)}
+		}
+		u, parseErr := url.Parse(raw)
+		if parseErr != nil || u.User != nil || !sameCrawlOrigin(u, base) {
+			return nil
+		}
+		normalizeCrawlURL(u)
+		normalized := u.String()
+		if visited[normalized] {
+			return nil
+		}
+		if sitemap && sitemapDepth > opts.limits.maxSitemapDepth {
+			return &crawlLimitError{message: fmt.Sprintf("crawler sitemap depth budget exceeded (maximum %d)", opts.limits.maxSitemapDepth)}
+		}
+		if err := budget.addDiscovered(); err != nil {
+			return err
+		}
+		if err := budget.addQueued(); err != nil {
+			return err
+		}
+		visited[normalized] = true
+		queue = append(queue, queueItem{u: normalized, depth: depth, sitemap: sitemap, sitemapDepth: sitemapDepth})
+		return nil
+	}
+	if err := enqueue(base.String(), 0, false, 0); err != nil {
+		return nil, err
+	}
 
 	// Seed sitemaps discovered from robots.txt.
 	for _, s := range sitemaps {
-		u, err := url.Parse(s)
-		if err != nil || u.Scheme != base.Scheme || u.Host != base.Host {
-			continue
-		}
-		normalizeCrawlURL(u)
-		sitemapURL := u.String()
-		if !visited[sitemapURL] {
-			visited[sitemapURL] = true
-			queue = append(queue, queueItem{sitemapURL, 0, true})
+		if err := enqueue(s, 0, true, 1); err != nil {
+			return nil, err
 		}
 	}
 
 	var targets []config.TargetConfig
-	for len(queue) > 0 && len(targets) < maxPages {
+	for len(queue) > 0 && len(targets) < opts.limits.maxPages {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
 		item := queue[0]
 		queue = queue[1:]
 
@@ -243,13 +316,16 @@ func targetsFromCrawl(seedURL string, maxDepth, maxPages int, ignoreRobots bool)
 
 		if item.sitemap {
 			// Parse sitemap XML and feed discovered in-domain URLs into the queue.
-			locs, err := fetchSitemapLocs(ctx, client, item.u)
+			locs, err := fetchSitemapLocsWithBudget(ctx, client, item.u, budget)
 			if err != nil {
+				if crawlFatalError(err) {
+					return nil, err
+				}
 				continue // non-fatal
 			}
 			for _, loc := range locs {
 				u, err := url.Parse(loc)
-				if err != nil || u.Host != base.Host {
+				if err != nil || u.User != nil || !strings.EqualFold(u.Host, base.Host) {
 					continue
 				}
 				// Normalise scheme to match the seed URL — sitemaps often list
@@ -257,9 +333,13 @@ func targetsFromCrawl(seedURL string, maxDepth, maxPages int, ignoreRobots bool)
 				u.Scheme = base.Scheme
 				normalizeCrawlURL(u)
 				s := u.String()
-				if !visited[s] {
-					visited[s] = true
-					queue = append(queue, queueItem{s, 0, isSitemapURL(s)})
+				nextSitemap := isSitemapURL(s)
+				nextSitemapDepth := 0
+				if nextSitemap {
+					nextSitemapDepth = item.sitemapDepth + 1
+				}
+				if err := enqueue(s, 0, nextSitemap, nextSitemapDepth); err != nil {
+					return nil, err
 				}
 			}
 			continue
@@ -276,14 +356,17 @@ func targetsFromCrawl(seedURL string, maxDepth, maxPages int, ignoreRobots bool)
 			continue
 		}
 
-		links, err := crawlPage(ctx, client, item.u, base)
+		remaining := opts.limits.maxDiscovered - budget.discovered
+		links, err := crawlPageWithBudget(ctx, client, item.u, base, budget, remaining, visited)
 		if err != nil {
+			if crawlFatalError(err) {
+				return nil, err
+			}
 			continue // non-fatal; skip this page
 		}
 		for _, link := range links {
-			if !visited[link] {
-				visited[link] = true
-				queue = append(queue, queueItem{link, item.depth + 1, isSitemapURL(link)})
+			if err := enqueue(link, item.depth+1, isSitemapURL(link), 1); err != nil {
+				return nil, err
 			}
 		}
 	}
@@ -291,19 +374,16 @@ func targetsFromCrawl(seedURL string, maxDepth, maxPages int, ignoreRobots bool)
 }
 
 func newCrawlHTTPClient(base *url.URL, timeout time.Duration) *http.Client {
-	return &http.Client{
-		Timeout: timeout,
-		CheckRedirect: func(req *http.Request, via []*http.Request) error {
-			if req.URL.Scheme != base.Scheme || req.URL.Host != base.Host {
-				return http.ErrUseLastResponse
-			}
-			return nil
-		},
-	}
+	return newCrawlHTTPClientWithPolicy(base, policy.Trusted(), defaultCrawlRuntime(), timeout)
 }
 
 // crawlPage fetches rawURL and returns in-domain links found on the page.
 func crawlPage(ctx context.Context, client *http.Client, rawURL string, base *url.URL) ([]string, error) {
+	budget := &crawlBudget{limits: defaultCrawlOptions(maxCrawlDiscoveredURLs).limits}
+	return crawlPageWithBudget(ctx, client, rawURL, base, budget, maxCrawlDiscoveredURLs, nil)
+}
+
+func crawlPageWithBudget(ctx context.Context, client *http.Client, rawURL string, base *url.URL, budget *crawlBudget, maxLinks int, known map[string]bool) ([]string, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
 	if err != nil {
 		return nil, err
@@ -312,6 +392,9 @@ func crawlPage(ctx context.Context, client *http.Client, rawURL string, base *ur
 
 	resp, err := client.Do(req)
 	if err != nil {
+		if resp != nil && resp.Body != nil {
+			_ = resp.Body.Close()
+		}
 		return nil, err
 	}
 	defer resp.Body.Close() //nolint:errcheck
@@ -320,7 +403,7 @@ func crawlPage(ctx context.Context, client *http.Client, rawURL string, base *ur
 		return nil, nil // skip non-HTML responses
 	}
 
-	body, err := readLimitedResponseBody(resp.Body, maxCrawlHTMLBytes)
+	body, err := readCrawlResponseBody(resp.Body, maxCrawlHTMLBytes, "HTML", budget)
 	if err != nil {
 		return nil, err
 	}
@@ -331,36 +414,58 @@ func crawlPage(ctx context.Context, client *http.Client, rawURL string, base *ur
 	}
 
 	pageURL, _ := url.Parse(rawURL)
-	return extractLinks(doc, pageURL, base), nil
+	return extractLinksLimited(doc, pageURL, base, maxLinks, known)
 }
 
 // extractLinks walks an HTML node tree and returns absolute in-domain URLs.
 func extractLinks(n *html.Node, pageURL, base *url.URL) []string {
+	links, _ := extractLinksLimited(n, pageURL, base, maxCrawlDiscoveredURLs, nil)
+	return links
+}
+
+func extractLinksLimited(n *html.Node, pageURL, base *url.URL, maxLinks int, known map[string]bool) ([]string, error) {
 	var links []string
-	var walk func(*html.Node)
-	walk = func(n *html.Node) {
+	seen := make(map[string]bool)
+	var walk func(*html.Node) error
+	walk = func(n *html.Node) error {
 		if n.Type == html.ElementNode && n.Data == "a" {
 			for _, attr := range n.Attr {
 				if attr.Key == "href" {
+					if len(attr.Val) > maxCrawlURLBytes {
+						return &crawlLimitError{message: fmt.Sprintf("crawler URL exceeds %d bytes", maxCrawlURLBytes)}
+					}
 					ref, err := url.Parse(attr.Val)
 					if err != nil {
 						break
 					}
 					abs := pageURL.ResolveReference(ref)
 					normalizeCrawlURL(abs)
-					if abs.Scheme == base.Scheme && abs.Host == base.Host {
-						links = append(links, abs.String())
+					if sameCrawlOrigin(abs, base) {
+						normalized := abs.String()
+						if seen[normalized] || known[normalized] {
+							break
+						}
+						if len(links) >= maxLinks {
+							return &crawlLimitError{message: fmt.Sprintf("crawler discovered URL budget exceeded (maximum %d)", maxLinks)}
+						}
+						seen[normalized] = true
+						links = append(links, normalized)
 					}
 					break
 				}
 			}
 		}
 		for c := n.FirstChild; c != nil; c = c.NextSibling {
-			walk(c)
+			if err := walk(c); err != nil {
+				return err
+			}
 		}
+		return nil
 	}
-	walk(n)
-	return links
+	if err := walk(n); err != nil {
+		return nil, err
+	}
+	return links, nil
 }
 
 // normalizeCrawlURL strips fragment, query string, and trailing slashes from
@@ -378,23 +483,41 @@ func normalizeCrawlURL(u *url.URL) {
 
 // fetchRobotsInfo downloads /robots.txt and returns the Disallow path prefixes
 // for the wildcard user-agent and any Sitemap: URLs declared in the file.
-// Returns nil slices on any error (fail open).
+// The compatibility wrapper ignores errors; the command path uses the budgeted
+// variant below and propagates policy, cancellation, and resource-limit errors.
 func fetchRobotsInfo(ctx context.Context, client *http.Client, base *url.URL) (disallowed, sitemaps []string) {
+	budget := &crawlBudget{limits: defaultCrawlOptions(50).limits}
+	disallowed, sitemaps, _ = fetchRobotsInfoWithBudget(ctx, client, base, budget)
+	return disallowed, sitemaps
+}
+
+func fetchRobotsInfoWithBudget(ctx context.Context, client *http.Client, base *url.URL, budget *crawlBudget) (disallowed, sitemaps []string, retErr error) {
 	robotsURL := &url.URL{Scheme: base.Scheme, Host: base.Host, Path: "/robots.txt"}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, robotsURL.String(), nil)
 	if err != nil {
-		return nil, nil
+		return nil, nil, err
 	}
 	req.Header.Set("User-Agent", generateUserAgent)
 
 	resp, err := client.Do(req)
-	if err != nil || resp.StatusCode != http.StatusOK {
-		return nil, nil
+	if err != nil {
+		if resp != nil && resp.Body != nil {
+			_ = resp.Body.Close()
+		}
+		return nil, nil, err
 	}
 	defer resp.Body.Close() //nolint:errcheck
+	if resp.StatusCode != http.StatusOK {
+		return nil, nil, nil
+	}
+	body, err := readCrawlResponseBody(resp.Body, budget.limits.maxRobotsBytes, "robots", budget)
+	if err != nil {
+		return nil, nil, err
+	}
 
 	inWildcard := false
-	scanner := bufio.NewScanner(resp.Body)
+	scanner := bufio.NewScanner(bytes.NewReader(body))
+	scanner.Buffer(make([]byte, 64<<10), int(budget.limits.maxRobotsBytes))
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
 		if line == "" {
@@ -415,21 +538,36 @@ func fetchRobotsInfo(ctx context.Context, client *http.Client, base *url.URL) (d
 			inWildcard = val == "*"
 		case "disallow":
 			if inWildcard && val != "" {
+				if err := budget.addRobotsEntry(); err != nil {
+					return nil, nil, err
+				}
 				disallowed = append(disallowed, val)
 			}
 		case "sitemap":
 			if val != "" {
+				if err := budget.addRobotsEntry(); err != nil {
+					return nil, nil, err
+				}
 				sitemaps = append(sitemaps, val)
 			}
 		}
 	}
-	return disallowed, sitemaps
+	if err := scanner.Err(); err != nil {
+		return nil, nil, err
+	}
+	return disallowed, sitemaps, nil
 }
 
 // fetchSitemapLocs downloads a sitemap XML file and returns all <loc> URLs,
 // handling both urlset (regular sitemaps) and sitemapindex (sitemap indexes).
-// Returns nil on any error (fail open).
+// The compatibility wrapper keeps the historical error-returning signature;
+// the command path supplies its shared crawl budget to the variant below.
 func fetchSitemapLocs(ctx context.Context, client *http.Client, sitemapURL string) ([]string, error) {
+	budget := &crawlBudget{limits: defaultCrawlOptions(50).limits}
+	return fetchSitemapLocsWithBudget(ctx, client, sitemapURL, budget)
+}
+
+func fetchSitemapLocsWithBudget(ctx context.Context, client *http.Client, sitemapURL string, budget *crawlBudget) ([]string, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, sitemapURL, nil)
 	if err != nil {
 		return nil, err
@@ -438,6 +576,9 @@ func fetchSitemapLocs(ctx context.Context, client *http.Client, sitemapURL strin
 
 	resp, err := client.Do(req)
 	if err != nil {
+		if resp != nil && resp.Body != nil {
+			_ = resp.Body.Close()
+		}
 		return nil, err
 	}
 	defer resp.Body.Close() //nolint:errcheck
@@ -446,33 +587,40 @@ func fetchSitemapLocs(ctx context.Context, client *http.Client, sitemapURL strin
 		return nil, nil
 	}
 
-	body, err := readLimitedResponseBody(resp.Body, maxCrawlSitemapBytes)
+	body, err := readCrawlResponseBody(resp.Body, maxCrawlSitemapBytes, "sitemap", budget)
 	if err != nil {
 		return nil, err
 	}
 
-	// Both <urlset><url><loc> and <sitemapindex><sitemap><loc> use <loc>.
-	type locEntry struct {
-		Loc string `xml:"loc"`
-	}
-	var doc struct {
-		URLs     []locEntry `xml:"url"`
-		Sitemaps []locEntry `xml:"sitemap"`
-	}
-	if err := xml.NewDecoder(bytes.NewReader(body)).Decode(&doc); err != nil {
-		return nil, err
-	}
-
 	var locs []string
-	for _, u := range doc.URLs {
-		if u.Loc != "" {
-			locs = append(locs, u.Loc)
+	decoder := xml.NewDecoder(bytes.NewReader(body))
+	for {
+		token, err := decoder.Token()
+		if errors.Is(err, io.EOF) {
+			break
 		}
-	}
-	for _, s := range doc.Sitemaps {
-		if s.Loc != "" {
-			locs = append(locs, s.Loc)
+		if err != nil {
+			return nil, err
 		}
+		start, ok := token.(xml.StartElement)
+		if !ok || strings.ToLower(start.Name.Local) != "loc" {
+			continue
+		}
+		var loc string
+		if err := decoder.DecodeElement(&loc, &start); err != nil {
+			return nil, err
+		}
+		loc = strings.TrimSpace(loc)
+		if loc == "" {
+			continue
+		}
+		if len(loc) > maxCrawlURLBytes {
+			return nil, &crawlLimitError{message: fmt.Sprintf("crawler URL exceeds %d bytes", maxCrawlURLBytes)}
+		}
+		if err := budget.addSitemapEntry(); err != nil {
+			return nil, err
+		}
+		locs = append(locs, loc)
 	}
 	return locs, nil
 }
@@ -485,6 +633,29 @@ func readLimitedResponseBody(r io.Reader, maxBytes int64) ([]byte, error) {
 	if int64(len(body)) > maxBytes {
 		return nil, fmt.Errorf("response body exceeds %d bytes", maxBytes)
 	}
+	return body, nil
+}
+
+func readCrawlResponseBody(r io.Reader, maxBytes int64, kind string, budget *crawlBudget) ([]byte, error) {
+	if budget == nil {
+		return readLimitedResponseBody(r, maxBytes)
+	}
+	remaining := budget.remainingBytes()
+	if remaining < 0 {
+		remaining = 0
+	}
+	readLimit := min(maxBytes, remaining)
+	body, err := io.ReadAll(io.LimitReader(r, readLimit+1))
+	if err != nil {
+		return nil, err
+	}
+	if int64(len(body)) > maxBytes {
+		return nil, &crawlLimitError{message: fmt.Sprintf("crawler %s byte budget exceeded (maximum %d)", kind, maxBytes)}
+	}
+	if int64(len(body)) > remaining {
+		return nil, &crawlLimitError{message: fmt.Sprintf("crawler total byte budget exceeded (maximum %d)", budget.limits.maxTotalBytes)}
+	}
+	budget.totalBytes += int64(len(body))
 	return body, nil
 }
 
@@ -868,7 +1039,11 @@ func emitGeneratedConfig(cmd *cobra.Command, targets []config.TargetConfig, outP
 				return fmt.Errorf("aborted")
 			}
 		}
-		f, err := os.Create(outPath)
+		prepared, err := policy.PrepareExplicitOutput(outPath, false)
+		if err != nil {
+			return fmt.Errorf("creating %q: %w", outPath, err)
+		}
+		f, err := prepared.Commit()
 		if err != nil {
 			return fmt.Errorf("creating %q: %w", outPath, err)
 		}

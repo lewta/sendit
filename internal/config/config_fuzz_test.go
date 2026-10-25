@@ -4,6 +4,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/lewta/sendit/internal/policy"
 )
 
 // note: t.TempDir() is intentionally avoided in the fuzz body — its cleanup
@@ -35,6 +37,17 @@ targets:
 `))
 	// Empty input.
 	f.Add([]byte(``))
+	for _, shape := range []string{
+		"config_trust: trusted", "policy: {mode: trusted}", "allow_env: ['*']",
+		"capability_requests: {env_names: []}", "capability_requests: {overwrite: true}",
+		"capability_requests: {private_networks: ['0.0.0.0/0']}",
+		"capability_requests.env_names: [HOME]", "capability_requests: {env_names: [], ENV_NAMES: [HOME]}",
+		"g: &g {mode: trusted}\n<<: *g", "g: &g {env_names: [HOME]}\ncapability_requests: {<<: *g}",
+		"cycle: &cycle {cycle: *cycle}", "key: &key capability_requests\n*key: {env_names: [HOME]}",
+		"capability_requests: {env_names: [", "---\ncapability_requests: {}\n---\nconfig_trust: trusted",
+	} {
+		f.Add([]byte("targets: [{url: https://example.com, type: http, weight: 1}]\n" + shape))
+	}
 	// Truncated YAML.
 	f.Add([]byte(`pacing:`))
 	// Non-YAML garbage.
@@ -70,6 +83,17 @@ targets:
 				if target.HTTP.HTTPVersion < 0 || target.HTTP.HTTPVersion > 2 {
 					t.Fatal("accepted unsupported HTTP version")
 				}
+			}
+		}
+		access, err := policy.New(policy.ModeRestricted, policy.Grants{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		restricted, err := LoadWithPolicy(path, access)
+		if err == nil {
+			s := restricted.Access().Summary()
+			if s.Mode != policy.ModeRestricted || s.AllEnv || s.AllRead || s.AllOutput || s.AllAddresses || s.Overwrite || len(s.EnvNames) != 0 || len(s.ReadRoots) != 0 || s.OutputRoot != "" || len(s.PrivateNetworks) != 0 {
+				t.Fatal("YAML promoted policy")
 			}
 		}
 	})

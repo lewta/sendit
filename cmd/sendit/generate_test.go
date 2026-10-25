@@ -1043,14 +1043,8 @@ func TestTargetsFromCrawl_SkipsOversizedHTMLPage(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	targets, err := targetsFromCrawl(srv.URL, 1, 50, true)
-	if err != nil {
-		t.Fatalf("targetsFromCrawl: %v", err)
-	}
-	for _, tgt := range targets {
-		if strings.HasSuffix(tgt.URL, "/after-limit") {
-			t.Errorf("oversized HTML page was parsed and discovered target: %s", tgt.URL)
-		}
+	if _, err := targetsFromCrawl(srv.URL, 1, 50, true); err == nil || !strings.Contains(err.Error(), "HTML byte budget") {
+		t.Fatalf("oversized HTML crawl error = %v", err)
 	}
 }
 
@@ -1124,14 +1118,8 @@ func TestTargetsFromCrawl_SkipsOversizedSitemap(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	targets, err := targetsFromCrawl(srv.URL, 1, 50, false)
-	if err != nil {
-		t.Fatalf("targetsFromCrawl: %v", err)
-	}
-	for _, tgt := range targets {
-		if strings.HasSuffix(tgt.URL, "/after-limit-sitemap") {
-			t.Errorf("oversized sitemap was parsed and discovered target: %s", tgt.URL)
-		}
+	if _, err := targetsFromCrawl(srv.URL, 1, 50, false); err == nil || !strings.Contains(err.Error(), "sitemap byte budget") {
+		t.Fatalf("oversized sitemap crawl error = %v", err)
 	}
 }
 

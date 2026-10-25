@@ -329,6 +329,8 @@ targets:
 | `download` | Reads the remote path and reports bytes transferred |
 | `list` | Lists the remote directory and adds `sftp_entry_count` to JSONL metadata |
 
+With `--config-trust=restricted`, file-backed `private_key` values and the default `~/.ssh/known_hosts` file require a matching operator-controlled `--allow-read-root`. Inline PEM keys do not require a file grant. These local read grants do not authorize remote SFTP paths or weaken host-key verification.
+
 **Payload sizing:** set `file_size_bytes` for a fixed upload size, or set `file_size_min_bytes` and `file_size_max_bytes` for a random size chosen per request. If no size is set, uploads use a small default payload. Set `eicar: true` only when you intentionally want antivirus or malware-scanning infrastructure to see the EICAR standard test string.
 
 **Host keys:** by default, SFTP verifies host keys against `~/.ssh/known_hosts`. Set `insecure: true` only for trusted lab or ephemeral hosts where pinning is impractical.

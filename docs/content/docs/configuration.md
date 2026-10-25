@@ -11,6 +11,29 @@ See [config/example.yaml](https://github.com/lewta/sendit/blob/main/config/examp
 
 All supplied schedule entries are validated even when scheduled pacing is not active. Cron uses the scheduler's standard parser. Schedule duration/RPM, per-domain RPS, and memory thresholds must be positive; domains must not be blank; an enabled Prometheus port must be `1..65535`. Invalid reloads leave the running configuration unchanged.
 
+## `capability_requests`
+
+Optional requests narrow the operator's immutable policy. They never grant authority or choose a mode. Existing configs that omit this block retain the selected operator policy; the default CLI mode is `trusted`. Choose `--config-trust=restricted` with explicit CLI grants for downloaded, CI-supplied, and multi-tenant configs, while observing the [remaining non-sandbox boundaries](../security/#configuration-trust-policy).
+
+```yaml
+capability_requests:
+  env_names: [API_TOKEN]
+  read_roots: [/srv/sendit/inputs]
+  output_root: /srv/sendit/results
+  overwrite: false
+  private_networks: [10.20.0.0/24]
+```
+
+Every requested name, directory, overwrite permission, and CIDR must already be covered by the operator ceiling. A request outside it rejects the entire config before secondary files are read. A narrower directory or subnet is allowed. Environment names match `[A-Za-z_][A-Za-z0-9_]*` exactly and case-sensitively. Directories must exist and use absolute, unambiguous paths; symlinks resolve to their canonical locations. Wildcards, relative paths, and `.`/`..` traversal components are rejected. Overwrite is independent of output-directory authority.
+
+On Windows, native drive paths (`C:\Sendit\inputs`) and UNC paths (`\\fileserver\share\inputs`) are supported; use single-quoted YAML strings to preserve backslashes. Native metadata handles resolve symlinks and junctions before containment checks. Drive letters and UNC server/share names compare without ASCII case differences. Existing directory components use the exact canonical spelling returned by Windows, preserving boundaries on case-sensitive filesystems. Device/extended namespaces supplied by callers, drive-relative paths, alternate data streams, reserved device names, repeated interior separators, and trailing dot/space aliases are rejected. Missing output leaves require an existing resolved parent; resolver errors and dangling links fail closed. POSIX path rules are unchanged.
+
+Omit a field to inherit its current ceiling. Use `env_names: []`, `read_roots: []`, `private_networks: []`, `output_root: ""`, or `overwrite: false` to remove authority. `null` is not a request value. Requests require literal mappings and typed values: aliases, anchors, merges, dotted request keys, duplicate/conflicting keys, and unknown request fields are rejected. Operator-shaped fields such as `config_trust`, `policy`, `grants`, and `allow_env` are invalid YAML authority. Ordinary data keys in variables and headers, and existing pacing modes, remain supported.
+
+SIGHUP inherits the last accepted effective policy. An omitted field cannot restore an earlier permission. Rejected reloads keep the running policy; broadening it requires restarting with explicit operator authority. Output settings, including an operator-supplied `--capture` destination, are fixed for the process lifetime; a reload that changes or revokes authority for an active sink is rejected and requires a restart. The config loader reads one snapshot of the YAML and checks request syntax/authority before secondary file reads.
+
+Restricted reads cover `targets_file`, every `vars_file`, file-backed SFTP private keys, and the default `~/.ssh/known_hosts` used when SFTP host-key verification is enabled. Grant the containing absolute directories with `--allow-read-root`; inline SFTP keys do not need a file grant. Secondary target/variable files are limited to 8 MiB and must remain regular files with stable identity while opened. Authentication environment variables are checked again when a request resolves them. Result and capture outputs are rechecked at open/commit and need `--allow-overwrite` before truncating an existing file.
+
 ## `pacing`
 
 Controls how requests are spaced in time. See [Pacing Modes](../pacing/) for details.

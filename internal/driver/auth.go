@@ -1,6 +1,7 @@
 package driver
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
@@ -9,41 +10,50 @@ import (
 	"strings"
 
 	"github.com/lewta/sendit/internal/config"
+	"github.com/lewta/sendit/internal/policy"
 )
+
+var errPasswordResolution = errors.New("auth: password resolution failed")
 
 // applyAuth mutates req to add authentication headers or query parameters
 // as specified by cfg. It resolves token values from literals or env vars at
 // call time. Returns an error if a required env var is unset.
-func applyAuth(req *http.Request, cfg config.AuthConfig) error {
+func applyAuth(ctx context.Context, req *http.Request, cfg config.AuthConfig) error {
 	if cfg.Type == "" {
 		return nil
 	}
 
 	switch cfg.Type {
 	case "bearer":
-		token, err := resolveValue(cfg.Token, cfg.TokenEnv, "token")
+		token, err := resolveValue(ctx, cfg.Token, cfg.TokenEnv, "token")
 		if err != nil {
 			return fmt.Errorf("auth: %w", err)
 		}
 		req.Header.Set("Authorization", "Bearer "+token)
 
 	case "basic":
-		username, err := resolveValue(cfg.Username, cfg.UsernameEnv, "username")
+		username, err := resolveValue(ctx, cfg.Username, cfg.UsernameEnv, "username")
 		if err != nil {
 			return fmt.Errorf("auth: %w", err)
 		}
-		password, _ := resolveValue(cfg.Password, cfg.PasswordEnv, "password") // password is optional
+		password := ""
+		if cfg.Password != "" || cfg.PasswordEnv != "" {
+			password, err = resolveValue(ctx, cfg.Password, cfg.PasswordEnv, "password")
+			if err != nil {
+				return errPasswordResolution
+			}
+		}
 		req.SetBasicAuth(username, password)
 
 	case "header":
-		token, err := resolveValue(cfg.Token, cfg.TokenEnv, "token")
+		token, err := resolveValue(ctx, cfg.Token, cfg.TokenEnv, "token")
 		if err != nil {
 			return fmt.Errorf("auth: %w", err)
 		}
 		req.Header.Set(cfg.HeaderName, token)
 
 	case "query":
-		token, err := resolveValue(cfg.Token, cfg.TokenEnv, "token")
+		token, err := resolveValue(ctx, cfg.Token, cfg.TokenEnv, "token")
 		if err != nil {
 			return fmt.Errorf("auth: %w", err)
 		}
@@ -57,14 +67,14 @@ func applyAuth(req *http.Request, cfg config.AuthConfig) error {
 
 // authHeaders returns an http.Header with the auth credentials applied, for
 // use by drivers (e.g. WebSocket) that pass headers separately from the request.
-func authHeaders(cfg config.AuthConfig) (http.Header, error) {
+func authHeaders(ctx context.Context, cfg config.AuthConfig) (http.Header, error) {
 	if cfg.Type == "" || cfg.Type == "query" {
 		return nil, nil
 	}
 
 	// Build a throwaway request so we can reuse applyAuth.
 	req, _ := http.NewRequest(http.MethodGet, "http://placeholder", nil)
-	if err := applyAuth(req, cfg); err != nil {
+	if err := applyAuth(ctx, req, cfg); err != nil {
 		return nil, err
 	}
 	return req.Header, nil
@@ -72,11 +82,11 @@ func authHeaders(cfg config.AuthConfig) (http.Header, error) {
 
 // authQueryURL returns urlStr with the auth query parameter appended, for use
 // by drivers that embed credentials in the URL rather than a header.
-func authQueryURL(urlStr string, cfg config.AuthConfig) (string, error) {
+func authQueryURL(ctx context.Context, urlStr string, cfg config.AuthConfig) (string, error) {
 	if cfg.Type != "query" {
 		return urlStr, nil
 	}
-	token, err := resolveValue(cfg.Token, cfg.TokenEnv, "token")
+	token, err := resolveValue(ctx, cfg.Token, cfg.TokenEnv, "token")
 	if err != nil {
 		return "", fmt.Errorf("auth: %w", err)
 	}
@@ -132,11 +142,14 @@ func redactQueryAuthError(err error, authenticatedURL string, cfg config.AuthCon
 
 // resolveValue returns literal if non-empty, otherwise looks up envVar in the
 // environment. Returns an error if both are empty.
-func resolveValue(literal, envVar, fieldName string) (string, error) {
+func resolveValue(ctx context.Context, literal, envVar, fieldName string) (string, error) {
 	if literal != "" {
 		return literal, nil
 	}
 	if envVar != "" {
+		if err := policy.FromContext(ctx).CheckEnvName(envVar); err != nil {
+			return "", err
+		}
 		val := os.Getenv(envVar)
 		if val == "" {
 			return "", fmt.Errorf("env var %q (auth.%s_env) is not set", envVar, fieldName)

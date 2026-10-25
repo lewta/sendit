@@ -4,11 +4,13 @@ import (
 	"bufio"
 	"encoding/binary"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
 	"time"
 
+	"github.com/lewta/sendit/internal/policy"
 	"github.com/lewta/sendit/internal/task"
 	"github.com/rs/zerolog/log"
 )
@@ -35,17 +37,25 @@ type Writer struct {
 // New opens the PCAP file and starts the background writer goroutine.
 // The caller must call Close() when done.
 func New(path string) (*Writer, error) {
-	f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o600)
+	prepared, err := policy.PrepareOutput(policy.Trusted(), path, false)
 	if err != nil {
 		return nil, fmt.Errorf("opening pcap file %q: %w", path, err)
 	}
+	f, err := prepared.Commit()
+	if err != nil {
+		return nil, fmt.Errorf("opening pcap file %q: %w", path, err)
+	}
+	return NewFromFile(f), nil
+}
 
+// NewFromFile starts a PCAP writer using an already prepared output.
+func NewFromFile(f *os.File) *Writer {
 	w := &Writer{
 		ch:   make(chan task.Result, chanBuf),
 		done: make(chan struct{}),
 	}
 	go w.run(f)
-	return w, nil
+	return w
 }
 
 // Send enqueues a result for writing. Non-blocking; drops if buffer is full.
@@ -95,7 +105,18 @@ func Export(inPath, outPath string) error {
 	}
 	defer in.Close()
 
-	out, err := os.OpenFile(outPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o600)
+	prepared, err := policy.PrepareExplicitOutput(outPath, false)
+	if err != nil {
+		return fmt.Errorf("opening output %q: %w", outPath, err)
+	}
+	inInfo, err := in.Stat()
+	if err != nil {
+		return errors.Join(err, prepared.Abort())
+	}
+	if prepared.SameInfo(inInfo) {
+		return errors.Join(errors.New("input and output refer to the same file"), prepared.Abort())
+	}
+	out, err := prepared.Commit()
 	if err != nil {
 		return fmt.Errorf("opening output %q: %w", outPath, err)
 	}

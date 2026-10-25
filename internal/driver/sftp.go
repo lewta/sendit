@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/lewta/sendit/internal/config"
+	"github.com/lewta/sendit/internal/policy"
 	"github.com/lewta/sendit/internal/task"
 	"github.com/pkg/sftp"
 	"golang.org/x/crypto/ssh"
@@ -154,7 +155,7 @@ func (d *SFTPDriver) getConn(ctx context.Context, addr, cacheKey string, cfg con
 		_ = stale.ssh.Close()
 	}
 
-	sshCfg, err := sftpSSHConfig(cfg, meta)
+	sshCfg, err := sftpSSHConfig(ctx, cfg, meta)
 	if err != nil {
 		return nil, err
 	}
@@ -214,14 +215,14 @@ func (d *SFTPDriver) evict(cacheKey string) {
 	}
 }
 
-func sftpSSHConfig(cfg config.SFTPConfig, meta map[string]string) (*ssh.ClientConfig, error) {
-	methods, methodName, err := sftpAuthMethods(cfg)
+func sftpSSHConfig(ctx context.Context, cfg config.SFTPConfig, meta map[string]string) (*ssh.ClientConfig, error) {
+	methods, methodName, err := sftpAuthMethods(ctx, cfg)
 	if err != nil {
 		return nil, err
 	}
 	meta["sftp_auth_methods"] = methodName
 
-	hostKeyCallback, err := sftpHostKeyCallback(cfg, meta)
+	hostKeyCallback, err := sftpHostKeyCallback(ctx, cfg, meta)
 	if err != nil {
 		return nil, err
 	}
@@ -240,7 +241,7 @@ func sftpSSHConfig(cfg config.SFTPConfig, meta map[string]string) (*ssh.ClientCo
 	}, nil
 }
 
-func sftpHostKeyCallback(cfg config.SFTPConfig, meta map[string]string) (ssh.HostKeyCallback, error) {
+func sftpHostKeyCallback(ctx context.Context, cfg config.SFTPConfig, meta map[string]string) (ssh.HostKeyCallback, error) {
 	var verifier ssh.HostKeyCallback
 	if !cfg.Insecure {
 		home, err := os.UserHomeDir()
@@ -248,6 +249,9 @@ func sftpHostKeyCallback(cfg config.SFTPConfig, meta map[string]string) (ssh.Hos
 			return nil, fmt.Errorf("resolving home directory for known_hosts: %w", err)
 		}
 		knownHostsPath := filepath.Join(home, ".ssh", "known_hosts")
+		if err := policy.FromContext(ctx).CheckReadPath(knownHostsPath); err != nil {
+			return nil, fmt.Errorf("loading known_hosts %q: %w", knownHostsPath, err)
+		}
 		verifier, err = knownhosts.New(knownHostsPath)
 		if err != nil {
 			return nil, fmt.Errorf("loading known_hosts %q: %w", knownHostsPath, err)
@@ -267,7 +271,7 @@ func sftpHostKeyCallback(cfg config.SFTPConfig, meta map[string]string) (ssh.Hos
 	}, nil
 }
 
-func sftpAuthMethods(cfg config.SFTPConfig) ([]ssh.AuthMethod, string, error) {
+func sftpAuthMethods(ctx context.Context, cfg config.SFTPConfig) ([]ssh.AuthMethod, string, error) {
 	if cfg.Password != "" {
 		return []ssh.AuthMethod{ssh.Password(cfg.Password)}, sftpAuthMethodPassword, nil
 	}
@@ -275,7 +279,7 @@ func sftpAuthMethods(cfg config.SFTPConfig) ([]ssh.AuthMethod, string, error) {
 		return nil, "", errors.New("sftp requires password or private_key")
 	}
 
-	keyData, err := sftpPrivateKeyData(cfg.PrivateKey)
+	keyData, err := sftpPrivateKeyData(ctx, cfg.PrivateKey)
 	if err != nil {
 		return nil, "", err
 	}
@@ -286,11 +290,11 @@ func sftpAuthMethods(cfg config.SFTPConfig) ([]ssh.AuthMethod, string, error) {
 	return []ssh.AuthMethod{ssh.PublicKeys(signer)}, sftpAuthMethodKey, nil
 }
 
-func sftpPrivateKeyData(value string) ([]byte, error) {
+func sftpPrivateKeyData(ctx context.Context, value string) ([]byte, error) {
 	if strings.Contains(value, "BEGIN ") {
 		return []byte(value), nil
 	}
-	data, err := os.ReadFile(value)
+	data, err := policy.ReadFile(policy.FromContext(ctx), value, 1<<20)
 	if err != nil {
 		return nil, fmt.Errorf("reading sftp private_key: %w", err)
 	}

@@ -2,15 +2,20 @@ package engine
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
+	"path/filepath"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/lewta/sendit/internal/config"
 	"github.com/lewta/sendit/internal/metrics"
+	"github.com/lewta/sendit/internal/policy"
 	"github.com/lewta/sendit/internal/task"
 )
 
@@ -34,6 +39,183 @@ func baseCfg(targets []config.TargetConfig) *config.Config {
 			MaxAttempts: 3,
 		},
 		Targets: targets,
+	}
+}
+
+func TestDispatchRechecksEnvironmentPolicyAtResolutionBoundary(t *testing.T) {
+	var requests atomic.Int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		requests.Add(1)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer srv.Close()
+	t.Setenv("SENDIT_ALLOWED_TOKEN", "allowed-secret")
+	t.Setenv("SENDIT_DENIED_TOKEN", "denied-secret")
+
+	access, err := policy.New(policy.ModeRestricted, policy.Grants{EnvNames: []string{"SENDIT_ALLOWED_TOKEN"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(t.TempDir(), "config.yaml")
+	data := fmt.Sprintf("targets: [{url: %q, type: http, weight: 1, auth: {type: bearer, token_env: SENDIT_ALLOWED_TOKEN}}]\n", srv.URL)
+	if err := os.WriteFile(path, []byte(data), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := config.LoadWithPolicy(path, access)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Model a post-load mutation/future caller bug. The getenv sink must enforce
+	// the immutable config policy rather than trusting parser-time validation.
+	cfg.Targets[0].Auth.TokenEnv = "SENDIT_DENIED_TOKEN"
+	eng, err := New(cfg, metrics.Noop())
+	if err != nil {
+		t.Fatal(err)
+	}
+	results := make(chan task.Result, 1)
+	eng.SetObserver(func(result task.Result) { results <- result })
+	if err := eng.pool.Acquire(t.Context(), "http"); err != nil {
+		t.Fatal(err)
+	}
+	eng.dispatch(t.Context(), task.Task{URL: cfg.Targets[0].URL, Type: "http", Config: cfg.Targets[0]})
+	result := <-results
+	if result.Error == nil || !strings.Contains(result.Error.Error(), "environment variable denied: SENDIT_DENIED_TOKEN") {
+		t.Fatalf("dispatch error = %v", result.Error)
+	}
+	if requests.Load() != 0 {
+		t.Fatalf("denied environment lookup sent %d request(s)", requests.Load())
+	}
+}
+
+func TestNewRechecksOutputPolicyBeforeAnyTruncation(t *testing.T) {
+	root := t.TempDir()
+	outputPath := filepath.Join(root, "results.jsonl")
+	pcapPath := filepath.Join(root, "capture.pcap")
+	if err := os.WriteFile(outputPath, []byte("preserve-output"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(pcapPath, []byte("preserve-pcap"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	overwrite := true
+	access, err := policy.New(policy.ModeRestricted, policy.Grants{OutputRoot: &root, Overwrite: &overwrite})
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(t.TempDir(), "config.yaml")
+	data := fmt.Sprintf("output: {enabled: true, file: %q, pcap_file: %q}\ntargets: [{url: https://example.com, type: http, weight: 1}]\n", outputPath, pcapPath)
+	if err := os.WriteFile(path, []byte(data), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := config.LoadWithPolicy(path, access)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Model a post-load mutation: the actual open boundary must recheck and the
+	// first destination must remain untouched if the second is denied.
+	cfg.Output.PCAPFile = filepath.Join(t.TempDir(), "outside.pcap")
+	if _, err := New(cfg, metrics.Noop()); err == nil || !strings.Contains(err.Error(), "config policy") {
+		t.Fatalf("expected sink denial, got %v", err)
+	}
+	got, err := os.ReadFile(outputPath)
+	if err != nil || string(got) != "preserve-output" {
+		t.Fatalf("partial initialization modified first output: %q, %v", got, err)
+	}
+}
+
+func TestNewRestrictedOutputRejectsSymlinkAndHardlinkAliases(t *testing.T) {
+	root := t.TempDir()
+	overwrite := true
+	access, err := policy.New(policy.ModeRestricted, policy.Grants{OutputRoot: &root, Overwrite: &overwrite})
+	if err != nil {
+		t.Fatal(err)
+	}
+	outside := filepath.Join(t.TempDir(), "outside")
+	if err := os.WriteFile(outside, []byte("preserve"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	paths := make(map[string]string)
+	link := filepath.Join(root, "symlink.jsonl")
+	if err := os.Symlink(outside, link); err == nil {
+		paths["symlink"] = link
+	}
+	hardlink := filepath.Join(root, "hardlink.jsonl")
+	if err := os.Link(outside, hardlink); err == nil {
+		paths["hardlink"] = hardlink
+	}
+	for name, outputPath := range paths {
+		t.Run(name, func(t *testing.T) {
+			cfgPath := filepath.Join(t.TempDir(), "config.yaml")
+			data := fmt.Sprintf("output: {enabled: true, file: %q}\ntargets: [{url: https://example.com, type: http, weight: 1}]\n", outputPath)
+			if err := os.WriteFile(cfgPath, []byte(data), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			cfg, err := config.LoadWithPolicy(cfgPath, access)
+			if name == "symlink" && err != nil {
+				// Canonical containment may reject an out-of-root final symlink at
+				// preflight; either way the sink must not modify it.
+			} else if err == nil {
+				_, err = New(cfg, metrics.Noop())
+			}
+			if err == nil {
+				t.Fatal("alias accepted")
+			}
+			got, readErr := os.ReadFile(outside)
+			if readErr != nil || string(got) != "preserve" {
+				t.Fatalf("alias denial modified outside file: %q, %v", got, readErr)
+			}
+		})
+	}
+}
+
+func TestNewRejectsSameNewOutputAndPCAPWithoutLeavingFile(t *testing.T) {
+	root := t.TempDir()
+	destination := filepath.Join(root, "same-new-output")
+	overwrite := true
+	access, err := policy.New(policy.ModeRestricted, policy.Grants{OutputRoot: &root, Overwrite: &overwrite})
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(t.TempDir(), "config.yaml")
+	data := fmt.Sprintf("output: {enabled: true, file: %q, pcap_file: %q}\ntargets: [{url: https://example.com, type: http, weight: 1}]\n", destination, destination)
+	if err := os.WriteFile(path, []byte(data), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := config.LoadWithPolicy(path, access)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := New(cfg, metrics.Noop()); err == nil || !strings.Contains(err.Error(), "same file") {
+		t.Fatalf("same destination error = %v", err)
+	}
+	if _, err := os.Stat(destination); !os.IsNotExist(err) {
+		t.Fatalf("denied same destination left a file: %v", err)
+	}
+}
+
+func TestReloadRejectsOutputChangesBeforeAnySwapOrFileEffect(t *testing.T) {
+	initial := []config.TargetConfig{{URL: "https://old.example.com", Weight: 1, Type: "http"}}
+	eng, err := New(baseCfg(initial), metrics.Noop())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	outputPath := filepath.Join(t.TempDir(), "reload-created.jsonl")
+	replacement := baseCfg([]config.TargetConfig{{URL: "https://new.example.com", Weight: 1, Type: "http"}})
+	replacement.Output = config.OutputConfig{Enabled: true, File: outputPath, Format: "jsonl"}
+	if err := eng.Reload(replacement); err == nil || !strings.Contains(err.Error(), "output settings require restart") {
+		t.Fatalf("reload error = %v", err)
+	}
+	if _, err := os.Stat(outputPath); !os.IsNotExist(err) {
+		t.Fatalf("rejected reload created output: %v", err)
+	}
+	if got := eng.cfg.Load().Targets[0].URL; got != initial[0].URL {
+		t.Fatalf("rejected reload stored target %q", got)
+	}
+	for i := 0; i < 10; i++ {
+		if got := eng.selector.Load().Pick().URL; got != initial[0].URL {
+			t.Fatalf("rejected reload swapped selector to %q", got)
+		}
 	}
 }
 

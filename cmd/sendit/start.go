@@ -40,6 +40,7 @@ func runTUI(
 }
 
 func startCmd() *cobra.Command {
+	var policyFlags configPolicyFlags
 	var (
 		cfgPath     string
 		foreground  bool
@@ -57,6 +58,13 @@ func startCmd() *cobra.Command {
 
 Targets can be defined inline in the config YAML under 'targets:',
 loaded from a plain-text file via 'targets_file:', or both combined.
+
+Configs are trusted operator input by default. --config-trust=restricted
+selects an operator-granted policy; YAML capability_requests only narrow it.
+SIGHUP retains the last accepted ceiling and cannot restore removed grants.
+Restricted mode enforces configured secondary reads, auth environment names,
+and local result/PCAP outputs. It is not a process sandbox or a general target
+network allow-list; review the remaining boundaries in the security docs.
 
 targets_file format (one entry per line):
   <url> <type> [weight]
@@ -94,20 +102,28 @@ Active network requests receive the canceled context and may abort.
 
 Send SIGHUP to reload the config without restarting. Targets, rate limits,
 backoff, and pacing are updated atomically with no dropped requests. Changes
-to pacing mode or resource limits (workers, cpu, memory) require a restart.`,
+to output settings, pacing mode, or resource limits (workers, cpu, memory)
+require a restart.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			cfg, err := config.Load(cfgPath)
+			operatorAccess, err := policyFlags.build(cmd)
 			if err != nil {
 				return err
 			}
-
+			var loadOptions []config.LoadOption
 			if capturePath != "" {
-				cfg.Output.PCAPFile = capturePath
+				loadOptions = append(loadOptions, config.WithPCAPOverride(capturePath))
+			}
+			cfg, err := config.LoadWithPolicy(cfgPath, operatorAccess, loadOptions...)
+			if err != nil {
+				return err
 			}
 
 			// burst mode requires --duration so runs are always time-bounded.
 			if cfg.Pacing.Mode == "burst" && duration == 0 {
 				return fmt.Errorf("--duration is required when pacing.mode is burst (e.g. --duration 5m)")
+			}
+			if err := reportConfigPolicy(cmd, cfg, dryRun); err != nil {
+				return err
 			}
 
 			if dryRun {
@@ -153,9 +169,12 @@ to pacing mode or resource limits (workers, cpu, memory) require a restart.`,
 			}
 
 			// Hot-reload on SIGHUP.
+			reloadOptions := append([]config.LoadOption(nil), loadOptions...)
+			reloadOptions = append(reloadOptions, config.WithActiveOutput(cfg.Output))
 			sighupCh := make(chan os.Signal, 1)
 			signal.Notify(sighupCh, syscall.SIGHUP)
 			go func() {
+				currentAccess := cfg.Access()
 				for {
 					select {
 					case <-ctx.Done():
@@ -163,14 +182,12 @@ to pacing mode or resource limits (workers, cpu, memory) require a restart.`,
 						return
 					case <-sighupCh:
 						log.Info().Str("config", cfgPath).Msg("SIGHUP received, reloading config")
-						newCfg, err := config.Load(cfgPath)
+						nextAccess, err := reloadConfig(cfgPath, currentAccess, eng.Reload, reloadOptions...)
 						if err != nil {
-							log.Error().Err(err).Msg("hot-reload: invalid config, keeping current")
+							log.Error().Err(err).Msg("hot-reload: replacement rejected, keeping current")
 							continue
 						}
-						if err := eng.Reload(newCfg); err != nil {
-							log.Error().Err(err).Msg("hot-reload: reload failed, keeping current")
-						}
+						currentAccess = nextAccess
 					}
 				}
 			}()
@@ -201,6 +218,7 @@ to pacing mode or resource limits (workers, cpu, memory) require a restart.`,
 	cmd.Flags().StringVar(&capturePath, "capture", "", "Write a synthetic PCAP file while running (e.g. capture.pcap); finalised on clean shutdown")
 	cmd.Flags().DurationVar(&duration, "duration", 0, "Auto-stop after this wall-clock duration (e.g. 5m, 30s); required when pacing.mode is burst")
 	cmd.Flags().BoolVar(&tuiFlag, "tui", false, "Enable the terminal UI (requires a TTY; warns and falls back to plain output otherwise)")
+	policyFlags.register(cmd)
 
 	return cmd
 }

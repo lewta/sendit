@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/lewta/sendit/internal/config"
+	"github.com/lewta/sendit/internal/policy"
 	"github.com/lewta/sendit/internal/task"
 	"github.com/rs/zerolog/log"
 )
@@ -26,24 +27,25 @@ type Writer struct {
 // New opens the output file and starts the background writer goroutine.
 // The caller must call Close() when done.
 func New(cfg config.OutputConfig) (*Writer, error) {
-	flag := os.O_CREATE | os.O_WRONLY
-	if cfg.Append {
-		flag |= os.O_APPEND
-	} else {
-		flag |= os.O_TRUNC
-	}
-
-	f, err := os.OpenFile(cfg.File, flag, 0o600)
+	prepared, err := policy.PrepareOutput(policy.Trusted(), cfg.File, cfg.Append)
 	if err != nil {
 		return nil, fmt.Errorf("opening output file %q: %w", cfg.File, err)
 	}
+	f, err := prepared.Commit()
+	if err != nil {
+		return nil, fmt.Errorf("opening output file %q: %w", cfg.File, err)
+	}
+	return NewFromFile(cfg, f), nil
+}
 
+// NewFromFile starts a writer using an already prepared and committed file.
+func NewFromFile(cfg config.OutputConfig, f *os.File) *Writer {
 	w := &Writer{
 		ch:   make(chan task.Result, chanBuf),
 		done: make(chan struct{}),
 	}
 	go w.run(f, cfg.Format, cfg.Append)
-	return w, nil
+	return w
 }
 
 // Send enqueues a result for writing. Non-blocking; drops if buffer is full.

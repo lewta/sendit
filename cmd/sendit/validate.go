@@ -11,11 +11,18 @@ import (
 
 func validateCmd() *cobra.Command {
 	var cfgPath string
+	var policyFlags configPolicyFlags
 
 	cmd := &cobra.Command{
 		Use:   "validate",
 		Short: "Validate a config file",
 		Long: `Parse and validate a config file without starting the engine.
+
+Configs are trusted operator input by default. --config-trust=restricted
+selects the same operator-granted policy as start. capability_requests in
+YAML can only narrow it. The summary prints names and paths, never resolved
+values. Secondary target and variable files are read only through granted
+roots. Restricted mode is not a process sandbox; see the security documentation.
 
 Checks all config fields, pacing modes, concurrency limits, per-target
 settings, and backoff parameters. All supplied schedule entries must use
@@ -33,8 +40,15 @@ are rejected across URLs, HTTP/gRPC bodies, and WebSocket send messages.
 Exits 0 and prints "config valid" on success.
 Exits non-zero and prints the validation error on failure.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			_, err := config.Load(cfgPath)
+			access, err := policyFlags.build(cmd)
 			if err != nil {
+				return err
+			}
+			cfg, err := config.LoadWithPolicy(cfgPath, access)
+			if err != nil {
+				return err
+			}
+			if err := reportConfigPolicy(cmd, cfg, true); err != nil {
 				return err
 			}
 			fmt.Println("config valid")
@@ -43,5 +57,6 @@ Exits non-zero and prints the validation error on failure.`,
 	}
 
 	cmd.Flags().StringVarP(&cfgPath, "config", "c", "config/example.yaml", "Path to YAML config file")
+	policyFlags.register(cmd)
 	return cmd
 }

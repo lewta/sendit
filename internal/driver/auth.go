@@ -13,6 +13,8 @@ import (
 	"github.com/lewta/sendit/internal/policy"
 )
 
+var errPasswordResolution = errors.New("auth: password resolution failed")
+
 // applyAuth mutates req to add authentication headers or query parameters
 // as specified by cfg. It resolves token values from literals or env vars at
 // call time. Returns an error if a required env var is unset.
@@ -38,7 +40,7 @@ func applyAuth(ctx context.Context, req *http.Request, cfg config.AuthConfig) er
 		if cfg.Password != "" || cfg.PasswordEnv != "" {
 			password, err = resolveValue(ctx, cfg.Password, cfg.PasswordEnv, "password")
 			if err != nil {
-				return fmt.Errorf("auth: %w", err)
+				return errPasswordResolution
 			}
 		}
 		req.SetBasicAuth(username, password)

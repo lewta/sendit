@@ -2,9 +2,12 @@ package pcap_test
 
 import (
 	"bytes"
+	"context"
 	"encoding/binary"
 	"encoding/json"
+	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -236,4 +239,130 @@ func TestExportRejectsInputOutputAliasBeforeTruncation(t *testing.T) {
 	if err != nil || !bytes.Equal(got, want) {
 		t.Fatalf("alias rejection modified input: %q, %v", got, err)
 	}
+}
+
+func TestExportMalformedInputReturnsPromptly(t *testing.T) {
+	tests := []struct {
+		name string
+		data []byte
+	}{
+		{name: "canonical non-progressing seed", data: []byte("{")},
+		{name: "truncated record", data: []byte(`{"ts":"2026-10-24T00:00:00Z"`)},
+		{name: "valid then truncated", data: []byte(`{"ts":"2026-10-24T00:00:00Z","url":"https://one.example","type":"http"}` + "\n{")},
+		{name: "invalid JSON", data: []byte("not-json\n")},
+		{name: "invalid UTF-8", data: []byte{0xff, '\n'}},
+		{name: "complete wrong type then valid", data: []byte(`{"status":"wrong"}` + "\n" +
+			`{"ts":"2026-10-24T00:00:00Z","status":200}` + "\n")},
+		{name: "lone closing delimiter", data: []byte("]")},
+		{name: "trailing closing delimiter", data: []byte(`{"ts":"2026-10-24T00:00:00Z"}` + "\n}")},
+		{name: "oversized malformed fragment", data: bytes.Repeat([]byte{'{'}, 1<<20)},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			inPath := filepath.Join(dir, "input.jsonl")
+			outPath := filepath.Join(dir, "output.pcap")
+			if err := os.WriteFile(inPath, tc.data, 0o600); err != nil {
+				t.Fatal(err)
+			}
+
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+			defer cancel()
+			cmd := exec.CommandContext(ctx, os.Args[0], "-test.run=^TestExportMalformedInputHelper$") //nolint:gosec // re-executes this test binary with a fixed test selector
+			cmd.Env = append(os.Environ(), "SENDIT_PCAP_TEST_INPUT="+inPath, "SENDIT_PCAP_TEST_OUTPUT="+outPath)
+			cmd.Stdout = io.Discard
+			cmd.Stderr = io.Discard
+			err := cmd.Run()
+			if ctx.Err() == context.DeadlineExceeded {
+				t.Fatal("export did not return within 2s")
+			}
+			if err != nil {
+				t.Fatalf("export helper failed: %v", err)
+			}
+		})
+	}
+}
+
+func TestExportMalformedInputHelper(t *testing.T) {
+	inPath := os.Getenv("SENDIT_PCAP_TEST_INPUT")
+	if inPath == "" {
+		t.Skip("subprocess helper")
+	}
+	if err := pcap.Export(inPath, os.Getenv("SENDIT_PCAP_TEST_OUTPUT")); err == nil {
+		t.Fatal("malformed input was accepted")
+	}
+}
+
+func TestExportBlankAndMultipleRecords(t *testing.T) {
+	tests := []struct {
+		name        string
+		data        string
+		wantPackets int
+	}{
+		{name: "blank", data: " \n\t\r\n", wantPackets: 0},
+		{name: "multiple", data: `{"ts":"2026-10-24T00:00:00Z","url":"https://one.example","type":"http","status":200}` + "\r\n\n" +
+			`{"ts":"2026-10-24T00:00:01Z","url":"https://two.example","type":"http","status":204}`, wantPackets: 2},
+		{name: "adjacent JSON stream", data: `{"ts":"2026-10-24T00:00:00Z"}{"ts":"2026-10-24T00:00:01Z"}`, wantPackets: 2},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			inPath := filepath.Join(dir, "input.jsonl")
+			outPath := filepath.Join(dir, "output.pcap")
+			if err := os.WriteFile(inPath, []byte(tc.data), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			if err := pcap.Export(inPath, outPath); err != nil {
+				t.Fatal(err)
+			}
+			data, err := os.ReadFile(outPath)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got := packetCount(t, data); got != tc.wantPackets {
+				t.Fatalf("packet count = %d, want %d", got, tc.wantPackets)
+			}
+		})
+	}
+}
+
+func TestExportMalformedInputLeavesOnlyCompletedPackets(t *testing.T) {
+	dir := t.TempDir()
+	inPath := filepath.Join(dir, "input.jsonl")
+	outPath := filepath.Join(dir, "output.pcap")
+	input := `{"ts":"2026-10-24T00:00:00Z","url":"https://one.example","type":"http","status":200}` + "\n{"
+	if err := os.WriteFile(inPath, []byte(input), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := pcap.Export(inPath, outPath); err == nil {
+		t.Fatal("truncated second record was accepted")
+	}
+	data, err := os.ReadFile(outPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := packetCount(t, data); got != 1 {
+		t.Fatalf("packet count = %d, want completed first packet only", got)
+	}
+}
+
+func packetCount(t *testing.T, data []byte) int {
+	t.Helper()
+	if len(data) < 24 {
+		t.Fatalf("PCAP shorter than global header: %d", len(data))
+	}
+	count := 0
+	for offset := 24; offset < len(data); count++ {
+		if offset+16 > len(data) {
+			t.Fatalf("truncated packet header at byte %d", offset)
+		}
+		length := int(binary.LittleEndian.Uint32(data[offset+8 : offset+12]))
+		offset += 16 + length
+		if offset > len(data) {
+			t.Fatalf("packet extends past output: %d > %d", offset, len(data))
+		}
+	}
+	return count
 }

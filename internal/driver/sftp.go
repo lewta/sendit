@@ -40,21 +40,35 @@ const (
 // SFTPErrorToHTTP is exported for tests.
 var SFTPErrorToHTTP = sftpErrorToHTTP
 
+var errSFTPConnectionClosed = errors.New("sftp connection is closed")
+
 type sftpConnection struct {
+	raw          net.Conn
 	ssh          *ssh.Client
 	client       *sftp.Client
 	authMaterial string
+	operation    chan struct{}
+	closed       chan struct{}
+	closeOnce    sync.Once
+}
+
+type sftpConnectionAttempt struct {
+	done chan struct{}
 }
 
 // SFTPDriver executes upload, download, and list operations over SFTP.
 type SFTPDriver struct {
-	mu    sync.Mutex
-	conns map[string]*sftpConnection
+	mu         sync.Mutex
+	conns      map[string]*sftpConnection
+	connecting map[string]*sftpConnectionAttempt
 }
 
 // NewSFTPDriver creates an SFTP driver with a shared connection cache.
 func NewSFTPDriver() *SFTPDriver {
-	return &SFTPDriver{conns: make(map[string]*sftpConnection)}
+	return &SFTPDriver{
+		conns:      make(map[string]*sftpConnection),
+		connecting: make(map[string]*sftpConnectionAttempt),
+	}
 }
 
 // Execute performs the SFTP operation described by t.
@@ -82,6 +96,7 @@ func (d *SFTPDriver) Execute(ctx context.Context, t task.Task) task.Result {
 	cacheKey := sftpCacheKey(addr, cfg)
 	conn, err := d.getConn(callCtx, addr, cacheKey, cfg, meta)
 	if err != nil {
+		markSFTPErrorPhase(meta, "connect", err)
 		return task.Result{
 			Task:       t,
 			StatusCode: sftpErrorToHTTP(err),
@@ -99,20 +114,24 @@ func (d *SFTPDriver) Execute(ctx context.Context, t task.Task) task.Result {
 		path = "."
 	}
 
-	var bytesRead int64
-	var opErr error
-	switch operation {
-	case sftpOperationUpload:
-		bytesRead, opErr = sftpUpload(callCtx, conn.client, path, sftpPayload(cfg))
-	case sftpOperationDownload:
-		bytesRead, opErr = sftpDownload(callCtx, conn.client, path)
-	case sftpOperationList:
-		bytesRead, opErr = sftpList(callCtx, conn.client, path, meta)
-	default:
-		opErr = fmt.Errorf("unsupported sftp operation %q", operation)
+	perform := func(operationConn *sftpConnection) (int64, error) {
+		switch operation {
+		case sftpOperationUpload:
+			return sftpUpload(callCtx, operationConn.client, path, sftpPayload(cfg))
+		case sftpOperationDownload:
+			return sftpDownload(callCtx, operationConn.client, path)
+		case sftpOperationList:
+			return sftpList(callCtx, operationConn.client, path, meta)
+		default:
+			return 0, fmt.Errorf("unsupported sftp operation %q", operation)
+		}
 	}
+	bytesRead, started, errorPhase, operationConn, opErr := d.executeSFTPOperation(callCtx, addr, cacheKey, cfg, meta, conn, perform)
 	if opErr != nil {
-		d.evict(cacheKey)
+		markSFTPErrorPhase(meta, errorPhase, opErr)
+		if started {
+			d.evict(cacheKey, operationConn)
+		}
 		return task.Result{
 			Task:       t,
 			StatusCode: sftpErrorToHTTP(opErr),
@@ -131,35 +150,89 @@ func (d *SFTPDriver) Execute(ctx context.Context, t task.Task) task.Result {
 	}
 }
 
-func (d *SFTPDriver) getConn(ctx context.Context, addr, cacheKey string, cfg config.SFTPConfig, meta map[string]string) (*sftpConnection, error) {
-	if err := ctx.Err(); err != nil {
-		return nil, err
-	}
-	authMaterial := sftpAuthMaterial(cfg)
-	var stale *sftpConnection
-
-	d.mu.Lock()
-	if conn, ok := d.conns[cacheKey]; ok {
-		if conn.authMaterial == authMaterial {
-			populateCachedSFTPMetadata(conn, cfg, meta)
-			d.mu.Unlock()
-			return conn, nil
+func (d *SFTPDriver) executeSFTPOperation(
+	ctx context.Context,
+	addr, cacheKey string,
+	cfg config.SFTPConfig,
+	meta map[string]string,
+	conn *sftpConnection,
+	perform func(*sftpConnection) (int64, error),
+) (bytesRead int64, started bool, errorPhase string, operationConn *sftpConnection, opErr error) {
+	errorPhase = "operation"
+	operationConn = conn
+	for attempt := 0; attempt < 2; attempt++ {
+		bytesRead, started, opErr = operationConn.execute(ctx, func() (int64, error) {
+			return perform(operationConn)
+		})
+		if !errors.Is(opErr, errSFTPConnectionClosed) || ctx.Err() != nil || started || attempt == 1 {
+			break
 		}
-		stale = conn
-		delete(d.conns, cacheKey)
+		var err error
+		errorPhase = "connect"
+		operationConn, err = d.getConn(ctx, addr, cacheKey, cfg, meta)
+		if err != nil {
+			opErr = err
+			break
+		}
+		errorPhase = "operation"
 	}
-	d.mu.Unlock()
+	return bytesRead, started, errorPhase, operationConn, opErr
+}
 
-	if stale != nil {
-		_ = stale.client.Close()
-		_ = stale.ssh.Close()
+func (d *SFTPDriver) getConn(ctx context.Context, addr, cacheKey string, cfg config.SFTPConfig, meta map[string]string) (*sftpConnection, error) {
+	authMaterial := sftpAuthMaterial(cfg)
+	for {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+
+		var stale *sftpConnection
+		d.mu.Lock()
+		if conn, ok := d.conns[cacheKey]; ok {
+			if conn.authMaterial == authMaterial && !conn.isClosed() {
+				populateCachedSFTPMetadata(conn, cfg, meta)
+				d.mu.Unlock()
+				return conn, nil
+			}
+			stale = conn
+			delete(d.conns, cacheKey)
+		}
+		if attempt := d.connecting[cacheKey]; attempt != nil {
+			d.mu.Unlock()
+			if stale != nil {
+				stale.close()
+			}
+			select {
+			case <-attempt.done:
+				continue
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			}
+		}
+		attempt := &sftpConnectionAttempt{done: make(chan struct{})}
+		d.connecting[cacheKey] = attempt
+		d.mu.Unlock()
+		if stale != nil {
+			stale.close()
+		}
+
+		conn, err := dialSFTPConnection(ctx, addr, cfg, authMaterial, meta)
+		d.mu.Lock()
+		delete(d.connecting, cacheKey)
+		if err == nil {
+			d.conns[cacheKey] = conn
+		}
+		close(attempt.done)
+		d.mu.Unlock()
+		return conn, err
 	}
+}
 
+func dialSFTPConnection(ctx context.Context, addr string, cfg config.SFTPConfig, authMaterial string, meta map[string]string) (*sftpConnection, error) {
 	sshCfg, err := sftpSSHConfig(ctx, cfg, meta)
 	if err != nil {
 		return nil, err
 	}
-
 	var dialer net.Dialer
 	rawConn, err := dialer.DialContext(ctx, "tcp", addr)
 	if err != nil {
@@ -196,22 +269,131 @@ func (d *SFTPDriver) getConn(ctx context.Context, addr, cacheKey string, cfg con
 		return nil, ctx.Err()
 	}
 
-	conn := &sftpConnection{ssh: sshClient, client: sftpClient, authMaterial: authMaterial}
-	d.mu.Lock()
-	d.conns[cacheKey] = conn
-	d.mu.Unlock()
+	conn := &sftpConnection{
+		raw: rawConn, ssh: sshClient, client: sftpClient, authMaterial: authMaterial,
+		operation: make(chan struct{}, 1), closed: make(chan struct{}),
+	}
+	conn.operation <- struct{}{}
 	return conn, nil
 }
 
-func (d *SFTPDriver) evict(cacheKey string) {
+func (d *SFTPDriver) evict(cacheKey string, failed *sftpConnection) {
 	d.mu.Lock()
-	conn := d.conns[cacheKey]
-	delete(d.conns, cacheKey)
+	if d.conns[cacheKey] == failed {
+		delete(d.conns, cacheKey)
+	}
 	d.mu.Unlock()
 
-	if conn != nil {
-		_ = conn.client.Close()
-		_ = conn.ssh.Close()
+	if failed != nil {
+		failed.close()
+	}
+}
+
+func (c *sftpConnection) execute(ctx context.Context, operation func() (int64, error)) (int64, bool, error) {
+	if err := c.acquire(ctx); err != nil {
+		return 0, false, err
+	}
+	defer c.release()
+	fail := func(bytesRead int64, err error) (int64, bool, error) {
+		// Mark the connection closed while still holding the operation token.
+		// Waiters must observe a pre-start closure and reconnect rather than
+		// starting on the failed session between release and cache eviction.
+		c.close()
+		return bytesRead, true, err
+	}
+
+	deadline, hasDeadline := ctx.Deadline()
+	if hasDeadline {
+		if err := c.raw.SetDeadline(deadline); err != nil {
+			return fail(0, err)
+		}
+	}
+	stopCancellation := context.AfterFunc(ctx, func() { _ = c.raw.SetDeadline(time.Now()) })
+	bytesRead, err := operation()
+	stopped := stopCancellation()
+	if ctxErr := ctx.Err(); ctxErr != nil {
+		return fail(bytesRead, ctxErr)
+	}
+	// The socket deadline and the context timer expire at the same instant.
+	// A read can therefore surface a protocol-level connection error just
+	// before the context goroutine records DeadlineExceeded. Attribute that
+	// boundary to the configured operation timeout consistently.
+	if hasDeadline && !time.Now().Before(deadline) {
+		return fail(bytesRead, context.DeadlineExceeded)
+	}
+	if !stopped {
+		return fail(bytesRead, errSFTPConnectionClosed)
+	}
+	if err != nil {
+		return fail(bytesRead, err)
+	}
+	if err := c.raw.SetDeadline(time.Time{}); err != nil {
+		return fail(bytesRead, err)
+	}
+	return bytesRead, true, nil
+}
+
+func (c *sftpConnection) acquire(ctx context.Context) error {
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-c.closed:
+		return errSFTPConnectionClosed
+	case <-c.operation:
+	}
+	if err := ctx.Err(); err != nil {
+		c.release()
+		return err
+	}
+	select {
+	case <-c.closed:
+		c.release()
+		return errSFTPConnectionClosed
+	default:
+		return nil
+	}
+}
+
+func (c *sftpConnection) release() {
+	select {
+	case <-c.closed:
+	case c.operation <- struct{}{}:
+	}
+}
+
+func (c *sftpConnection) close() {
+	c.closeOnce.Do(func() {
+		close(c.closed)
+		if c.raw != nil {
+			_ = c.raw.Close()
+		}
+		if c.client != nil {
+			_ = c.client.Close()
+		}
+		if c.ssh != nil {
+			_ = c.ssh.Close()
+		}
+	})
+}
+
+func (c *sftpConnection) isClosed() bool {
+	select {
+	case <-c.closed:
+		return true
+	default:
+		return false
+	}
+}
+
+func markSFTPErrorPhase(meta map[string]string, phase string, err error) {
+	meta["sftp_error_phase"] = phase
+	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+		meta["sftp_timeout_phase"] = phase
+		return
+	}
+	var netErr net.Error
+	if errors.As(err, &netErr) && netErr.Timeout() {
+		meta["sftp_timeout_phase"] = phase
 	}
 }
 

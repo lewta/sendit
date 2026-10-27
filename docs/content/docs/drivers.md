@@ -286,7 +286,9 @@ targets:
 
 Executes SFTP operations over SSH using [github.com/pkg/sftp](https://github.com/pkg/sftp) and [golang.org/x/crypto/ssh](https://pkg.go.dev/golang.org/x/crypto/ssh).
 
-SSH handshake and SFTP startup honor `timeout_s` and shutdown cancellation, mapping either to status 504. Completed connections remain reusable after their original task context ends. In-progress file operations are not guaranteed to stop immediately on cancellation.
+SSH handshake, SFTP startup, and each upload, download, or list operation honor `timeout_s` and shutdown cancellation, mapping either to status 504. Operations sharing one cached SFTP connection are serialized so their per-operation deadlines cannot interfere. A timed-out active operation closes and evicts that connection before returning; the next request establishes a clean session. Cancellation while waiting for a busy cached connection leaves the active operation and reusable connection intact.
+
+Result metadata distinguishes setup from operation failures with `sftp_error_phase`. Timeout and cancellation results also include `sftp_timeout_phase`; each value is `connect` or `operation`.
 
 ```yaml
 targets:

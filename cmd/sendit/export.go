@@ -23,6 +23,8 @@ func exportCmd() *cobra.Command {
 Currently supports converting a JSONL results file (written by the output
 writer) to a synthetic PCAP file for analysis in Wireshark or tshark.
 
+Malformed or truncated JSONL returns an error; output from a failed export is incomplete.
+
 The PCAP uses LINKTYPE_USER0 (147) — no IP/TCP framing. Each packet payload
 is a text record containing the URL, type, status code, latency, bytes, and
 any error from the original request. No root or CAP_NET_RAW privilege is

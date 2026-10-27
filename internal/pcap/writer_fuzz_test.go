@@ -3,6 +3,8 @@ package pcap
 import (
 	"bufio"
 	"bytes"
+	"io"
+	"os"
 	"testing"
 	"time"
 
@@ -32,4 +34,50 @@ func FuzzWriteRecord(f *testing.F) {
 		// Flush must not panic.
 		_ = bw.Flush()
 	})
+}
+
+// FuzzExportProgress keeps malformed local JSONL inputs from reintroducing a
+// decode loop that neither consumes input nor returns an error. Inputs are
+// capped so the regression remains predictable under CI fuzzing.
+func FuzzExportProgress(f *testing.F) {
+	f.Add([]byte("{"))
+	f.Add([]byte(""))
+	f.Add([]byte("not-json\n"))
+	f.Add([]byte{0xff, '\n'})
+	f.Add([]byte(`{"ts":"2026-10-24T00:00:00Z","url":"https://one.example","type":"http"}` + "\n" +
+		`{"ts":"2026-10-24T00:00:01Z","url":"https://two.example","type":"http"}` + "\n"))
+	f.Add(bytes.Repeat([]byte{'{'}, 1<<20))
+
+	f.Fuzz(func(t *testing.T, data []byte) {
+		if len(data) > 2<<20 {
+			t.Skip("keep fuzz resource use bounded")
+		}
+		dir := t.TempDir()
+		inPath := dir + "/input.jsonl"
+		if err := os.WriteFile(inPath, data, 0o600); err != nil {
+			t.Fatal(err)
+		}
+		_ = Export(inPath, dir+"/output.pcap")
+	})
+}
+
+type zeroProgressDecoder struct {
+	calls int
+}
+
+func (d *zeroProgressDecoder) Decode(any) error {
+	d.calls++
+	if d.calls > 1 {
+		return io.EOF
+	}
+	return nil
+}
+
+func (*zeroProgressDecoder) InputOffset() int64 { return 0 }
+
+func TestDecodeRecordsRejectsSuccessfulZeroProgress(t *testing.T) {
+	bw := bufio.NewWriter(&bytes.Buffer{})
+	if _, err := decodeRecords(&zeroProgressDecoder{}, bw); err == nil {
+		t.Fatal("successful decode without input progress was accepted")
+	}
 }

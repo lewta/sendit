@@ -415,6 +415,8 @@ sendit export --pcap results.jsonl --output /tmp/session.pcap
 # Exported 312 packets → /tmp/session.pcap
 ```
 
+Blank input and multiple whitespace-separated records are supported. Malformed, truncated, or otherwise undecodable JSONL returns an error promptly; discard any incomplete output from a failed export.
+
 The generated PCAP uses **LINKTYPE_USER0 (147)** — no IP/TCP framing. Each packet payload is a text record:
 
 ```

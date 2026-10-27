@@ -1124,6 +1124,8 @@ Executes unary gRPC calls using server reflection — no `.proto` files required
 
 URL format: `grpc://host:port/Service/Method` (plaintext) or `grpcs://host:port/Service/Method` (TLS). The target server must have the [gRPC server reflection service](https://grpc.io/docs/guides/reflection/) enabled.
 
+Reflection registration is linear in the returned descriptor graph and bounded by secure defaults: 256 descriptors, 4 MiB of encoded descriptor data, and 64 local dependency levels. Configure `grpc.reflection_max_descriptors`, `grpc.reflection_max_bytes`, and `grpc.reflection_max_dependency_depth` only for trusted services with larger legitimate schemas; absolute ceilings are 4096 descriptors, 16 MiB, and 256 levels.
+
 ### SFTP driver
 
 Executes SFTP `upload`, `download`, and `list` operations over SSH. By default, host keys are verified against `~/.ssh/known_hosts`; set `sftp.insecure: true` only for trusted lab or ephemeral hosts. Connections are cached per address, username, auth material, and SSH policy so targets with stricter algorithm settings do not reuse weaker sessions.

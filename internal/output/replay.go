@@ -60,10 +60,13 @@ type ReplayWebSocket struct {
 	ExpectMessages int      `json:"expect_messages"`
 }
 type ReplayGRPC struct {
-	Body     string `json:"body"`
-	TimeoutS int    `json:"timeout_s"`
-	TLS      bool   `json:"tls"`
-	Insecure bool   `json:"insecure"`
+	Body                         string `json:"body"`
+	TimeoutS                     int    `json:"timeout_s"`
+	TLS                          bool   `json:"tls"`
+	Insecure                     bool   `json:"insecure"`
+	ReflectionMaxDescriptors     int    `json:"reflection_max_descriptors"`
+	ReflectionMaxBytes           int    `json:"reflection_max_bytes"`
+	ReflectionMaxDependencyDepth int    `json:"reflection_max_dependency_depth"`
 }
 
 func replayEnvelope(r task.Result) *ReplayEnvelope {
@@ -114,7 +117,20 @@ func replayEnvelope(r task.Result) *ReplayEnvelope {
 	case "websocket":
 		q.WebSocket = &ReplayWebSocket{positive(c.WebSocket.DurationS, 10), append([]string{}, c.WebSocket.SendMessages...), c.WebSocket.ExpectMessages}
 	case "grpc":
-		q.GRPC = &ReplayGRPC{c.GRPC.Body, positive(c.GRPC.TimeoutS, 15), c.GRPC.TLS || strings.HasPrefix(q.URL, "grpcs://"), c.GRPC.Insecure}
+		limits, err := config.ResolveGRPCReflectionLimits(c.GRPC)
+		if err != nil {
+			e.Reason = "invalid_request"
+			return e
+		}
+		q.GRPC = &ReplayGRPC{
+			Body:                         c.GRPC.Body,
+			TimeoutS:                     positive(c.GRPC.TimeoutS, 15),
+			TLS:                          c.GRPC.TLS || strings.HasPrefix(q.URL, "grpcs://"),
+			Insecure:                     c.GRPC.Insecure,
+			ReflectionMaxDescriptors:     limits.MaxDescriptors,
+			ReflectionMaxBytes:           limits.MaxBytes,
+			ReflectionMaxDependencyDepth: limits.MaxDependencyDepth,
+		}
 	default:
 		e.Reason = "unsupported_type"
 		return e
@@ -165,7 +181,15 @@ func (r ReplayRequest) Task() task.Task {
 		c.WebSocket = config.WebSocketConfig{DurationS: v.DurationS, SendMessages: append([]string{}, v.SendMessages...), ExpectMessages: v.ExpectMessages}
 	}
 	if v := r.GRPC; v != nil {
-		c.GRPC = config.GRPCConfig{Body: v.Body, TimeoutS: v.TimeoutS, TLS: v.TLS, Insecure: v.Insecure}
+		c.GRPC = config.GRPCConfig{
+			Body:                         v.Body,
+			TimeoutS:                     v.TimeoutS,
+			TLS:                          v.TLS,
+			Insecure:                     v.Insecure,
+			ReflectionMaxDescriptors:     v.ReflectionMaxDescriptors,
+			ReflectionMaxBytes:           v.ReflectionMaxBytes,
+			ReflectionMaxDependencyDepth: v.ReflectionMaxDependencyDepth,
+		}
 	}
 	return task.Task{URL: r.URL, Type: r.Type, Config: c}
 }
@@ -299,6 +323,13 @@ func validateReplayRequest(r ReplayRequest) error {
 		}
 		if !utf8.ValidString(v.Body) {
 			return fail("grpc.body")
+		}
+		if _, err := config.ResolveGRPCReflectionLimits(config.GRPCConfig{
+			ReflectionMaxDescriptors:     v.ReflectionMaxDescriptors,
+			ReflectionMaxBytes:           v.ReflectionMaxBytes,
+			ReflectionMaxDependencyDepth: v.ReflectionMaxDependencyDepth,
+		}); err != nil {
+			return fail("grpc.reflection limits")
 		}
 	default:
 		return fail("type")

@@ -79,6 +79,9 @@ target_defaults:
     expect_messages: 0
   grpc:
     timeout_s: 15
+    reflection_max_descriptors: 256      # configurable up to 4096; 0 selects this secure default
+    reflection_max_bytes: 4194304        # aggregate encoded descriptors; configurable up to 16777216
+    reflection_max_dependency_depth: 64  # configurable up to 256
     # tls: false       # force TLS even when scheme is grpc://
     # insecure: false  # skip TLS certificate verification
   sftp:
@@ -107,6 +110,9 @@ targets:
   #   grpc:
   #     body: '{"name": "world"}'
   #     timeout_s: 15
+  #     reflection_max_descriptors: 256
+  #     reflection_max_bytes: 4194304
+  #     reflection_max_dependency_depth: 64
   # SFTP target — supports upload, download, and list operations:
   # - url: "sftp://sftp.example.com/uploads/test.bin"
   #   weight: 2

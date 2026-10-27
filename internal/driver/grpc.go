@@ -3,9 +3,11 @@ package driver
 import (
 	"context"
 	"crypto/tls"
+	"errors"
 	"fmt"
 	"net/url"
 	"path"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -24,6 +26,7 @@ import (
 	"google.golang.org/protobuf/types/descriptorpb"
 	"google.golang.org/protobuf/types/dynamicpb"
 
+	"github.com/lewta/sendit/internal/config"
 	"github.com/lewta/sendit/internal/task"
 )
 
@@ -78,6 +81,30 @@ type grpcMethodInfo struct {
 	output protoreflect.MessageDescriptor
 }
 
+type grpcReflectionLimits struct {
+	maxDescriptors     int
+	maxBytes           int
+	maxDependencyDepth int
+}
+
+// The reflection response wraps descriptor bytes in protobuf envelopes. Keep
+// that transport-only overhead bounded while allowing the configured aggregate
+// descriptor limit to be reached. This option applies only to reflection; it
+// does not increase the receive limit for the user's ordinary gRPC method.
+const grpcReflectionEnvelopeAllowance = 64 << 10
+
+func reflectionLimitsForConfig(cfg config.GRPCConfig) (grpcReflectionLimits, error) {
+	limits, err := config.ResolveGRPCReflectionLimits(cfg)
+	if err != nil {
+		return grpcReflectionLimits{}, fmt.Errorf("invalid reflection limits: %w", err)
+	}
+	return grpcReflectionLimits{
+		maxDescriptors:     limits.MaxDescriptors,
+		maxBytes:           limits.MaxBytes,
+		maxDependencyDepth: limits.MaxDependencyDepth,
+	}, nil
+}
+
 // GRPCDriver executes unary gRPC requests. It uses server reflection to resolve
 // request/response types so no .proto files are required at runtime. Connections
 // and method descriptors are cached across calls.
@@ -127,12 +154,17 @@ func (d *GRPCDriver) Execute(ctx context.Context, t task.Task) task.Result {
 	callCtx, cancel := context.WithTimeout(ctx, time.Duration(timeoutS)*time.Second)
 	defer cancel()
 
+	limits, err := reflectionLimitsForConfig(cfg)
+	if err != nil {
+		return task.Result{Task: t, Error: err}
+	}
+
 	conn, err := d.getConn(addr, useTLS, cfg.Insecure)
 	if err != nil {
 		return task.Result{Task: t, Error: err}
 	}
 
-	methodInfo, err := d.resolveMethod(callCtx, conn, serviceName, fullMethod)
+	methodInfo, err := d.resolveMethod(callCtx, conn, serviceName, fullMethod, limits)
 	if err != nil {
 		return task.Result{Task: t, Error: fmt.Errorf("resolving method via reflection: %w", err)}
 	}
@@ -201,13 +233,13 @@ func (d *GRPCDriver) getConn(addr string, useTLS, insecureSkip bool) (*grpc.Clie
 	return conn, nil
 }
 
-func (d *GRPCDriver) resolveMethod(ctx context.Context, conn *grpc.ClientConn, serviceName, fullMethod string) (grpcMethodInfo, error) {
+func (d *GRPCDriver) resolveMethod(ctx context.Context, conn *grpc.ClientConn, serviceName, fullMethod string, limits grpcReflectionLimits) (grpcMethodInfo, error) {
 	cacheKey := conn.Target() + fullMethod
 	if v, ok := d.methods.Load(cacheKey); ok {
 		return v.(grpcMethodInfo), nil
 	}
 
-	info, err := d.fetchMethodInfo(ctx, conn, serviceName, fullMethod)
+	info, err := d.fetchMethodInfo(ctx, conn, serviceName, fullMethod, limits)
 	if err != nil {
 		return grpcMethodInfo{}, err
 	}
@@ -216,9 +248,9 @@ func (d *GRPCDriver) resolveMethod(ctx context.Context, conn *grpc.ClientConn, s
 	return info, nil
 }
 
-func (d *GRPCDriver) fetchMethodInfo(ctx context.Context, conn *grpc.ClientConn, serviceName, fullMethod string) (grpcMethodInfo, error) {
+func (d *GRPCDriver) fetchMethodInfo(ctx context.Context, conn *grpc.ClientConn, serviceName, fullMethod string, limits grpcReflectionLimits) (grpcMethodInfo, error) {
 	rc := reflectionpb.NewServerReflectionClient(conn)
-	stream, err := rc.ServerReflectionInfo(ctx)
+	stream, err := rc.ServerReflectionInfo(ctx, grpc.MaxCallRecvMsgSize(limits.maxBytes+grpcReflectionEnvelopeAllowance))
 	if err != nil {
 		return grpcMethodInfo{}, fmt.Errorf("opening reflection stream: %w", err)
 	}
@@ -245,7 +277,7 @@ func (d *GRPCDriver) fetchMethodInfo(ctx context.Context, conn *grpc.ClientConn,
 		return grpcMethodInfo{}, fmt.Errorf("unexpected reflection response type: %T", resp.MessageResponse)
 	}
 
-	reg, err := buildFileRegistry(fdr.FileDescriptorResponse.FileDescriptorProto)
+	reg, err := buildFileRegistry(ctx, fdr.FileDescriptorResponse.FileDescriptorProto, limits)
 	if err != nil {
 		return grpcMethodInfo{}, err
 	}
@@ -272,41 +304,140 @@ func (d *GRPCDriver) fetchMethodInfo(ctx context.Context, conn *grpc.ClientConn,
 	}, nil
 }
 
-// buildFileRegistry registers all FileDescriptorProtos returned by reflection
-// into a local Files registry. Files are registered in dependency order via a
-// retry loop (the reflection response may not be topologically sorted).
-func buildFileRegistry(fdpBytes [][]byte) (*protoregistry.Files, error) {
-	fdps := make([]*descriptorpb.FileDescriptorProto, 0, len(fdpBytes))
+// buildFileRegistry registers FileDescriptorProtos returned by reflection in a
+// single topological pass. Incoming count, aggregate bytes, and dependency
+// depth are bounded before adversarial graphs can consume unbounded work.
+func buildFileRegistry(ctx context.Context, fdpBytes [][]byte, limits grpcReflectionLimits) (*protoregistry.Files, error) {
+	if limits.maxDescriptors <= 0 || limits.maxBytes <= 0 || limits.maxDependencyDepth <= 0 {
+		return nil, errors.New("reflection limits must be positive")
+	}
+	if len(fdpBytes) > limits.maxDescriptors {
+		return nil, fmt.Errorf("reflection descriptor count limit exceeded: got %d, max %d", len(fdpBytes), limits.maxDescriptors)
+	}
+
+	byName := make(map[string]*descriptorpb.FileDescriptorProto, len(fdpBytes))
+	order := make([]string, 0, len(fdpBytes))
+	totalBytes := 0
 	for _, b := range fdpBytes {
+		if err := ctx.Err(); err != nil {
+			return nil, fmt.Errorf("building reflection registry: %w", err)
+		}
+		if len(b) > limits.maxBytes-totalBytes {
+			return nil, fmt.Errorf("reflection aggregate bytes limit exceeded: max %d", limits.maxBytes)
+		}
+		totalBytes += len(b)
 		var fdp descriptorpb.FileDescriptorProto
 		if err := proto.Unmarshal(b, &fdp); err != nil {
 			return nil, fmt.Errorf("parsing FileDescriptorProto: %w", err)
 		}
-		fdps = append(fdps, &fdp)
+		name := fdp.GetName()
+		if name == "" {
+			return nil, errors.New("reflection descriptor has an empty file name")
+		}
+		if existing, ok := byName[name]; ok {
+			if !proto.Equal(existing, &fdp) {
+				return nil, fmt.Errorf("conflicting reflection descriptors for file %q", name)
+			}
+			continue
+		}
+		byName[name] = &fdp
+		order = append(order, name)
 	}
 
 	reg := new(protoregistry.Files)
 	resolver := &mergedResolver{local: reg}
-
-	for attempt := 0; attempt <= len(fdps); attempt++ {
-		var remaining []*descriptorpb.FileDescriptorProto
-		for _, fdp := range fdps {
-			if _, err := reg.FindFileByPath(fdp.GetName()); err == nil {
-				continue // already registered
+	indegree := make(map[string]int, len(byName))
+	dependents := make(map[string][]string, len(byName))
+	for _, name := range order {
+		if err := ctx.Err(); err != nil {
+			return nil, fmt.Errorf("building reflection registry: %w", err)
+		}
+		seenDependencies := make(map[string]struct{})
+		for _, dependency := range byName[name].GetDependency() {
+			if err := ctx.Err(); err != nil {
+				return nil, fmt.Errorf("building reflection registry: %w", err)
 			}
-			fd, err := protodesc.NewFile(fdp, resolver)
-			if err != nil {
-				remaining = append(remaining, fdp)
+			if _, seen := seenDependencies[dependency]; seen {
 				continue
 			}
-			if err := reg.RegisterFile(fd); err != nil {
-				remaining = append(remaining, fdp)
+			seenDependencies[dependency] = struct{}{}
+			if _, local := byName[dependency]; local {
+				indegree[name]++
+				dependents[dependency] = append(dependents[dependency], name)
+				continue
+			}
+			if _, err := protoregistry.GlobalFiles.FindFileByPath(dependency); err != nil {
+				return nil, fmt.Errorf("reflection descriptor %q has missing dependency %q", name, dependency)
 			}
 		}
-		if len(remaining) == 0 {
-			break
+	}
+
+	queue := make([]string, 0, len(order))
+	for _, name := range order {
+		if indegree[name] == 0 {
+			queue = append(queue, name)
 		}
-		fdps = remaining
+	}
+	depth := make(map[string]int, len(byName))
+	registered := 0
+	for head := 0; head < len(queue); head++ {
+		if err := ctx.Err(); err != nil {
+			return nil, fmt.Errorf("building reflection registry: %w", err)
+		}
+		name := queue[head]
+		currentDepth := 1
+		for _, dependency := range byName[name].GetDependency() {
+			if err := ctx.Err(); err != nil {
+				return nil, fmt.Errorf("building reflection registry: %w", err)
+			}
+			if dependencyDepth, local := depth[dependency]; local && dependencyDepth+1 > currentDepth {
+				currentDepth = dependencyDepth + 1
+			}
+		}
+		if currentDepth > limits.maxDependencyDepth {
+			return nil, fmt.Errorf("reflection dependency depth limit exceeded at %q: got %d, max %d", name, currentDepth, limits.maxDependencyDepth)
+		}
+		depth[name] = currentDepth
+
+		if err := ctx.Err(); err != nil {
+			return nil, fmt.Errorf("building reflection registry: %w", err)
+		}
+		fd, err := protodesc.NewFile(byName[name], resolver)
+		if err != nil {
+			return nil, fmt.Errorf("building reflection descriptor %q: %w", name, err)
+		}
+		if err := ctx.Err(); err != nil {
+			return nil, fmt.Errorf("building reflection registry: %w", err)
+		}
+		if err := reg.RegisterFile(fd); err != nil {
+			return nil, fmt.Errorf("registering reflection descriptor %q: %w", name, err)
+		}
+		registered++
+		for _, dependent := range dependents[name] {
+			if err := ctx.Err(); err != nil {
+				return nil, fmt.Errorf("building reflection registry: %w", err)
+			}
+			indegree[dependent]--
+			if indegree[dependent] == 0 {
+				queue = append(queue, dependent)
+			}
+		}
+	}
+	if registered != len(byName) {
+		unresolved := make([]string, 0, len(byName)-registered)
+		for _, name := range order {
+			if err := ctx.Err(); err != nil {
+				return nil, fmt.Errorf("building reflection registry: %w", err)
+			}
+			if indegree[name] > 0 {
+				unresolved = append(unresolved, name)
+			}
+		}
+		slices.Sort(unresolved)
+		return nil, fmt.Errorf("cyclic reflection descriptor dependencies: %s", strings.Join(unresolved, ", "))
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, fmt.Errorf("building reflection registry: %w", err)
 	}
 
 	return reg, nil

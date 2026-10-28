@@ -1,4 +1,7 @@
 [[IgnoredVulns]]
 id = "GO-2026-5932"
 ignoreUntil = 2026-12-06
-reason = "Sendit imports golang.org/x/crypto only for ssh and ssh/knownhosts. It does not import or call the affected openpgp packages. Confirmed by govulncheck with zero reachable vulnerabilities."
+reason = "Conditional module match: the openpgp package family must remain absent from every retained release and integration package closure. The source/symbol govulncheck gate checks reachability independently; .github/scripts/security-evidence.py checks package absence and this expiry. Reassess before 2026-12-06; do not renew from prior green job status alone."
+
+# GO-2026-6505 is deliberately not ignored: retain the otel/sdk module-coordinate
+# match as conditional metadata. Source-mode govulncheck decides callable findings.

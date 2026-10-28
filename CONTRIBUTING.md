@@ -21,6 +21,7 @@ Thanks for your interest in contributing. This document covers everything you ne
 
 - **Go 1.26.10+**
 - **golangci-lint**, pinned alongside Go in `.mise.toml`
+- **Python 3.9+**, standard library only, for offline advisory evidence checks. macOS's `/usr/bin/python3` is supported; select an existing interpreter with `PYTHON=/usr/bin/python3 make vulnerability-check` if needed.
 - **Chrome or Chromium** — only required if you work on or test the `browser` driver
 
 With [mise](https://mise.jdx.dev/) installed, provision the pinned tools and run verification:

@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"github.com/go-viper/mapstructure/v2"
+	"github.com/lewta/sendit/internal/pidfile"
 	"github.com/lewta/sendit/internal/policy"
 	"github.com/robfig/cron/v3"
 	"github.com/rs/zerolog/log"
@@ -113,6 +114,11 @@ func LoadWithPolicy(path string, access policy.Access, supplied ...LoadOption) (
 	if options.pcapOverride != nil {
 		cfg.Output.PCAPFile = *options.pcapOverride
 	}
+	pidPath, err := authorizePIDPath(effective, cfg.Daemon.PIDFile)
+	if err != nil {
+		return nil, err
+	}
+	cfg.Daemon.PIDFile = pidPath
 	if err := authorizeTargetAuth(effective, cfg.Targets, cfg.TargetDefaults.Auth); err != nil {
 		return nil, err
 	}
@@ -150,6 +156,30 @@ func LoadWithPolicy(path string, access policy.Access, supplied ...LoadOption) (
 	return &cfg, nil
 }
 
+func authorizePIDPath(access policy.Access, configured string) (string, error) {
+	if access.Mode() != policy.ModeRestricted {
+		if configured != "" {
+			return configured, nil
+		}
+		defaultPath, err := pidfile.DefaultPath()
+		if err != nil {
+			return "", nil
+		}
+		return defaultPath, nil
+	}
+	defaultPath, err := pidfile.DefaultPath()
+	if err != nil {
+		if configured == "" {
+			return "", nil
+		}
+		return "", errors.New("config policy: restricted daemon.pid_file requires the operator-owned per-user default, which is unavailable")
+	}
+	if configured != "" && configured != defaultPath {
+		return "", errors.New("config policy: restricted daemon.pid_file must use the exact operator-owned per-user default")
+	}
+	return defaultPath, nil
+}
+
 func rejectFloatToIntegerHook(from, to reflect.Type, data any) (any, error) {
 	if from.Kind() == reflect.Float64 && to.Kind() >= reflect.Int && to.Kind() <= reflect.Uint64 {
 		return nil, errors.New("must be an integer")
@@ -185,7 +215,6 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("metrics.bind_address", "127.0.0.1")
 	v.SetDefault("metrics.prometheus_port", 9090)
 
-	v.SetDefault("daemon.pid_file", "/tmp/sendit.pid")
 	v.SetDefault("daemon.log_level", "info")
 	v.SetDefault("daemon.log_format", "text")
 

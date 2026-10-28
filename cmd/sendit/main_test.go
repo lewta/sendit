@@ -9,21 +9,26 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"syscall"
 	"testing"
 	"time"
 
 	"github.com/lewta/sendit/internal/config"
+	"github.com/lewta/sendit/internal/pidfile"
+	"github.com/spf13/cobra"
 )
 
-// writePIDFile writes pid to a temp file and returns the path.
-func writePIDFile(t *testing.T, pid int) string {
+// writePIDFile acquires a live current-process PID record and returns its path.
+func writePIDFile(t *testing.T) string {
 	t.Helper()
 	f := filepath.Join(t.TempDir(), "sendit.pid")
-	if err := os.WriteFile(f, []byte(fmt.Sprintf("%d", pid)), 0o600); err != nil {
+	owner, err := pidfile.Acquire(f)
+	if err != nil {
 		t.Fatal(err)
 	}
+	t.Cleanup(func() { _ = owner.Close() })
 	return f
 }
 
@@ -51,13 +56,15 @@ func TestStopCmd_InvalidPIDFile(t *testing.T) {
 }
 
 func TestStopCmd_SendsSIGTERM(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows does not support graceful PID-record stop")
+	}
 	ch := make(chan os.Signal, 1)
 	signal.Notify(ch, syscall.SIGTERM)
 	defer signal.Stop(ch)
 
-	pid := os.Getpid()
 	cmd := stopCmd()
-	cmd.SetArgs([]string{"--pid-file", writePIDFile(t, pid)})
+	cmd.SetArgs([]string{"--pid-file", writePIDFile(t)})
 	if err := cmd.Execute(); err != nil {
 		t.Fatalf("stopCmd returned error: %v", err)
 	}
@@ -95,6 +102,9 @@ func TestReloadCmd_InvalidPIDFile(t *testing.T) {
 }
 
 func TestReloadCmd_SendsSIGHUP(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows does not support SIGHUP reload")
+	}
 	ch := make(chan os.Signal, 1)
 	signal.Notify(ch, syscall.SIGHUP)
 	defer signal.Stop(ch)
@@ -103,7 +113,7 @@ func TestReloadCmd_SendsSIGHUP(t *testing.T) {
 	var out bytes.Buffer
 	cmd := reloadCmd()
 	cmd.SetOut(&out)
-	cmd.SetArgs([]string{"--pid-file", writePIDFile(t, pid)})
+	cmd.SetArgs([]string{"--pid-file", writePIDFile(t)})
 	if err := cmd.Execute(); err != nil {
 		t.Fatalf("reloadCmd returned error: %v", err)
 	}
@@ -409,21 +419,62 @@ func TestStatusCmd_MissingPIDFile(t *testing.T) {
 }
 
 func TestStatusCmd_RunningProcess(t *testing.T) {
-	pid := os.Getpid()
 	cmd := statusCmd()
-	cmd.SetArgs([]string{"--pid-file", writePIDFile(t, pid)})
+	cmd.SetArgs([]string{"--pid-file", writePIDFile(t)})
 	if err := cmd.Execute(); err != nil {
 		t.Fatalf("statusCmd returned error for live process: %v", err)
 	}
 }
 
-func TestStatusCmd_DeadProcess(t *testing.T) {
-	// PID 0 is never a valid user process; Signal(0) on it returns an error,
-	// which statusCmd treats as "not running" without returning an error itself.
+func TestStatusCmd_UnboundRecordIsRejected(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "sendit.pid")
+	if err := os.WriteFile(path, []byte("sendit-pid-v1 99999999\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
 	cmd := statusCmd()
-	cmd.SetArgs([]string{"--pid-file", writePIDFile(t, 99999999)})
-	if err := cmd.Execute(); err != nil {
-		t.Fatalf("statusCmd returned unexpected error for dead process: %v", err)
+	cmd.SetArgs([]string{"--pid-file", path})
+	if err := cmd.Execute(); err == nil {
+		t.Fatal("statusCmd accepted an unbound PID record")
+	}
+}
+
+func TestReportProcessStatusDistinguishesExitFromOperationalFailure(t *testing.T) {
+	var out bytes.Buffer
+	if err := reportProcessStatus(&out, 42, errProcessNotRunning); err != nil {
+		t.Fatalf("not-running status: %v", err)
+	}
+	if !strings.Contains(out.String(), "Not running") {
+		t.Fatalf("not-running output = %q", out.String())
+	}
+
+	out.Reset()
+	denied := errors.New("permission denied")
+	err := reportProcessStatus(&out, 42, denied)
+	if !errors.Is(err, denied) {
+		t.Fatalf("operational status error = %v, want wrapped permission error", err)
+	}
+	if out.Len() != 0 {
+		t.Fatalf("operational failure was misreported as process state: %q", out.String())
+	}
+}
+
+func TestProcessCommandsUsePerUserDefaultPIDPath(t *testing.T) {
+	want, err := pidfile.DefaultPath()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for name, cmd := range map[string]*cobra.Command{
+		"stop":   stopCmd(),
+		"reload": reloadCmd(),
+		"status": statusCmd(),
+	} {
+		flag := cmd.Flags().Lookup("pid-file")
+		if flag == nil {
+			t.Fatalf("%s: --pid-file flag missing", name)
+		}
+		if flag.DefValue != want {
+			t.Errorf("%s: --pid-file default = %q, want %q", name, flag.DefValue, want)
+		}
 	}
 }
 

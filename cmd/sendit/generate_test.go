@@ -391,6 +391,9 @@ func TestFormatConfig_ContainsRequiredSections(t *testing.T) {
 			t.Errorf("formatConfig output missing section %q", section)
 		}
 	}
+	if strings.Contains(got, "/tmp/sendit.pid") {
+		t.Errorf("formatConfig retained the shared legacy PID path:\n%s", got)
+	}
 }
 
 func TestFormatTarget_HTTP(t *testing.T) {

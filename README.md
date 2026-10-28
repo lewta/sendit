@@ -130,7 +130,7 @@ Configs are trusted operator input by default (`--config-trust=trusted`), preser
 
 Grant directories must already exist. `start` and `validate` share the same policy flags. Dry-run and validation show requested versus granted names and normalized paths, never environment values or file contents in the policy summary. YAML `capability_requests` can only narrow these grants, and SIGHUP cannot restore a permission removed by an accepted reload. A process restart with explicit operator grants is required to broaden authority.
 
-Restricted mode enforces target/variable/SFTP key file reads, authentication environment names, and local result/PCAP output paths at their effect boundaries. Output opens reject symlink and hard-link aliases and recheck identity before truncation. This is not a process sandbox or a general destination allow-list: browser execution, daemon/PID behavior, metrics listeners, and ordinary target-driver connections retain their documented behavior. See the [configuration reference](docs/content/docs/configuration.md) and [security scope](docs/content/docs/security.md).
+Restricted mode enforces target/variable/SFTP key file reads, authentication environment names, local result/PCAP output paths, and the operator-owned per-user PID path at their effect boundaries. Output opens reject symlink and hard-link aliases and recheck identity before truncation. This is not a process sandbox or a general destination allow-list: browser execution, metrics listeners, and ordinary target-driver connections retain their documented behavior. See the [configuration reference](docs/content/docs/configuration.md) and [security scope](docs/content/docs/security.md).
 
 ### Run
 
@@ -185,7 +185,7 @@ sendit completion <shell>
 | Command      | Description |
 |--------------|-------------|
 | `generate`   | Generate a ready-to-use `config.yaml` from a targets file, a seed URL with in-domain crawling, or your local browser history/bookmarks. |
-| `start`      | Start the engine. Writes a PID file by default so `stop`/`status` can find the process; use `--foreground` to skip writing the PID file. |
+| `start`      | Start the engine. Exclusively owns a locked PID record in the private per-user cache by default so `stop`/`status` can find the process; use `--foreground` to skip it. |
 | `probe`      | Test a single HTTP, DNS, or WebSocket endpoint in a loop (like ping). No config file required. |
 | `pinch`      | Check whether a TCP or UDP port is open on a remote host, repeating on an interval. No config file required. |
 | `export`     | Convert a JSONL results file to PCAP format for analysis in Wireshark or tshark. |
@@ -239,7 +239,7 @@ sendit completion <shell>
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--pid-file` | `/tmp/sendit.pid` | Path to the PID file written by `start` |
+| `--pid-file` | *per-user cache*/`sendit/sendit.pid` | Path to the PID record written by `start` |
 
 ### `validate` flags
 
@@ -1048,10 +1048,14 @@ Dashboards and alert rules matching the undocumented `error_class="error"` value
 
 ```yaml
 daemon:
-  pid_file: "/tmp/sendit.pid"   # written by start unless --foreground is set
+  # pid_file: "/custom/local/path/sendit.pid"  # trusted configs only; restricted mode uses the per-user default
   log_level: info                   # debug | info | warn | error
   log_format: text                  # text (coloured console) | json
 ```
+
+The default PID record lives under the operating system's per-user cache directory in `sendit/sendit.pid`. Startup fails closed if it cannot exclusively acquire a safe regular file. Trusted configs may use a custom path on lock-capable local storage; pass the same path to `stop`, `reload`, and `status`. Restricted configs reject custom PID paths so untrusted YAML cannot select a local-file side effect. A PID path change requires a restart rather than SIGHUP.
+
+When upgrading from a release that wrote a bare numeric PID file, stop the old daemon with the old binary (or normal OS administration) before installing and restarting this version. Hardened control commands reject the unbound legacy record instead of risking a signal to a reused PID. Linux uses pidfds for stable status and signals. Darwin and FreeBSD retain a small unavoidable process-exit/PID-reuse race after their final identity check. Windows uses a protected current-user/System ACL and reports status through a process handle, but graceful `stop` and `reload` are unsupported; use foreground execution and restart.
 
 ---
 

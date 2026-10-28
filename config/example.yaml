@@ -219,6 +219,6 @@ metrics:
   prometheus_port: 9090          # when enabled, must be 1..65535
 
 daemon:
-  pid_file: "/tmp/sendit.pid"
+  # pid_file: "/custom/local/path/sendit.pid"  # trusted configs only; restricted mode uses the per-user default
   log_level: info
   log_format: text

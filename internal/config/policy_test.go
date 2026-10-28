@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/lewta/sendit/internal/pidfile"
 	"github.com/lewta/sendit/internal/policy"
 )
 
@@ -81,6 +82,43 @@ func TestRestrictedPolicyEnforcesSecondaryReadGrants(t *testing.T) {
 				t.Fatalf("expected read-policy denial, got %v", err)
 			}
 		})
+	}
+}
+
+func TestRestrictedPolicyRejectsConfigOwnedPIDPath(t *testing.T) {
+	restricted, err := policy.New(policy.ModeRestricted, policy.Grants{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	custom := filepath.Join(t.TempDir(), "sendit.pid")
+	defaultPath, err := pidfile.DefaultPath()
+	if err != nil {
+		t.Fatal(err)
+	}
+	uncleanDefault := filepath.Dir(defaultPath) + string(filepath.Separator) + "alias" + string(filepath.Separator) + ".." + string(filepath.Separator) + filepath.Base(defaultPath)
+	if filepath.Clean(uncleanDefault) != defaultPath {
+		t.Fatalf("test path %q does not clean to %q", uncleanDefault, defaultPath)
+	}
+	for name, requested := range map[string]string{"custom": custom, "unclean-default-alias": uncleanDefault} {
+		t.Run(name, func(t *testing.T) {
+			path := writeTemp(t, fmt.Sprintf("targets: [{url: https://example.com, type: http, weight: 1}]\ndaemon: {pid_file: %q}\n", requested))
+			_, loadErr := LoadWithPolicy(path, restricted)
+			if loadErr == nil || !strings.Contains(loadErr.Error(), "daemon.pid_file") || !strings.Contains(loadErr.Error(), "restricted") {
+				t.Fatalf("restricted PID path %q was not rejected: %v", requested, loadErr)
+			}
+		})
+	}
+	if _, statErr := os.Lstat(custom); !os.IsNotExist(statErr) {
+		t.Fatalf("restricted PID path was touched during config load: %v", statErr)
+	}
+
+	path := writeTemp(t, fmt.Sprintf("targets: [{url: https://example.com, type: http, weight: 1}]\ndaemon: {pid_file: %q}\n", custom))
+	trusted, err := Load(path)
+	if err != nil {
+		t.Fatalf("trusted compatibility: %v", err)
+	}
+	if trusted.Daemon.PIDFile != custom {
+		t.Fatalf("trusted daemon.pid_file = %q, want %q", trusted.Daemon.PIDFile, custom)
 	}
 }
 

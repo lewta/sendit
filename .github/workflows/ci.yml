@@ -53,6 +53,27 @@ jobs:
           files: junit.xml
           fail_ci_if_error: true
 
+  pid-platform-test:
+    name: PID safety (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e  # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Test native PID safety boundaries
+        shell: bash
+        run: >-
+          go test -count=1 ./internal/pidfile ./cmd/sendit
+          -run '^(TestAcquire|TestOpenActive|TestDefaultPath|TestReadRecord|TestWritePID|TestReadPID|TestStartFailsClosed|TestStartCleanup|TestStopCmd|TestReloadCmd|TestStatusCmd|TestReportProcessStatus|TestProcessCommands|TestWindows)'
+
   integration:
     runs-on: ubuntu-latest
     steps:

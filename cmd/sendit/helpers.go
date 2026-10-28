@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"slices"
-	"strconv"
 	"time"
 
 	"github.com/lewta/sendit/internal/config"
@@ -104,16 +103,4 @@ func initLogger(level, format string) {
 			TimeFormat: time.RFC3339,
 		})
 	}
-}
-
-func writePID(path string) error {
-	return os.WriteFile(path, []byte(strconv.Itoa(os.Getpid())), 0o600)
-}
-
-func readPID(path string) (int, error) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return 0, err
-	}
-	return strconv.Atoi(string(data))
 }

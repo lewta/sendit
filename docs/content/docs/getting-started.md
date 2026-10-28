@@ -175,7 +175,7 @@ Validate it before running:
 ./sendit start --config config/my.yaml --log-level debug
 ```
 
-By default `start` writes a PID file to `/tmp/sendit.pid` so you can manage the process:
+By default `start` exclusively owns a locked PID record at `sendit/sendit.pid` under your operating system's private per-user cache directory:
 
 ```sh
 ./sendit status   # is it alive?
@@ -184,6 +184,8 @@ By default `start` writes a PID file to `/tmp/sendit.pid` so you can manage the 
 ```
 
 Use `--foreground` to skip the PID file (useful in containers or CI).
+
+Before upgrading from a version that used the old bare numeric PID file, stop the old daemon with the old binary or normal OS administration, then restart it after upgrading. Hardened controls reject unbound legacy records. Trusted configs may use a custom `daemon.pid_file` on lock-capable local storage; pass the same path to control commands. Restricted configs require the operator-owned per-user default. PID path changes require a restart.
 
 ## Run with the terminal UI
 

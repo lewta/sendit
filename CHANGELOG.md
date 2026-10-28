@@ -2,12 +2,18 @@
 
 ### Security
 - Upgrade `golang.org/x/net` to v0.62.0 to fix GO-2026-6860, a quadratic-time HTML parsing denial of service reachable through URL crawling.
+- Move daemon PID records to a private per-user directory by default; create and lock them exclusively without following links, reject unsafe or legacy records before signaling, use Linux pidfds for stable targets, and remove only the file identity owned by the running process.
 - Require operator-supplied Grafana administrator credentials and loopback-only publication in the optional observability profile; provide an explicit local anonymous Viewer override and pin Prometheus 3.15.1/Grafana 13.2.4 image digests.
 - Enforce restricted configuration grants at secondary-file, SFTP key/host-file, authentication environment, and local result/PCAP output boundaries; recheck file identity before destructive effects and reject output symlink/hard-link aliases.
 - Make URL crawling public-network-only by default, require explicit CIDR grants for special-use destinations, validate every resolved address before each dial, disable ambient proxies, and bound redirects, discovery state, robots/sitemap metadata, and aggregate response bytes.
 - Bound gRPC reflection descriptor count, aggregate bytes, and dependency depth; deduplicate stable identities and replace quadratic retry registration with a cancellation-aware topological pass.
 
+### Compatibility notes
+- Stop daemons with the old binary before upgrading, then restart them. Hardened controls reject the old unbound numeric PID-file format. Trusted configs retain explicit custom `daemon.pid_file` and `--pid-file` paths on lock-capable local storage; restricted configs must use the operator-owned per-user default.
+- Windows supports hardened PID status records but not graceful `stop` or `reload`; run in the foreground and restart. Darwin and FreeBSD verify the lock and record immediately before signaling, but retain the platform's small final PID exit/reuse race.
+
 ### Added
+- Run the PID-file security regression suite natively on macOS and Windows in CI, in addition to the existing Linux verification gate.
 - Add an immutable, operator-owned configuration policy with trusted compatibility mode, opt-in restricted mode, shared `start`/`validate` grant flags, request-only YAML narrowing, value-free policy summaries, and monotonic authority across accepted SIGHUP reloads. Reject authority-shaped YAML before secondary file reads.
 - Include local observability policy, unsafe-fixture regression checks, and credential-free Compose rendering checks in `make verify` (requires Docker CLI with Compose, without starting containers).
 

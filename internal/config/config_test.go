@@ -1,12 +1,15 @@
 package config
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
 	"testing"
+
+	"github.com/lewta/sendit/internal/pidfile"
 )
 
 // writeTempFile writes content to a file with the given name in a temp dir.
@@ -63,6 +66,41 @@ daemon:
   log_level: info
   log_format: text
 `
+
+func TestLoadUsesPerUserDefaultPIDPath(t *testing.T) {
+	cfg, err := Load(writeTemp(t, minimalValidYAML))
+	if err != nil {
+		t.Fatal(err)
+	}
+	want, err := pidfile.DefaultPath()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Daemon.PIDFile != want {
+		t.Fatalf("daemon.pid_file = %q, want %q", cfg.Daemon.PIDFile, want)
+	}
+}
+
+func TestLoadExplicitPIDPathDoesNotRequireUserCacheDirectory(t *testing.T) {
+	t.Setenv("HOME", "")
+	t.Setenv("XDG_CACHE_HOME", "")
+	custom := filepath.Join(t.TempDir(), "sendit.pid")
+	cfg, err := Load(writeTemp(t, fmt.Sprintf("targets: [{url: https://example.com, type: http, weight: 1}]\ndaemon: {pid_file: %q}\n", custom)))
+	if err != nil {
+		t.Fatalf("explicit trusted PID path: %v", err)
+	}
+	if cfg.Daemon.PIDFile != custom {
+		t.Fatalf("daemon.pid_file = %q, want %q", cfg.Daemon.PIDFile, custom)
+	}
+
+	cfg, err = Load(writeTemp(t, "targets: [{url: https://example.com, type: http, weight: 1}]\n"))
+	if err != nil {
+		t.Fatalf("omitted PID path during validation/foreground use: %v", err)
+	}
+	if cfg.Daemon.PIDFile != "" {
+		t.Fatalf("unavailable default daemon.pid_file = %q, want deferred empty value", cfg.Daemon.PIDFile)
+	}
+}
 
 func TestLoad_Valid(t *testing.T) {
 	path := writeTemp(t, minimalValidYAML)

@@ -429,9 +429,11 @@ Open in Wireshark; packets appear as raw data under the `USER0` dissector. Use t
 
 | Flag | Default | Description |
 |---|---|---|
-| `--pid-file` | `/tmp/sendit.pid` | Path to PID file written by `start` |
+| `--pid-file` | *per-user cache*/`sendit/sendit.pid` | Path to the locked PID record written by `start` |
 
 > **Windows:** SIGHUP is not available on Windows. `sendit reload` will not work — use a full restart to pick up config changes.
+
+The default record is created exclusively in a private per-user directory. Trusted configs may use explicit custom paths on lock-capable local storage, and control commands must pass the same path; restricted configs require the per-user default. Unsafe, stale, malformed, linked, or unbound legacy records are rejected before any signal. Stop old daemons before upgrading because the hardened client intentionally rejects the previous bare numeric format. Darwin and FreeBSD retain a small final PID exit/reuse race; Windows supports status but not graceful stop or reload.
 
 ## `validate` flags
 

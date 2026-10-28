@@ -1095,7 +1095,7 @@ func formatConfig(w io.Writer, targets []config.TargetConfig) {
 	fmt.Fprintln(w, "  prometheus_port: 9090")
 	fmt.Fprintln(w)
 	fmt.Fprintln(w, "daemon:")
-	fmt.Fprintln(w, "  pid_file: /tmp/sendit.pid")
+	fmt.Fprintln(w, "  # pid_file: custom trusted-config path; omit for the restricted-compatible per-user default")
 	fmt.Fprintln(w, "  log_level: info")
 	fmt.Fprintln(w, "  log_format: text")
 }

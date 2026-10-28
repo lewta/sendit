@@ -1,34 +1,37 @@
 package main
 
 import (
+	"errors"
 	"fmt"
+	"io"
 	"os"
-	"syscall"
 
+	"github.com/lewta/sendit/internal/pidfile"
 	"github.com/spf13/cobra"
 )
+
+var errProcessNotRunning = errors.New("process is not running")
 
 // --- stop ---
 
 func stopCmd() *cobra.Command {
-	var pidFile string
+	pidFile, defaultErr := pidfile.DefaultPath()
 
 	cmd := &cobra.Command{
 		Use:   "stop",
 		Short: "Stop a running traffic generator daemon",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			pid, err := readPID(pidFile)
+			if defaultErr != nil && pidFile == "" {
+				return defaultErr
+			}
+			handle, err := pidfile.OpenActive(pidFile)
 			if err != nil {
 				return fmt.Errorf("reading PID file %s: %w", pidFile, err)
 			}
-
-			proc, err := os.FindProcess(pid)
-			if err != nil {
-				return fmt.Errorf("finding process %d: %w", pid, err)
-			}
-
-			if err := proc.Signal(syscall.SIGTERM); err != nil {
-				return fmt.Errorf("sending SIGTERM to %d: %w", pid, err)
+			defer handle.Close() //nolint:errcheck
+			pid := handle.PID()
+			if err := stopProcess(handle); err != nil {
+				return fmt.Errorf("stopping process %d: %w", pid, err)
 			}
 
 			fmt.Printf("Sent SIGTERM to process %d\n", pid)
@@ -36,14 +39,14 @@ func stopCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVar(&pidFile, "pid-file", "/tmp/sendit.pid", "Path to PID file")
+	cmd.Flags().StringVar(&pidFile, "pid-file", pidFile, "Path to PID file")
 	return cmd
 }
 
 // --- reload ---
 
 func reloadCmd() *cobra.Command {
-	var pidFile string
+	pidFile, defaultErr := pidfile.DefaultPath()
 
 	cmd := &cobra.Command{
 		Use:   "reload",
@@ -57,18 +60,17 @@ CPU/memory limits, or output settings require a full restart.
 Note: SIGHUP is not available on Windows. Use a full restart to reload
 config on Windows.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			pid, err := readPID(pidFile)
+			if defaultErr != nil && pidFile == "" {
+				return defaultErr
+			}
+			handle, err := pidfile.OpenActive(pidFile)
 			if err != nil {
 				return fmt.Errorf("reading PID file %s: %w", pidFile, err)
 			}
-
-			proc, err := os.FindProcess(pid)
-			if err != nil {
-				return fmt.Errorf("finding process %d: %w", pid, err)
-			}
-
-			if err := proc.Signal(syscall.SIGHUP); err != nil {
-				return fmt.Errorf("sending SIGHUP to pid %d: %w", pid, err)
+			defer handle.Close() //nolint:errcheck
+			pid := handle.PID()
+			if err := reloadProcess(handle); err != nil {
+				return fmt.Errorf("reloading process %d: %w", pid, err)
 			}
 
 			fmt.Fprintf(cmd.OutOrStdout(), "Sent reload signal to pid %d\n", pid)
@@ -76,42 +78,48 @@ config on Windows.`,
 		},
 	}
 
-	cmd.Flags().StringVar(&pidFile, "pid-file", "/tmp/sendit.pid", "Path to PID file")
+	cmd.Flags().StringVar(&pidFile, "pid-file", pidFile, "Path to PID file")
 	return cmd
 }
 
 // --- status ---
 
 func statusCmd() *cobra.Command {
-	var pidFile string
+	pidFile, defaultErr := pidfile.DefaultPath()
 
 	cmd := &cobra.Command{
 		Use:   "status",
 		Short: "Check whether the traffic generator daemon is running",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			pid, err := readPID(pidFile)
+			if defaultErr != nil && pidFile == "" {
+				return defaultErr
+			}
+			handle, err := pidfile.OpenActive(pidFile)
 			if err != nil {
-				fmt.Printf("Not running (no PID file at %s)\n", pidFile)
-				return nil
+				if errors.Is(err, os.ErrNotExist) {
+					fmt.Fprintf(cmd.OutOrStdout(), "Not running (no PID file at %s)\n", pidFile)
+					return nil
+				}
+				return fmt.Errorf("reading PID file %s: %w", pidFile, err)
 			}
-
-			proc, err := os.FindProcess(pid)
-			if err != nil {
-				fmt.Printf("Not running (process %d not found)\n", pid)
-				return nil
-			}
-
-			// Signal 0 checks if the process is alive without killing it.
-			if err := proc.Signal(syscall.Signal(0)); err != nil {
-				fmt.Printf("Not running (process %d: %v)\n", pid, err)
-				return nil
-			}
-
-			fmt.Printf("Running (PID %d)\n", pid)
-			return nil
+			defer handle.Close() //nolint:errcheck
+			pid := handle.PID()
+			return reportProcessStatus(cmd.OutOrStdout(), pid, processAlive(handle))
 		},
 	}
 
-	cmd.Flags().StringVar(&pidFile, "pid-file", "/tmp/sendit.pid", "Path to PID file")
+	cmd.Flags().StringVar(&pidFile, "pid-file", pidFile, "Path to PID file")
 	return cmd
+}
+
+func reportProcessStatus(out io.Writer, pid int, statusErr error) error {
+	if statusErr == nil {
+		fmt.Fprintf(out, "Running (PID %d)\n", pid)
+		return nil
+	}
+	if errors.Is(statusErr, errProcessNotRunning) {
+		fmt.Fprintf(out, "Not running (process %d)\n", pid)
+		return nil
+	}
+	return fmt.Errorf("checking process %d: %w", pid, statusErr)
 }

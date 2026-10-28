@@ -266,6 +266,6 @@ Process management settings.
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `pid_file` | string | `/tmp/sendit.pid` | Written by `start` unless `--foreground` is set |
+| `pid_file` | string | *per-user cache*/`sendit/sendit.pid` | Locked process record written by `start` unless `--foreground` is set; trusted configs may use explicit paths on lock-capable local storage, while restricted configs require the per-user default |
 | `log_level` | string | `info` | `debug` \| `info` \| `warn` \| `error` |
 | `log_format` | string | `text` | `text` (coloured console) \| `json` |

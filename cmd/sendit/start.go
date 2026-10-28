@@ -11,6 +11,7 @@ import (
 	"github.com/lewta/sendit/internal/config"
 	"github.com/lewta/sendit/internal/engine"
 	"github.com/lewta/sendit/internal/metrics"
+	"github.com/lewta/sendit/internal/pidfile"
 	"github.com/lewta/sendit/internal/tui"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -63,8 +64,9 @@ Configs are trusted operator input by default. --config-trust=restricted
 selects an operator-granted policy; YAML capability_requests only narrow it.
 SIGHUP retains the last accepted ceiling and cannot restore removed grants.
 Restricted mode enforces configured secondary reads, auth environment names,
-and local result/PCAP outputs. It is not a process sandbox or a general target
-network allow-list; review the remaining boundaries in the security docs.
+local result/PCAP outputs, and the operator-owned per-user PID path. It is not
+a process sandbox or a general target network allow-list; review the remaining
+boundaries in the security docs.
 
 targets_file format (one entry per line):
   <url> <type> [weight]
@@ -138,10 +140,21 @@ require a restart.`,
 			initLogger(lvl, cfg.Daemon.LogFormat)
 
 			if !foreground {
-				if err := writePID(cfg.Daemon.PIDFile); err != nil {
-					log.Warn().Err(err).Msg("could not write PID file")
+				if cfg.Daemon.PIDFile == "" {
+					cfg.Daemon.PIDFile, err = pidfile.DefaultPath()
+					if err != nil {
+						return err
+					}
 				}
-				defer os.Remove(cfg.Daemon.PIDFile) //nolint:errcheck
+				pidOwner, err := pidfile.Acquire(cfg.Daemon.PIDFile)
+				if err != nil {
+					return fmt.Errorf("acquiring PID file %s: %w", cfg.Daemon.PIDFile, err)
+				}
+				defer func() {
+					if err := pidOwner.Close(); err != nil {
+						log.Error().Err(err).Msg("cleaning up PID file")
+					}
+				}()
 			}
 
 			ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)

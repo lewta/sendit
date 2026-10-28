@@ -189,6 +189,9 @@ target_defaults:
 | `dns.record_type` | `A` | DNS record type |
 | `websocket.duration_s` | `30` | How long to hold the connection open (seconds) |
 | `grpc.timeout_s` | `15` | Per-call timeout (seconds) |
+| `grpc.reflection_max_descriptors` | `256` | Maximum descriptors accepted from one reflection response; configurable up to `4096` |
+| `grpc.reflection_max_bytes` | `4194304` | Maximum aggregate encoded descriptor bytes; configurable up to `16777216` |
+| `grpc.reflection_max_dependency_depth` | `64` | Maximum local descriptor-import depth; configurable up to `256` |
 | `sftp.port` | `22` | SSH port when the URL omits one |
 | `sftp.operation` | `upload` | Operation: `upload` \| `download` \| `list` |
 | `sftp.timeout_s` | `30` | SFTP connection and operation timeout (seconds) |
@@ -227,11 +230,11 @@ New engine results write envelope **v2**; v1 captures remain readable with autom
 | `browser` | `scroll`, `wait_for_selector`, `timeout_s` |
 | `dns` | `resolver`, `record_type` |
 | `websocket` | `duration_s`, `send_messages`, `expect_messages` |
-| `grpc` | `body`, `timeout_s`, `tls`, `insecure` |
+| `grpc` | `body`, `timeout_s`, `tls`, `insecure`; optional reflection limits are preserved when present |
 
 Every listed field is required and non-null, including false/empty values. Non-replayable envelopes instead have `replayable: false` and a `reason`, without `request`. Reasons are `auth_configured`, `custom_headers`, `url_userinfo`, `unsupported_type` (including SFTP), or `invalid_request`. Ad hoc results without capture metadata omit the envelope and cannot be replayed. `replay` is reserved against driver metadata overrides.
 
-V1 HTTP snapshots have the same fields except `http_version`, which remains forbidden in v1 and is interpreted as automatic. Other driver blocks have identical fields in both versions. V2 accepts only HTTP versions 0–2 and requires an HTTPS URL for 2. Invalid policies fail full-file preflight before any replay traffic or output truncation.
+V1 HTTP snapshots have the same fields except `http_version`, which remains forbidden in v1 and is interpreted as automatic. Other driver blocks have identical required fields in both versions. New gRPC captures also preserve `reflection_max_descriptors`, `reflection_max_bytes`, and `reflection_max_dependency_depth`; older captures without those optional fields use the secure defaults. V2 accepts only HTTP versions 0–2 and requires an HTTPS URL for 2. Invalid policies fail full-file preflight before any replay traffic or output truncation.
 
 Use `append: false`: the replay command accepts exactly one run and rejects mixed appended sessions. Ordinary engine output remains asynchronous/non-blocking and can drop results when full; sequence gaps are allowed, but missing source requests cannot be recovered. Ordinary output uses `0600` only when creating a file and does not tighten existing permissions. CSV stays result-only. The [replay command](../cli/#replay-flags) has stricter output checks and lossless delivery on success.
 

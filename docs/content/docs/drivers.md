@@ -231,6 +231,9 @@ targets:
       timeout_s: 15               # per-call timeout in seconds
       tls: false                  # force TLS even when scheme is grpc://
       insecure: false             # skip TLS certificate verification
+      reflection_max_descriptors: 256
+      reflection_max_bytes: 4194304
+      reflection_max_dependency_depth: 64
 ```
 
 | Field | Default | Description |
@@ -239,6 +242,9 @@ targets:
 | `timeout_s` | `15` | Per-call timeout in seconds |
 | `tls` | `false` | Force TLS even when the URL scheme is `grpc://` |
 | `insecure` | `false` | Skip TLS certificate verification (combine with `tls: true` or `grpcs://` scheme) |
+| `reflection_max_descriptors` | `256` | Maximum descriptors accepted from one reflection response; range `1`–`4096` (`0` selects the default) |
+| `reflection_max_bytes` | `4194304` | Maximum aggregate encoded descriptor bytes; range `1`–`16777216` (`0` selects the default) |
+| `reflection_max_dependency_depth` | `64` | Maximum local import depth; range `1`–`256` (`0` selects the default) |
 
 **URL scheme** selects transport security:
 
@@ -264,6 +270,8 @@ targets:
 | other | 500 | transient backoff |
 
 **Prerequisite:** the gRPC server must have the [server reflection service](https://grpc.io/docs/guides/reflection/) enabled. Most frameworks enable it via a single line (e.g. `reflection.Register(s)` in Go). If reflection is not available, the driver returns an error immediately.
+
+Reflection descriptors are deduplicated by file identity and registered in dependency order. Conflicting duplicate names, missing or cyclic imports, and responses outside the configured limits fail before request invocation. Increase a limit only for a trusted service with a legitimately larger schema; absolute ceilings remain enforced.
 
 **Connection and descriptor caching:** connections and method descriptors are cached per address+TLS mode. Reflection is called only on the first request to each method; subsequent calls reuse the cached descriptor.
 

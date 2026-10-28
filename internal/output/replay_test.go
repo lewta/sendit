@@ -55,7 +55,11 @@ func TestReplaySnapshotDefaultsAndRoundTrip(t *testing.T) {
 					t.Fatal(got.Config.WebSocket)
 				}
 			case "grpc":
-				if got.Config.GRPC.TimeoutS != 15 || !got.Config.GRPC.TLS {
+				limits, err := config.ResolveGRPCReflectionLimits(got.Config.GRPC)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if got.Config.GRPC.TimeoutS != 15 || !got.Config.GRPC.TLS || limits != (config.GRPCReflectionLimits{MaxDescriptors: 256, MaxBytes: 4 << 20, MaxDependencyDepth: 64}) {
 					t.Fatal(got.Config.GRPC)
 				}
 			}
@@ -72,7 +76,7 @@ func TestReplaySnapshotNondefaults(t *testing.T) {
 		{URL: "https://example.com", Type: "browser", Browser: config.BrowserConfig{Scroll: true, WaitForSelector: "#ready", TimeoutS: 4}},
 		{URL: "example.com", Type: "dns", DNS: config.DNSConfig{Resolver: "127.0.0.1:5353", RecordType: "AAAA"}},
 		{URL: "ws://example.com", Type: "websocket", WebSocket: config.WebSocketConfig{DurationS: 30, SendMessages: []string{"{{literal}}", "two"}, ExpectMessages: 2}},
-		{URL: "grpc://example.com/pkg.Service/Call", Type: "grpc", GRPC: config.GRPCConfig{Body: "not JSON", TimeoutS: 4, TLS: true, Insecure: true}},
+		{URL: "grpc://example.com/pkg.Service/Call", Type: "grpc", GRPC: config.GRPCConfig{Body: "not JSON", TimeoutS: 4, TLS: true, Insecure: true, ReflectionMaxDescriptors: 300, ReflectionMaxBytes: 5_000_000, ReflectionMaxDependencyDepth: 80}},
 	}
 	for _, cfg := range cases {
 		t.Run(cfg.Type, func(t *testing.T) {

@@ -166,10 +166,13 @@ type WebSocketConfig struct {
 // The URL scheme selects TLS: grpc:// for plaintext, grpcs:// for TLS.
 // The cfg.TLS field can also force TLS regardless of scheme.
 type GRPCConfig struct {
-	Body     string `mapstructure:"body"`      // JSON-encoded request body (unmarshalled via reflection)
-	TimeoutS int    `mapstructure:"timeout_s"` // per-call timeout in seconds (default 15)
-	TLS      bool   `mapstructure:"tls"`       // force TLS even when scheme is grpc://
-	Insecure bool   `mapstructure:"insecure"`  // skip TLS certificate verification
+	Body                         string `mapstructure:"body"`                            // JSON-encoded request body (unmarshalled via reflection)
+	TimeoutS                     int    `mapstructure:"timeout_s"`                       // per-call timeout in seconds (default 15)
+	TLS                          bool   `mapstructure:"tls"`                             // force TLS even when scheme is grpc://
+	Insecure                     bool   `mapstructure:"insecure"`                        // skip TLS certificate verification
+	ReflectionMaxDescriptors     int    `mapstructure:"reflection_max_descriptors"`      // zero selects the secure default
+	ReflectionMaxBytes           int    `mapstructure:"reflection_max_bytes"`            // aggregate encoded descriptor bytes; zero selects the secure default
+	ReflectionMaxDependencyDepth int    `mapstructure:"reflection_max_dependency_depth"` // zero selects the secure default
 }
 
 // SFTPConfig holds SFTP-specific target settings.

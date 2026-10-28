@@ -203,12 +203,21 @@ func DecodeReplayRecord(line []byte) (ReplayRecord, error) {
 		"websocket": {"duration_s", "send_messages", "expect_messages"},
 		"grpc":      {"body", "timeout_s", "tls", "insecure"},
 	}
+	optionalFields := make(map[string][]string)
 	if e.Version == 2 {
 		fields["http"] = append(fields["http"], "http_version")
+		optionalFields["grpc"] = []string{"reflection_max_descriptors", "reflection_max_bytes", "reflection_max_dependency_depth"}
 	}
-	block, err := replayObject(req[r.Type], fields[r.Type], nil, true, "replay.request."+r.Type)
+	block, err := replayObject(req[r.Type], fields[r.Type], optionalFields[r.Type], true, "replay.request."+r.Type)
 	if err != nil {
 		return r, err
+	}
+	if r.Type == "grpc" {
+		for _, field := range optionalFields["grpc"] {
+			if value, present := block[field]; present && bytes.Equal(bytes.TrimSpace(value), []byte("null")) {
+				return fail("request.grpc." + field)
+			}
+		}
 	}
 	if r.Type == "websocket" {
 		var messages []*string

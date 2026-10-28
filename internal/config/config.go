@@ -199,6 +199,9 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("target_defaults.dns.resolver", "8.8.8.8:53")
 	v.SetDefault("target_defaults.dns.record_type", "A")
 	v.SetDefault("target_defaults.websocket.duration_s", 30)
+	v.SetDefault("target_defaults.grpc.reflection_max_descriptors", defaultGRPCReflectionMaxDescriptors)
+	v.SetDefault("target_defaults.grpc.reflection_max_bytes", defaultGRPCReflectionMaxBytes)
+	v.SetDefault("target_defaults.grpc.reflection_max_dependency_depth", defaultGRPCReflectionMaxDependencyDepth)
 	v.SetDefault("target_defaults.sftp.port", 22)
 	v.SetDefault("target_defaults.sftp.operation", "upload")
 	v.SetDefault("target_defaults.sftp.timeout_s", 30)
@@ -567,6 +570,9 @@ func validate(cfg *Config) error {
 	if err := ValidateHTTPVersion(cfg.TargetDefaults.HTTP.HTTPVersion); err != nil {
 		errs = append(errs, "target_defaults.http."+err.Error())
 	}
+	if _, err := ResolveGRPCReflectionLimits(cfg.TargetDefaults.GRPC); err != nil {
+		errs = append(errs, "target_defaults.grpc."+err.Error())
+	}
 	for i, t := range cfg.Targets {
 		if err := ValidateHTTPVersion(t.HTTP.HTTPVersion); err != nil {
 			errs = append(errs, fmt.Sprintf("targets[%d].http.%s", i, err))
@@ -588,6 +594,9 @@ func validate(cfg *Config) error {
 		}
 		if t.Type == "grpc" && !strings.HasPrefix(t.URL, "grpc://") && !strings.HasPrefix(t.URL, "grpcs://") {
 			errs = append(errs, fmt.Sprintf("targets[%d].url must start with grpc:// or grpcs:// for type grpc, got %q", i, t.URL))
+		}
+		if _, err := ResolveGRPCReflectionLimits(t.GRPC); err != nil {
+			errs = append(errs, fmt.Sprintf("targets[%d].grpc.%s", i, err))
 		}
 		if t.Type == "sftp" {
 			errs = append(errs, validateSFTPTarget(i, t)...)

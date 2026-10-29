@@ -1,56 +1,67 @@
-name: Update taps
+name: Update authorized release taps
 
-# Triggered automatically after the Release workflow completes successfully.
-# Can also be triggered manually to push a formula/manifest for an existing
-# release without re-tagging (e.g. after fixing the workflow itself).
+# Called with the validated release tuple after explicit release publication,
+# or manually dispatched from protected main to recover an existing release.
 #
 # This job does NOT rebuild binaries. It downloads checksums.txt from the
 # published GitHub release and generates the Homebrew cask and Scoop manifest
 # directly from those checksums, then pushes them using a short-lived GitHub
 # App token scoped only to lewta/homebrew-tap and lewta/scoop-bucket.
 on:
-  workflow_run:
-    workflows: ["Release"]
-    types: [completed]
+  workflow_call:
+    inputs:
+      tag:
+        required: true
+        type: string
+      sha:
+        required: true
+        type: string
   workflow_dispatch:
     inputs:
       tag:
         description: "Release tag to push formula/manifest for (e.g. v0.10.0)"
+        required: true
+      sha:
+        description: 'Full commit SHA of the existing release tag'
         required: true
 
 permissions:
   contents: read
 
 jobs:
+  authorize:
+    uses: ./.github/workflows/release-authorize.yml
+    with:
+      tag: ${{ inputs.tag }}
+      sha: ${{ inputs.sha }}
+      recovery: true
+
   update-taps:
+    needs: authorize
+    environment: release-production
     runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          ref: ${{ needs.authorize.outputs.control_sha }}
+          fetch-depth: 0
+          persist-credentials: false
 
-      - name: Get release tag
-        id: tag
+      - name: Validate published release and exact artifact checksums
+        id: checksums
         env:
           GH_TOKEN: ${{ github.token }}
-          EVENT_NAME: ${{ github.event_name }}
-          INPUT_TAG: ${{ inputs.tag }}
-          RELEASE_EVENT: ${{ github.event.workflow_run.event }}
-          HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
-          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          WORKFLOW_SHA: ${{ needs.authorize.outputs.control_sha }}
+          RELEASE_TAG: ${{ needs.authorize.outputs.tag }}
+          RELEASE_SHA: ${{ needs.authorize.outputs.sha }}
+          CHECKSUM_FILE: ${{ runner.temp }}/checksums.txt
         run: |
-          if [[ "${EVENT_NAME}" == "workflow_dispatch" ]]; then
-            if [[ ! "${INPUT_TAG}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$ ]]; then
-              echo "invalid release tag: ${INPUT_TAG}" >&2
-              exit 1
-            fi
-            echo "value=${INPUT_TAG}" >> "$GITHUB_OUTPUT"
-          else
-            TAG="$(.github/scripts/resolve-release-tag.sh \
-              "${RELEASE_EVENT}" \
-              "${HEAD_BRANCH}" \
-              "${HEAD_SHA}")"
-            echo "value=${TAG}" >> "$GITHUB_OUTPUT"
-          fi
+          set -euo pipefail
+          git fetch --force --prune origin '+refs/heads/main:refs/remotes/origin/main'
+          bash .github/scripts/validate-release-input.sh recovery
+          gh release download "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" \
+            --pattern checksums.txt --output "$CHECKSUM_FILE"
+          bash .github/scripts/validate-release-input.sh checksums
 
       # Mint a token scoped to only the two repos that need to be updated.
       # GitHub App installation tokens are capped at 1 h by the API, but
@@ -66,27 +77,17 @@ jobs:
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
           repositories: homebrew-tap,scoop-bucket
 
-      - name: Download checksums from release
-        env:
-          TAG: ${{ steps.tag.outputs.value }}
-        run: |
-          VERSION="${TAG#v}"
-          curl -fsSL \
-            "https://github.com/lewta/sendit/releases/download/${TAG}/checksums.txt" \
-            -o /tmp/checksums.txt
-          echo "TAG=${TAG}"         >> "$GITHUB_ENV"
-          echo "VERSION=${VERSION}" >> "$GITHUB_ENV"
-
       - name: Push Homebrew cask
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          TAG: ${{ needs.authorize.outputs.tag }}
+          DARWIN_AMD64: ${{ steps.checksums.outputs.darwin_amd64 }}
+          DARWIN_ARM64: ${{ steps.checksums.outputs.darwin_arm64 }}
+          LINUX_AMD64: ${{ steps.checksums.outputs.linux_amd64 }}
+          LINUX_ARM64: ${{ steps.checksums.outputs.linux_arm64 }}
         run: |
-          get_sha() { grep "$1" /tmp/checksums.txt | awk '{print $1}'; }
-
-          DARWIN_AMD64=$(get_sha "sendit_${VERSION}_darwin_amd64.tar.gz")
-          DARWIN_ARM64=$(get_sha "sendit_${VERSION}_darwin_arm64.tar.gz")
-          LINUX_AMD64=$(get_sha  "sendit_${VERSION}_linux_amd64.tar.gz")
-          LINUX_ARM64=$(get_sha  "sendit_${VERSION}_linux_arm64.tar.gz")
+          set -euo pipefail
+          VERSION="${TAG#v}"
 
           cat > /tmp/sendit.rb << CASK
           # This file was generated by the release pipeline. DO NOT EDIT.
@@ -153,11 +154,12 @@ jobs:
       - name: Push Scoop manifest
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          TAG: ${{ needs.authorize.outputs.tag }}
+          WIN_AMD64: ${{ steps.checksums.outputs.windows_amd64 }}
+          WIN_ARM64: ${{ steps.checksums.outputs.windows_arm64 }}
         run: |
-          get_sha() { grep "$1" /tmp/checksums.txt | awk '{print $1}'; }
-
-          WIN_AMD64=$(get_sha "sendit_${VERSION}_windows_amd64.zip")
-          WIN_ARM64=$(get_sha "sendit_${VERSION}_windows_arm64.zip")
+          set -euo pipefail
+          VERSION="${TAG#v}"
 
           cat > /tmp/sendit.json << JSON
           {

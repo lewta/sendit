@@ -1166,6 +1166,8 @@ make verify      # canonical pre-PR verification
 `make verify` builds the CLI, runs the linter, executes the full race-enabled
 test suite, and runs the integration and release-script checks. Browser execution tests are opt-in: run `make test-browser` for browser-driver, chromedp, or browser-replay changes. The browser target fails when Chrome or Chromium is unavailable instead of reporting skipped tests as successful verification.
 
+Maintainers publish releases by dispatching `.github/workflows/release-production.yml` from protected `main` with a strict SemVer tag and full commit SHA on `main` ancestry. Tag pushes no longer publish. AUR/tap recovery takes the exact tag and SHA of an existing published release. See the [release security controls](docs/content/docs/security.md#build-provenance) for the required separately managed environment, credentials, and tag protections.
+
 Integration tests spin up local HTTP, DNS, WebSocket, gRPC, and SFTP servers and exercise the complete dispatch pipeline including backoff, graceful shutdown, and the resource gate.
 
 ---

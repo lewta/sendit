@@ -215,25 +215,6 @@ test_rejects_unsupported_release_event() {
     fail "unsupported event did not produce the expected error"
 }
 
-test_workflow_uses_resolver_without_changing_manual_recovery() {
-  local workflow="${repo_root}/.github/workflows/release-taps.yml"
-  grep -Fq 'actions/checkout@' "${workflow}" || fail "workflow does not check out the resolver"
-  grep -Fq '.github/scripts/resolve-release-tag.sh' "${workflow}" || fail "workflow does not call the resolver"
-  grep -Fq 'INPUT_TAG: ${{ inputs.tag }}' "${workflow}" || fail "manual recovery tag is not passed through the environment"
-  grep -Fq 'HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}' "${workflow}" || fail "release branch is not passed through the environment"
-  grep -Fq 'HEAD_SHA: ${{ github.event.workflow_run.head_sha }}' "${workflow}" || fail "release head is not passed through the environment"
-  grep -Fq 'RELEASE_EVENT: ${{ github.event.workflow_run.event }}' "${workflow}" || fail "release event is not passed through the environment"
-  grep -Fq 'echo "value=${INPUT_TAG}"' "${workflow}" || fail "manual recovery no longer uses its explicit tag input"
-  grep -Fq 'TAG: ${{ steps.tag.outputs.value }}' "${workflow}" || fail "resolved tag is not passed through the environment"
-  grep -Fq 'invalid release tag:' "${workflow}" || fail "manual recovery tag is not validated"
-  if grep -Fq 'TAG="${{ steps.tag.outputs.value }}"' "${workflow}"; then
-    fail "resolved tag is interpolated into shell source"
-  fi
-  if grep -Fq 'echo "value=${{ github.event.workflow_run.head_branch }}"' "${workflow}"; then
-    fail "workflow still treats head_branch as the release tag"
-  fi
-}
-
 test_resolves_manual_release_by_exact_head
 test_preserves_tag_triggered_release
 test_rejects_ambiguous_manual_release
@@ -245,5 +226,6 @@ test_manual_release_does_not_treat_tag_shaped_ref_as_tag
 test_rejects_tag_head_mismatch
 test_rejects_non_tag_push
 test_rejects_unsupported_release_event
-test_workflow_uses_resolver_without_changing_manual_recovery
+# The legacy resolver remains tested as a utility. Publication workflows now
+# consume an explicitly authorized tuple; verify-release-policy_test.py guards it.
 echo "release tag resolver tests passed"

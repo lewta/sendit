@@ -1,0 +1,72 @@
+name: Authorize release source
+
+on:
+  workflow_call:
+    inputs:
+      tag:
+        required: true
+        type: string
+      sha:
+        required: true
+        type: string
+      recovery:
+        default: false
+        type: boolean
+    outputs:
+      tag:
+        value: ${{ jobs.authorize.outputs.tag }}
+      sha:
+        value: ${{ jobs.authorize.outputs.sha }}
+      control_sha:
+        value: ${{ jobs.authorize.outputs.control_sha }}
+
+permissions:
+  contents: read
+
+jobs:
+  authorize:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.validate.outputs.tag }}
+      sha: ${{ steps.validate.outputs.sha }}
+      control_sha: ${{ steps.validate.outputs.control_sha }}
+    steps:
+      - name: Require expected repository and protected main dispatch
+        env:
+          REPOSITORY: ${{ github.repository }}
+          DISPATCH_REF: ${{ github.ref }}
+          REF_PROTECTED: ${{ github.ref_protected }}
+        run: |
+          set -euo pipefail
+          test "$REPOSITORY" = lewta/sendit
+          test "$DISPATCH_REF" = refs/heads/main
+          test "$REF_PROTECTED" = true
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          ref: ${{ github.workflow_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+          path: control
+      - name: Bind workflow code to fresh protected main
+        working-directory: control
+        env:
+          WORKFLOW_SHA: ${{ github.workflow_sha }}
+        run: |
+          set -euo pipefail
+          git fetch --force --prune origin '+refs/heads/main:refs/remotes/origin/main'
+          test "$WORKFLOW_SHA" = "$(git rev-parse HEAD)"
+          test "$WORKFLOW_SHA" = "$(git rev-parse refs/remotes/origin/main)"
+      - name: Validate immutable candidate before any candidate execution
+        id: validate
+        working-directory: control
+        env:
+          WORKFLOW_SHA: ${{ github.workflow_sha }}
+          RELEASE_TAG: ${{ inputs.tag }}
+          RELEASE_SHA: ${{ inputs.sha }}
+          RECOVERY: ${{ inputs.recovery }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mode=validate
+          if [[ "$RECOVERY" == true ]]; then mode=recovery; fi
+          bash .github/scripts/validate-release-input.sh "$mode"

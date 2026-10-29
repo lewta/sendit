@@ -1,0 +1,134 @@
+name: Publish authorized release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Strict version tag (for example v1.9.0)'
+        required: true
+      sha:
+        description: 'Full immutable commit SHA on protected main ancestry'
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-production
+  cancel-in-progress: false
+
+jobs:
+  authorize:
+    uses: ./.github/workflows/release-authorize.yml
+    with:
+      tag: ${{ inputs.tag }}
+      sha: ${{ inputs.sha }}
+
+  release:
+    needs: authorize
+    environment: release-production
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          ref: ${{ needs.authorize.outputs.control_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+          path: control
+      - name: Recheck source and create exact tag without force
+        working-directory: control
+        env:
+          WORKFLOW_SHA: ${{ needs.authorize.outputs.control_sha }}
+          RELEASE_TAG: ${{ needs.authorize.outputs.tag }}
+          RELEASE_SHA: ${{ needs.authorize.outputs.sha }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          git fetch --force --prune origin '+refs/heads/main:refs/remotes/origin/main'
+          bash .github/scripts/validate-release-input.sh ensure-tag
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          ref: ${{ needs.authorize.outputs.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+          path: candidate
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e  # v7.0.0
+        with:
+          go-version-file: candidate/go.mod
+          cache-dependency-path: candidate/go.sum
+      - name: Check release configuration
+        uses: goreleaser/goreleaser-action@a4f02ab5355a589de60d917a659ce617ed19b3de  # v7
+        with:
+          version: v2.19.0
+          workdir: candidate
+          args: check
+        env:
+          SKIP_GH_RELEASE: 'false'
+      - name: Re-resolve exact tag immediately before publication
+        working-directory: control
+        env:
+          WORKFLOW_SHA: ${{ needs.authorize.outputs.control_sha }}
+          RELEASE_TAG: ${{ needs.authorize.outputs.tag }}
+          RELEASE_SHA: ${{ needs.authorize.outputs.sha }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          git fetch --force --prune origin '+refs/heads/main:refs/remotes/origin/main'
+          bash .github/scripts/validate-release-input.sh ensure-tag
+      - name: Publish validated candidate
+        uses: goreleaser/goreleaser-action@a4f02ab5355a589de60d917a659ce617ed19b3de  # v7
+        with:
+          version: v2.19.0
+          workdir: candidate
+          args: release --clean --skip=homebrew,scoop
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          GORELEASER_CURRENT_TAG: ${{ needs.authorize.outputs.tag }}
+          SKIP_GH_RELEASE: 'false'
+          AUR_SSH_KEY: ${{ secrets.AUR_SSH_KEY }}
+          MACOS_SIGN_P12: ${{ secrets.MACOS_SIGN_P12 }}
+          MACOS_SIGN_PASSWORD: ${{ secrets.MACOS_SIGN_PASSWORD }}
+          NOTARIZE_KEY: ${{ secrets.NOTARIZE_KEY }}
+          NOTARIZE_KEY_ID: ${{ secrets.NOTARIZE_KEY_ID }}
+          NOTARIZE_ISSUER_ID: ${{ secrets.NOTARIZE_ISSUER_ID }}
+      - name: Attest release artifacts
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8  # v4.2.2
+        with:
+          subject-path: |
+            candidate/dist/sendit_*.tar.gz
+            candidate/dist/sendit_*.zip
+            candidate/dist/sendit_*.deb
+            candidate/dist/sendit_*.rpm
+            candidate/dist/sendit_*.pkg.tar.zst
+            candidate/dist/checksums.txt
+
+  verify-macos:
+    needs: [authorize, release]
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          ref: ${{ needs.authorize.outputs.control_sha }}
+          persist-credentials: false
+      - name: Download final macOS release artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ needs.authorize.outputs.tag }}
+        run: |
+          mkdir release-assets
+          gh release download "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --dir release-assets \
+            --pattern checksums.txt --pattern 'sendit_*_darwin_*.tar.gz'
+      - name: Verify final macOS release artifacts
+        run: .github/scripts/verify-macos-release.sh release-assets
+
+  update-taps:
+    needs: [authorize, release, verify-macos]
+    uses: ./.github/workflows/release-taps.yml
+    with:
+      tag: ${{ needs.authorize.outputs.tag }}
+      sha: ${{ needs.authorize.outputs.sha }}
+    secrets: inherit

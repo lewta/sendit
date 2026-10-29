@@ -1,6 +1,7 @@
 ## [Unreleased]
 
 ### Security
+- Require explicit protected-main release dispatch with an immutable approved commit/tag tuple, separate trusted control checkout, exact tag rechecks, published-release recovery gates, and strict tap checksums before credentials; pin GoReleaser to v2.19.0.
 - Validate advisory traces and OSV metadata against their expected Go contexts before retaining source artifacts; reject malformed or diagnostic substitutions and support offline checks with the macOS Python 3.9 baseline.
 - Pin the existing source-mode govulncheck gate and OSV metadata complement; fail closed on incomplete evidence or reachable symbols, retain sanitized context-bound results for all release targets and integration tests, and enforce the existing advisory exception's package-closure condition and expiry.
 - Upgrade `golang.org/x/net` to v0.62.0 to fix GO-2026-6860, a quadratic-time HTML parsing denial of service reachable through URL crawling.
@@ -11,6 +12,7 @@
 - Bound gRPC reflection descriptor count, aggregate bytes, and dependency depth; deduplicate stable identities and replace quadratic retry registration with a cancellation-aware topological pass.
 
 ### Compatibility notes
+- Pushing a version tag no longer publishes a release. Maintainers dispatch `release-production.yml` from protected `main` with a strict version tag and full commit SHA; AUR and tap recovery also require the exact published release tag and SHA. Deployment requires the separately managed protected environment, credential rotation/relocation, tag rules, and retirement of historical workflow identities.
 - Stop daemons with the old binary before upgrading, then restart them. Hardened controls reject the old unbound numeric PID-file format. Trusted configs retain explicit custom `daemon.pid_file` and `--pid-file` paths on lock-capable local storage; restricted configs must use the operator-owned per-user default.
 - Windows supports hardened PID status records but not graceful `stop` or `reload`; run in the foreground and restart. Darwin and FreeBSD verify the lock and record immediately before signaling, but retain the platform's small final PID exit/reuse race.
 

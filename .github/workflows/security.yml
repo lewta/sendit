@@ -23,10 +23,49 @@ jobs:
           go-version-file: go.mod
           cache: true
 
-      - name: Run govulncheck
+      - name: Install pinned govulncheck
+        env:
+          GOTOOLCHAIN: local
         run: |
-          go install golang.org/x/vuln/cmd/govulncheck@latest
-          govulncheck ./...
+          go install golang.org/x/vuln/cmd/govulncheck@v1.9.0
+
+      - name: Prepare metadata output
+        run: mkdir .vulnerability-raw
+
+      # OSV exits nonzero for module-coordinate findings. A later mandatory
+      # evaluator requires complete JSON; this cannot make an error clean.
+      - name: Collect pinned OSV metadata
+        id: osv
+        uses: google/osv-scanner-action/osv-scanner-action@0a65f82af05cd58cf587827b0bb0489548c18346  # v2.7.0
+        continue-on-error: true
+        with:
+          scan-args: |-
+            scan
+            source
+            --lockfile=go.mod
+            --config=osv-scanner.toml
+            --no-call-analysis=go
+            --all-packages
+            --format=json
+            --output-file=.vulnerability-raw/osv.json
+
+      - name: Evaluate source contexts and metadata
+        if: always()
+        env:
+          GOTOOLCHAIN: local
+          OSV_OUTCOME: ${{ steps.osv.outcome }}
+        run: bash .github/scripts/run-vulnerability-scans.sh "$PWD" "$RUNNER_TEMP/vulnerability-evidence" "$PWD/.vulnerability-raw/osv.json" "$OSV_OUTCOME"
+
+      # Upload only the allowlisted artifact directory. Raw streams and stderr
+      # stay in temporary files and are removed by the scanner wrapper.
+      - name: Retain sanitized advisory evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
+        with:
+          name: vulnerability-evidence
+          path: ${{ runner.temp }}/vulnerability-evidence/
+          retention-days: 14
+          if-no-files-found: error
 
   codeql:
     name: CodeQL

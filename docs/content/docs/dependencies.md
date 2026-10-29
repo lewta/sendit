@@ -49,9 +49,99 @@ HTTP/1.1 and HTTP/2 selection use Go 1.26.10's standard `net/http.Protocols` and
 
 The repository's `.mise.toml` pins Go and golangci-lint. `mise install` provisions both; `mise exec -- make verify` runs the canonical pre-PR gate without shell activation. See the [contributor setup guide](https://github.com/lewta/sendit/blob/main/CONTRIBUTING.md#prerequisites) for installation and configuration trust.
 
+Offline advisory checks use Python 3.9 or newer with its standard library only;
+macOS's system `/usr/bin/python3` is supported. All advisory entry points and test
+runners honor `PYTHON` (default `python3`), for example
+`PYTHON=/usr/bin/python3 make vulnerability-check`. The entry point reports a clear
+version requirement before analysis if Python is older than 3.9. No Python package
+installation or additional toolchain is required.
+
 Browser-driver, chromedp, and browser-replay changes also require `mise exec -- make test-browser` with Chrome or Chromium installed. Browser execution tests are opt-in and are not included in the default gate. The browser target fails if the browser is unavailable.
 
 These are development requirements, not additional runtime dependencies of the sendit binary.
+
+## Advisory evidence
+
+The existing Security `govulncheck` job installs
+`golang.org/x/vuln/cmd/govulncheck@v1.9.0` and analyzes `./...` in source/symbol mode
+with the project's pinned Go 1.26.10. The OSV Scanner v2.7.0 container action is
+pinned to commit `0a65f82af05cd58cf587827b0bb0489548c18346`; it reads `go.mod` with
+Go call analysis disabled and transitive metadata resolution retained. OSV is a module-coordinate
+metadata complement, and makes no independent reachability claim. Its container
+also avoids installing OSV's newer Go build requirement into the project toolchain.
+
+Every run retains all nine release targets: Linux amd64/arm64/armv7/386,
+Darwin amd64/arm64, Windows amd64/arm64, and FreeBSD amd64. These nine contexts
+use `CGO_ENABLED=0`, matching release builds. Two additional Linux amd64 contexts
+use `CGO_ENABLED=1`: the existing default `./...` source scan and an integration
+scan adding `-test -tags=integration`. Each of the eleven contexts records the
+commit, Go version, GOOS/GOARCH/GOARM,
+tags, test selection, roots, module/package closure, and hashes of selected Go,
+assembly, embedded, generated test-main, and module inputs. No context is
+collapsed: identical package or module lists do not establish equivalent source
+or call graphs. Changes to release targets require updating this coverage table
+and the offline context tests.
+
+Structured govulncheck output returns status zero for findings and has no terminal
+completion record. The wrapper therefore records status and completion times only
+after the scanner process returns, binding the result bytes to the selected
+context. The evaluator requires strict JSON through EOF, exactly one expected
+source/symbol config with scanner/Go/database provenance, a matching SBOM, and a
+successful completion sidecar. Reachable symbol findings, scanner/database errors,
+truncation, missing or mismatched context, and incomplete coverage block the job.
+Finding modules and versions must match the selected closure, and every package
+frame must match its recorded package-to-module coordinate. Conditional findings
+must have one module or package frame; symbol traces require valid Go symbols on
+every frame. All retained identifiers are validated by their field grammar and
+context before source JSON is written. Valid reachable traces remain available as
+blocking evidence; malformed source results retain only safe completion and error
+metadata.
+Module/package-only findings remain visible as conditional evidence and are not
+described as reachable. OSV nonzero status for metadata findings is accepted only
+when the pinned action produces a nonempty, complete, parseable result; missing or
+invalid output blocks the final gate. The importer requires the supported pinned
+result shape, the exact `go.mod` lockfile source and Go ecosystem, and coordinates
+in the recorded full Go module graph. Error/incomplete/unknown result records,
+unexpected contexts, and nonzero outcomes without finding evidence block. The
+OSV source path is retained only as the canonical name `go.mod`.
+
+The sanitized `vulnerability-evidence` Actions artifact is retained for 14 days,
+including failed scans. It contains context manifests, source JSON, scanner/Go/DB
+metadata (including the database last-modified time), completion sidecars,
+evaluations, exception evidence, and an OSV metadata summary. Raw streams,
+stderr text, absolute position paths, progress text, and advisory prose are never
+uploaded. Raw govulncheck streams are temporary, limited to 64 MiB per stream,
+and removed after evaluation. Only the named artifact directory is uploaded;
+no environment dumps or request data are collected. Artifact access follows the
+repository's Actions permissions; download access is not made private by the
+sanitizer or upload action.
+
+`osv-scanner.toml` retains GO-2026-5932 only until **2026-12-06**, while the affected
+`golang.org/x/crypto/openpgp` family stays absent from every selected closure.
+The gate checks both conditions independently of OSV's ignore handling. Review
+the retained closures before expiry; an affected-package import or expiry blocks
+the exception. GO-2026-6505 remains a conditional `otel/sdk` module-graph match;
+it has no ignore entry and must not be called reachable without source/symbol
+evidence. Reassess it whenever the SDK/exporter enters a selected package closure
+or a source scan reports a callable symbol.
+
+The local exception reader intentionally accepts only the repository's one known
+`[[IgnoredVulns]]` block: unique `id`, `ignoreUntil`, and `reason` keys, simple
+unescaped double-quoted strings, a bare ISO date, comments, and blank lines. Other
+TOML forms, duplicate fields/blocks, unknown keys, and alternate quoting fail
+closed and require policy review. This small parser supports Python 3.9 without a
+TOML package dependency.
+
+`make vulnerability-check` runs offline evaluator, workflow-policy, scanner-boundary,
+and selected-source fixture tests without installing scanners or consulting a
+database. It is included in `make verify` and CI. A passing fixture suite is not a
+fresh database scan; the first retained CI result is still required for a current
+advisory assessment. To enumerate local contexts with the pinned Go on PATH:
+
+```sh
+bash .github/scripts/verify-build-contexts.sh generate "$PWD" /tmp/sendit-contexts.json
+bash .github/scripts/verify-build-contexts.sh verify /tmp/sendit-contexts.json
+```
 
 ## Alternatives considered
 

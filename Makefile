@@ -22,6 +22,7 @@ lint:
 	$(GOLANGCI_LINT) run ./...
 
 release-check:
+	bash .github/scripts/validate-release-input_test.sh
 	.github/scripts/verify-macos-release_test.sh
 	.github/scripts/resolve-release-tag_test.sh
 

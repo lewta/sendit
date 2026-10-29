@@ -77,8 +77,8 @@ test_requires_checksum_for_each_archive() {
 
 test_release_config_waits_and_runs_final_verifier() {
   grep -Eq '^[[:space:]]+wait:[[:space:]]+true$' "${repo_root}/.goreleaser.yaml" || fail "GoReleaser does not wait for notarization acceptance"
-  grep -Eq '^[[:space:]]+verify-macos:' "${repo_root}/.github/workflows/release.yml" || fail "release workflow has no macOS verification job"
-  grep -Fq '.github/scripts/verify-macos-release.sh' "${repo_root}/.github/workflows/release.yml" || fail "release workflow does not run the final artifact verifier"
+  grep -Eq '^[[:space:]]+verify-macos:' "${repo_root}/.github/workflows/release-production.yml" || fail "release workflow has no macOS verification job"
+  grep -Fq '.github/scripts/verify-macos-release.sh' "${repo_root}/.github/workflows/release-production.yml" || fail "release workflow does not run the final artifact verifier"
 }
 
 test_verifies_both_archives_after_packaging

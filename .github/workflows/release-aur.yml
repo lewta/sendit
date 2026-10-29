@@ -1,45 +1,85 @@
-name: Recover AUR
+name: Recover authorized AUR release
 
-# Publishes an existing GitHub release to AUR without attempting to recreate
-# or modify the immutable GitHub release. Use this after a release succeeds on
-# GitHub but AUR publication fails independently.
 on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Existing release tag to publish to AUR (e.g. v1.6.1)"
+        description: 'Existing published release tag'
+        required: true
+      sha:
+        description: 'Full commit SHA of the existing release tag'
         required: true
 
-permissions: read-all
+permissions:
+  contents: read
 
 jobs:
+  authorize:
+    uses: ./.github/workflows/release-authorize.yml
+    with:
+      tag: ${{ inputs.tag }}
+      sha: ${{ inputs.sha }}
+      recovery: true
+
   publish-aur:
+    needs: authorize
+    environment: release-production
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
+          ref: ${{ needs.authorize.outputs.control_sha }}
           fetch-depth: 0
-          ref: refs/tags/${{ inputs.tag }}
-
+          persist-credentials: false
+          path: control
+      - name: Recheck exact published release
+        working-directory: control
+        env:
+          WORKFLOW_SHA: ${{ needs.authorize.outputs.control_sha }}
+          RELEASE_TAG: ${{ needs.authorize.outputs.tag }}
+          RELEASE_SHA: ${{ needs.authorize.outputs.sha }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          git fetch --force --prune origin '+refs/heads/main:refs/remotes/origin/main'
+          bash .github/scripts/validate-release-input.sh recovery
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          ref: ${{ needs.authorize.outputs.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+          path: candidate
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e  # v7.0.0
         with:
-          go-version-file: go.mod
-          cache: true
-
-      - name: Load recovery configuration from main
+          go-version-file: candidate/go.mod
+          cache-dependency-path: candidate/go.sum
+      - name: Generate completions without publication credentials
+        working-directory: candidate
         run: |
-          git fetch --no-tags origin main --depth=1
-          git show FETCH_HEAD:.goreleaser.yaml > "${RUNNER_TEMP}/goreleaser.yaml"
-
-      - name: Publish existing release to AUR
+          set -euo pipefail
+          mkdir -p completions
+          go run ./cmd/sendit completion bash > completions/sendit.bash
+          go run ./cmd/sendit completion zsh > completions/sendit.zsh
+          go run ./cmd/sendit completion fish > completions/sendit.fish
+      - name: Recheck release immediately before AUR publication
+        working-directory: control
+        env:
+          WORKFLOW_SHA: ${{ needs.authorize.outputs.control_sha }}
+          RELEASE_TAG: ${{ needs.authorize.outputs.tag }}
+          RELEASE_SHA: ${{ needs.authorize.outputs.sha }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          git fetch --force --prune origin '+refs/heads/main:refs/remotes/origin/main'
+          bash .github/scripts/validate-release-input.sh recovery
+      - name: Publish existing release to AUR with trusted config and no hooks
         uses: goreleaser/goreleaser-action@a4f02ab5355a589de60d917a659ce617ed19b3de  # v7
         with:
-          version: "~> v2"
-          args: release --config ${{ runner.temp }}/goreleaser.yaml --clean --skip=homebrew,scoop,notarize
+          version: v2.19.0
+          workdir: candidate
+          args: release --config ../control/.goreleaser.yaml --clean --skip=before,homebrew,scoop,notarize
         env:
           GITHUB_TOKEN: ${{ github.token }}
-          GORELEASER_CURRENT_TAG: ${{ inputs.tag }}
-          SKIP_GH_RELEASE: "true"
+          GORELEASER_CURRENT_TAG: ${{ needs.authorize.outputs.tag }}
+          SKIP_GH_RELEASE: 'true'
           AUR_SSH_KEY: ${{ secrets.AUR_SSH_KEY }}

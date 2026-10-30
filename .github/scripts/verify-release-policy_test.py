@@ -7,6 +7,9 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 class ReleasePolicy(unittest.TestCase):
+    def release_app_auth_check(self):
+        return (ROOT / '.github/workflows/release-app-auth-check.yml').read_text()
+
     def prepare_candidate_job(self):
         text = (ROOT / '.github/workflows/release-production.yml').read_text()
         return text.split('\n  prepare-candidate:\n', 1)[1].split('\n  release:\n', 1)[0]
@@ -128,6 +131,56 @@ class ReleasePolicy(unittest.TestCase):
         self.assertLess(text.index('id: release-tag-token'), text.index(f'GH_TOKEN: {tag_token}'))
         self.assertLess(text.index('id: release-publish-token'), text.index(f'GH_TOKEN: {publish_token}'))
         self.assertLess(text.index(f'GH_TOKEN: {publish_token}'), text.index(f'GITHUB_TOKEN: {publish_token}'))
+
+    def test_release_app_auth_check_is_manual_environment_gated_and_fail_closed(self):
+        text = self.release_app_auth_check()
+        self.assertIn('workflow_dispatch:', text)
+        self.assertIn('expected_main_sha:', text)
+        self.assertIn('required: true', text)
+        self.assertNotRegex(text, r'(?m)^  (push|pull_request|schedule|workflow_call|workflow_run):')
+        self.assertIn('permissions: {}', text)
+        self.assertIn('needs: authorize', text)
+        self.assertIn('environment: release-production', text)
+        self.assertIn('REPOSITORY: ${{ github.repository }}', text)
+        self.assertIn('DISPATCH_REF: ${{ github.ref }}', text)
+        self.assertIn('REF_PROTECTED: ${{ github.ref_protected }}', text)
+        self.assertIn('DISPATCH_SHA: ${{ github.sha }}', text)
+        self.assertIn('EXPECTED_MAIN_SHA: ${{ inputs.expected_main_sha }}', text)
+        self.assertIn('test "$REPOSITORY" = lewta/sendit', text)
+        self.assertIn('test "$DISPATCH_REF" = refs/heads/main', text)
+        self.assertIn('test "$REF_PROTECTED" = true', text)
+        self.assertRegex(text, r'\[\[ "\$EXPECTED_MAIN_SHA" =~ \^\[0-9a-f\]\{40\}\$ \]\]')
+        self.assertIn('test "$EXPECTED_MAIN_SHA" = "$DISPATCH_SHA"', text)
+
+    def test_release_app_auth_check_mints_one_scoped_token_and_only_reads(self):
+        text = self.release_app_auth_check()
+        action = 'actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510'
+        self.assertEqual(text.count(action), 1)
+        self.assertEqual(text.count('client-id: ${{ vars.RELEASE_APP_CLIENT_ID }}'), 1)
+        self.assertEqual(text.count('private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}'), 1)
+        self.assertEqual(text.count('owner: lewta'), 1)
+        self.assertEqual(text.count('repositories: sendit'), 1)
+        self.assertEqual(text.count('permission-contents: write'), 1)
+        self.assertEqual(text.count('permission-workflows: write'), 1)
+        self.assertEqual(text.count('skip-token-revoke: false'), 1)
+        self.assertNotIn('permission-administration:', text)
+        self.assertNotIn('permission-actions:', text)
+        self.assertEqual(text.count('${{ steps.release-app-token.outputs.token }}'), 1)
+        self.assertEqual(text.count('gh api --method GET'), 2)
+        self.assertIn("'/installation/repositories?per_page=100'", text)
+        self.assertIn("'/repos/lewta/sendit/git/ref/heads/main'", text)
+        self.assertIn(".repositories | type == \"array\" and length == 1", text)
+        self.assertIn('.repositories[0].full_name == "lewta/sendit"', text)
+        self.assertIn('.object.sha == $sha', text)
+        self.assertIn('trap cleanup EXIT', text)
+        self.assertNotIn('actions/checkout@', text)
+        self.assertNotIn('git push', text)
+        self.assertNotIn('gh release', text)
+        self.assertNotIn('curl ', text)
+        for line in text.splitlines():
+            if 'gh api ' in line:
+                self.assertIn('gh api --method GET', line)
+
 
     def test_exact_tool_pins_and_env_only_shell_expressions(self):
         uses = 0

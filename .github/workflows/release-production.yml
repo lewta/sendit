@@ -24,12 +24,56 @@ jobs:
       tag: ${{ inputs.tag }}
       sha: ${{ inputs.sha }}
 
-  release:
+  prepare-candidate:
     needs: authorize
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          ref: ${{ needs.authorize.outputs.control_sha }}
+          persist-credentials: false
+          path: control
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          ref: ${{ needs.authorize.outputs.sha }}
+          persist-credentials: false
+          path: candidate
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e  # v7.0.0
+        with:
+          go-version-file: candidate/go.mod
+          cache-dependency-path: candidate/go.sum
+      - name: Check release configuration
+        uses: goreleaser/goreleaser-action@a4f02ab5355a589de60d917a659ce617ed19b3de  # v7
+        with:
+          version: v2.19.0
+          workdir: candidate
+          args: check --config ../control/.goreleaser.yaml
+        env:
+          SKIP_GH_RELEASE: 'false'
+      - name: Generate completions without publication credentials
+        working-directory: candidate
+        run: |
+          set -euo pipefail
+          mkdir -p completions
+          go run ./cmd/sendit completion bash > completions/sendit.bash
+          go run ./cmd/sendit completion zsh > completions/sendit.zsh
+          go run ./cmd/sendit completion fish > completions/sendit.fish
+      - name: Retain credential-free completion artifacts for publication
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
+        with:
+          name: release-completions-${{ needs.authorize.outputs.sha }}
+          path: candidate/completions/
+          if-no-files-found: error
+          retention-days: 1
+
+  release:
+    needs: [authorize, prepare-candidate]
     environment: release-production
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: read
       id-token: write
       attestations: write
     steps:
@@ -39,13 +83,35 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
           path: control
+      - name: Revalidate current source before publication credentials
+        working-directory: control
+        env:
+          WORKFLOW_SHA: ${{ needs.authorize.outputs.control_sha }}
+          RELEASE_TAG: ${{ needs.authorize.outputs.tag }}
+          RELEASE_SHA: ${{ needs.authorize.outputs.sha }}
+        run: |
+          set -euo pipefail
+          git fetch --force --prune origin '+refs/heads/main:refs/remotes/origin/main'
+          bash .github/scripts/validate-release-input.sh validate
+      - name: Mint repository-scoped release token
+        id: release-tag-token
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510  # v3.3.0
+        with:
+          client-id: ${{ vars.RELEASE_APP_CLIENT_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+          owner: lewta
+          repositories: sendit
+          permission-contents: write
+          # Required when the exact release commit includes workflow-file changes.
+          permission-workflows: write
+          skip-token-revoke: false
       - name: Recheck source and create exact tag without force
         working-directory: control
         env:
           WORKFLOW_SHA: ${{ needs.authorize.outputs.control_sha }}
           RELEASE_TAG: ${{ needs.authorize.outputs.tag }}
           RELEASE_SHA: ${{ needs.authorize.outputs.sha }}
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ steps.release-tag-token.outputs.token }}
         run: |
           set -euo pipefail
           git fetch --force --prune origin '+refs/heads/main:refs/remotes/origin/main'
@@ -60,21 +126,30 @@ jobs:
         with:
           go-version-file: candidate/go.mod
           cache-dependency-path: candidate/go.sum
-      - name: Check release configuration
-        uses: goreleaser/goreleaser-action@a4f02ab5355a589de60d917a659ce617ed19b3de  # v7
+      - name: Download credential-free completion artifacts
+        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3  # v8.0.0
         with:
-          version: v2.19.0
-          workdir: candidate
-          args: check
-        env:
-          SKIP_GH_RELEASE: 'false'
+          name: release-completions-${{ needs.authorize.outputs.sha }}
+          path: candidate/completions
+      - name: Mint fresh repository-scoped publication token
+        id: release-publish-token
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510  # v3.3.0
+        with:
+          client-id: ${{ vars.RELEASE_APP_CLIENT_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+          owner: lewta
+          repositories: sendit
+          permission-contents: write
+          # Required when the exact release commit includes workflow-file changes.
+          permission-workflows: write
+          skip-token-revoke: false
       - name: Re-resolve exact tag immediately before publication
         working-directory: control
         env:
           WORKFLOW_SHA: ${{ needs.authorize.outputs.control_sha }}
           RELEASE_TAG: ${{ needs.authorize.outputs.tag }}
           RELEASE_SHA: ${{ needs.authorize.outputs.sha }}
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ steps.release-publish-token.outputs.token }}
         run: |
           set -euo pipefail
           git fetch --force --prune origin '+refs/heads/main:refs/remotes/origin/main'
@@ -84,9 +159,9 @@ jobs:
         with:
           version: v2.19.0
           workdir: candidate
-          args: release --clean --skip=homebrew,scoop
+          args: release --config ../control/.goreleaser.yaml --clean --skip=before,homebrew,scoop
         env:
-          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ steps.release-publish-token.outputs.token }}
           GORELEASER_CURRENT_TAG: ${{ needs.authorize.outputs.tag }}
           SKIP_GH_RELEASE: 'false'
           AUR_SSH_KEY: ${{ secrets.AUR_SSH_KEY }}

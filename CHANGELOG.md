@@ -1,7 +1,7 @@
 ## [Unreleased]
 
 ### Security
-- Add a manual, protected-environment diagnostic that authenticates the dedicated release App, requires an exact protected-main SHA, verifies its single-repository scope with GET-only API requests, and attempts automatic token revocation without creating tags or releases.
+- Verify the dedicated release App in approved run `41109942873`: the temporary token exposed only `lewta/sendit`, the protected-main SHA matched, no repository write was attempted, and post-job cleanup reported token revocation; remove the one-time diagnostic afterward. This did not independently prove installation-wide App scope outside that token request, write permission, tag creation, tag-rule bypass or immutability, signing or notarization, or release publication.
 - Replace the production publisher's generic repository write token with short-lived, environment-gated GitHub App tokens scoped to `lewta/sendit`; prepare candidate-derived completions in a separate credential-free job, retain only contents/workflow writes needed for exact tag creation and release publication, request a fresh token before publishing, and attempt token revocation after the job.
 - Require explicit protected-main release dispatch with an immutable approved commit/tag tuple, separate trusted control checkout, exact tag rechecks, published-release recovery gates, and strict tap checksums before credentials; pin GoReleaser to v2.19.0.
 - Validate advisory traces and OSV metadata against their expected Go contexts before retaining source artifacts; reject malformed or diagnostic substitutions and support offline checks with the macOS Python 3.9 baseline.

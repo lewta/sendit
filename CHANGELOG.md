@@ -34,6 +34,7 @@
 
 ### Changed
 - Bumped modernc.org/sqlite from v1.60.1 to v1.61.1 and aligned its transitive dependencies for upstream prepared-statement, context-cancellation, VFS, and provenance fixes.
+- Bumped github.com/pkg/sftp from v1.13.11 to v1.13.12 for stricter malformed-packet handling and upstream fixes.
 - Bumped github/codeql-action group (init/autobuild/analyze/upload-sarif) from v4.38.3 to v4.39.1 for upstream fixes.
 
 ## [1.8.3] - 2026-10-21

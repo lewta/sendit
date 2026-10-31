@@ -174,7 +174,7 @@ class WorkflowPolicyTest(unittest.TestCase):
         workflow = (SCRIPTS.parent / "workflows/security.yml").read_text()
         self.assertNotIn("govulncheck@latest", workflow)
         self.assertIn("govulncheck@v1.9.0", workflow)
-        self.assertIn("google/osv-scanner-action/osv-scanner-action@0a65f82af05cd58cf587827b0bb0489548c18346", workflow)
+        self.assertIn("google/osv-scanner-action/osv-scanner-action@9a96bc4d2b09685b6142bcfe25a3dc17cb2d7347", workflow)
         self.assertNotIn("go install github.com/google/osv-scanner", workflow)
         self.assertIn("--no-call-analysis=go", workflow)
         self.assertIn("--all-packages", workflow)

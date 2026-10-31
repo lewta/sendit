@@ -4,6 +4,7 @@
 - Verify the dedicated release App in approved run `41109942873`: the temporary token exposed only `lewta/sendit`, the protected-main SHA matched, no repository write was attempted, and post-job cleanup reported token revocation; remove the one-time diagnostic afterward. This did not independently prove installation-wide App scope outside that token request, write permission, tag creation, tag-rule bypass or immutability, signing or notarization, or release publication.
 - Replace the production publisher's generic repository write token with short-lived, environment-gated GitHub App tokens scoped to `lewta/sendit`; prepare candidate-derived completions in a separate credential-free job, retain only contents/workflow writes needed for exact tag creation and release publication, request a fresh token before publishing, and attempt token revocation after the job.
 - Require explicit protected-main release dispatch with an immutable approved commit/tag tuple, separate trusted control checkout, exact tag rechecks, published-release recovery gates, and strict tap checksums before credentials; pin GoReleaser to v2.19.0.
+- Updated the immutable actions/download-artifact pin used by the release workflow to v8.0.2.
 - Validate advisory traces and OSV metadata against their expected Go contexts before retaining source artifacts; reject malformed or diagnostic substitutions and support offline checks with the macOS Python 3.9 baseline.
 - Pin the existing source-mode govulncheck gate and OSV metadata complement; fail closed on incomplete evidence or reachable symbols, retain sanitized context-bound results for all release targets and integration tests, and enforce the existing advisory exception's package-closure condition and expiry.
 - Upgrade `golang.org/x/net` to v0.62.0 to fix GO-2026-6860, a quadratic-time HTML parsing denial of service reachable through URL crawling.
@@ -33,7 +34,7 @@
 - Require explicit policy grants for special-use network destinations and fail closed for reserved/unallocated IPv6 space. Support native Windows drive and UNC grants with metadata-based junction/symlink resolution and platform-aware containment while retaining strict POSIX path rules.
 
 ### Changed
-- Bumped actions/download-artifact from v8.0.0 to v8.0.2 for upstream fixes.
+- Bumped github.com/pkg/sftp from v1.13.11 to v1.13.12 for stricter malformed-packet handling and upstream fixes.
 - Bumped github/codeql-action group (init/autobuild/analyze/upload-sarif) from v4.38.3 to v4.39.1 for upstream fixes.
 
 ## [1.8.3] - 2026-10-21

@@ -7,6 +7,7 @@
 - Updated the immutable actions/download-artifact pin used by the release workflow to v8.0.2.
 - Validate advisory traces and OSV metadata against their expected Go contexts before retaining source artifacts; reject malformed or diagnostic substitutions and support offline checks with the macOS Python 3.9 baseline.
 - Pin the existing source-mode govulncheck gate and OSV metadata complement; fail closed on incomplete evidence or reachable symbols, retain sanitized context-bound results for all release targets and integration tests, and enforce the existing advisory exception's package-closure condition and expiry.
+- Updated the immutable google/osv-scanner-action pin for v2.7.0 to its current upstream commit SHA.
 - Upgrade `golang.org/x/net` to v0.62.0 to fix GO-2026-6860, a quadratic-time HTML parsing denial of service reachable through URL crawling.
 - Move daemon PID records to a private per-user directory by default; create and lock them exclusively without following links, reject unsafe or legacy records before signaling, use Linux pidfds for stable targets, and remove only the file identity owned by the running process.
 - Require operator-supplied Grafana administrator credentials and loopback-only publication in the optional observability profile; provide an explicit local anonymous Viewer override and pin Prometheus 3.15.1/Grafana 13.2.4 image digests.

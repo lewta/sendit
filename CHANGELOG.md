@@ -33,6 +33,7 @@
 - Require explicit policy grants for special-use network destinations and fail closed for reserved/unallocated IPv6 space. Support native Windows drive and UNC grants with metadata-based junction/symlink resolution and platform-aware containment while retaining strict POSIX path rules.
 
 ### Changed
+- Bumped google.golang.org/grpc from v1.84.0 to v1.85.0 and aligned google.golang.org/genproto/googleapis/rpc for upstream fixes.
 - Bumped github/codeql-action group (init/autobuild/analyze/upload-sarif) from v4.38.3 to v4.39.1 for upstream fixes.
 
 ## [1.8.3] - 2026-10-21

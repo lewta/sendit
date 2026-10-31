@@ -34,6 +34,7 @@
 
 ### Changed
 - Bumped github.com/pkg/sftp from v1.13.11 to v1.13.12 for stricter malformed-packet handling and upstream fixes.
+- Bumped google.golang.org/grpc from v1.84.0 to v1.85.0 and aligned google.golang.org/genproto/googleapis/rpc for upstream fixes.
 - Bumped github/codeql-action group (init/autobuild/analyze/upload-sarif) from v4.38.3 to v4.39.1 for upstream fixes.
 
 ## [1.8.3] - 2026-10-21

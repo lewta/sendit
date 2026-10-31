@@ -90,7 +90,7 @@ class ReleasePolicy(unittest.TestCase):
         self.assertLess(text.index('id: release-publish-token'), text.rindex('validate-release-input.sh ensure-tag'))
         self.assertIn('args: release --config ../control/.goreleaser.yaml --clean --skip=before,homebrew,scoop', text)
         self.assertNotIn('go run ./cmd/sendit', text)
-        self.assertIn('actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3', text)
+        self.assertIn('actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333', text)
         self.assertIn('name: release-completions-${{ needs.authorize.outputs.sha }}', text)
 
         for name in ('release-aur', 'release-taps'):

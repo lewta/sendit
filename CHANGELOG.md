@@ -6,6 +6,7 @@
 - Require explicit protected-main release dispatch with an immutable approved commit/tag tuple, separate trusted control checkout, exact tag rechecks, published-release recovery gates, and strict tap checksums before credentials; pin GoReleaser to v2.19.0.
 - Validate advisory traces and OSV metadata against their expected Go contexts before retaining source artifacts; reject malformed or diagnostic substitutions and support offline checks with the macOS Python 3.9 baseline.
 - Pin the existing source-mode govulncheck gate and OSV metadata complement; fail closed on incomplete evidence or reachable symbols, retain sanitized context-bound results for all release targets and integration tests, and enforce the existing advisory exception's package-closure condition and expiry.
+- Updated the immutable google/osv-scanner-action pin for v2.7.0 to its current upstream commit SHA.
 - Upgrade `golang.org/x/net` to v0.62.0 to fix GO-2026-6860, a quadratic-time HTML parsing denial of service reachable through URL crawling.
 - Move daemon PID records to a private per-user directory by default; create and lock them exclusively without following links, reject unsafe or legacy records before signaling, use Linux pidfds for stable targets, and remove only the file identity owned by the running process.
 - Require operator-supplied Grafana administrator credentials and loopback-only publication in the optional observability profile; provide an explicit local anonymous Viewer override and pin Prometheus 3.15.1/Grafana 13.2.4 image digests.
@@ -33,7 +34,7 @@
 - Require explicit policy grants for special-use network destinations and fail closed for reserved/unallocated IPv6 space. Support native Windows drive and UNC grants with metadata-based junction/symlink resolution and platform-aware containment while retaining strict POSIX path rules.
 
 ### Changed
-- Updated the immutable google/osv-scanner-action pin for v2.7.0 to its current upstream commit SHA.
+- Bumped github.com/pkg/sftp from v1.13.11 to v1.13.12 for stricter malformed-packet handling and upstream fixes.
 - Bumped github/codeql-action group (init/autobuild/analyze/upload-sarif) from v4.38.3 to v4.39.1 for upstream fixes.
 
 ## [1.8.3] - 2026-10-21

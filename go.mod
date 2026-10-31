@@ -10,7 +10,7 @@ require (
 	github.com/cucumber/godog v0.16.0
 	github.com/go-viper/mapstructure/v2 v2.5.0
 	github.com/miekg/dns v1.1.73
-	github.com/pkg/sftp v1.13.11
+	github.com/pkg/sftp v1.13.12
 	github.com/prometheus/client_golang v1.25.0
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/rs/zerolog v1.35.1

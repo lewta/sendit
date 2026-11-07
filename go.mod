@@ -5,7 +5,7 @@ go 1.26.10
 require (
 	github.com/charmbracelet/bubbletea v1.3.10
 	github.com/charmbracelet/lipgloss v1.1.0
-	github.com/chromedp/chromedp v0.21.0
+	github.com/chromedp/chromedp v0.22.0
 	github.com/coder/websocket v1.8.15
 	github.com/cucumber/godog v0.16.0
 	github.com/go-viper/mapstructure/v2 v2.5.0
@@ -36,7 +36,7 @@ require (
 	github.com/charmbracelet/x/ansi v0.10.1 // indirect
 	github.com/charmbracelet/x/cellbuf v0.0.13-0.20250311204145-2c3ea96c31dd // indirect
 	github.com/charmbracelet/x/term v0.2.1 // indirect
-	github.com/chromedp/cdproto v0.157.8 // indirect
+	github.com/chromedp/cdproto v0.159.0 // indirect
 	github.com/cucumber/gherkin/go/v42 v42.0.0 // indirect
 	github.com/cucumber/messages/go/v34 v34.2.0 // indirect
 	github.com/dustin/go-humanize v1.1.0 // indirect

@@ -36,6 +36,7 @@
 
 ### Changed
 - Bump github.com/chromedp/chromedp from v0.21.0 to v0.22.0 and github.com/chromedp/cdproto to v0.159.0 for upstream browser automation and protocol updates.
+- Bump go.yaml.in/yaml/v3 from v3.0.5 to v3.0.6 for upstream fixes, including quoting literal `<<` keys during encoding.
 - Bumped modernc.org/sqlite from v1.60.1 to v1.61.1 and aligned its transitive dependencies for upstream prepared-statement, context-cancellation, VFS, and provenance fixes.
 - Bumped github.com/pkg/sftp from v1.13.11 to v1.13.12 for stricter malformed-packet handling and upstream fixes.
 - Bumped google.golang.org/grpc from v1.84.0 to v1.85.0 and aligned google.golang.org/genproto/googleapis/rpc for upstream fixes.

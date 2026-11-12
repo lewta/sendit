@@ -14,20 +14,20 @@ import sys
 SCRIPTS = Path(__file__).resolve().parent
 SHA = "a" * 40
 CTX = {"id": "linux-amd64", "goos": "linux", "goarch": "amd64", "goarm": "",
-       "tags": [], "tests": False, "cgo_enabled": "0", "go_version": "go1.26.10",
+       "tags": [], "tests": False, "cgo_enabled": "0", "go_version": "go1.26.11",
        "commit": SHA, "roots": ["example.org/fixture"],
        "packages": ["example.org/fixture", "net/http"],
-       "package_modules": {"example.org/fixture": {"path": "example.org/fixture"}, "net/http": {"path": "stdlib", "version": "v1.26.10"}},
+       "package_modules": {"example.org/fixture": {"path": "example.org/fixture"}, "net/http": {"path": "stdlib", "version": "v1.26.11"}},
        "modules": [{"path": "example.org/fixture"},
-       {"path": "stdlib", "version": "v1.26.10"}],
+       {"path": "stdlib", "version": "v1.26.11"}],
        "inputs": [{"package": "example.org/fixture", "kind": "GoFiles", "file": "main.go", "sha256": "b" * 64}],
        "input_digest": "c" * 64}
 CONFIG = {"protocol_version": "v1.0.0", "scanner_name": "govulncheck",
-          "scanner_version": "v1.9.0", "go_version": "go1.26.10",
+          "scanner_version": "v1.9.0", "go_version": "go1.26.11",
           "db": "https://vuln.go.dev", "db_last_modified": "2026-10-27T12:00:00Z",
           "scan_mode": "source", "scan_level": "symbol"}
 META = {"source": {"path": "go.mod", "type": "lockfile"},
-        "modules": [{"path": "example.org/fixture"}, {"path": "stdlib", "version": "v1.26.10"}]}
+        "modules": [{"path": "example.org/fixture"}, {"path": "stdlib", "version": "v1.26.11"}]}
 
 
 def load_evidence():
@@ -38,7 +38,7 @@ def load_evidence():
 
 
 def osv_fixture(findings=False):
-    package = {"package": {"name": "stdlib", "version": "1.26.10", "ecosystem": "Go"}}
+    package = {"package": {"name": "stdlib", "version": "1.26.11", "ecosystem": "Go"}}
     if findings:
         package["vulnerabilities"] = [{"id": "GO-2026-6505", "summary": "token=fixture-secret"}]
     return {"results": [{"source": {"path": "go.mod", "type": "lockfile"}, "packages": [package]}],
@@ -51,7 +51,7 @@ class EvaluatorTest(unittest.TestCase):
         self.addCleanup(self.tmp.cleanup)
         self.root = Path(self.tmp.name)
         self.messages = [{"config": copy.deepcopy(CONFIG)}, {"SBOM": {
-            "go_version": "go1.26.10", "roots": CTX["roots"], "modules": CTX["modules"]}}]
+            "go_version": "go1.26.11", "roots": CTX["roots"], "modules": CTX["modules"]}}]
 
     def run_gate(self, messages=None, completion=True, status=0, mutate=None, raw=None):
         context = self.root / "context.json"
@@ -76,12 +76,12 @@ class EvaluatorTest(unittest.TestCase):
     def finding(self, frame):
         frame = dict(frame)
         if frame.get("module") == "stdlib":
-            frame.setdefault("version", "v1.26.10")
+            frame.setdefault("version", "v1.26.11")
         return self.messages + [{"osv": {"id": "GO-2099-0001"}},
                                 {"finding": {"osv": "GO-2099-0001", "trace": [frame]}}]
 
     def test_malformed_levels_types_or_unselected_trace_coordinates_block(self):
-        valid = {"module": "stdlib", "version": "v1.26.10"}
+        valid = {"module": "stdlib", "version": "v1.26.11"}
         traces = [[valid, valid], [dict(valid, receiver="Client")], [dict(valid, position={"line": 1})],
                   [dict(valid, module="not.in.context")], [dict(valid, version="v1.26.9")],
                   [dict(valid, package="unexpected/package")], [dict(valid, package=[])],
@@ -202,7 +202,7 @@ class ScannerBoundaryTest(unittest.TestCase):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
         self.root = Path(self.tmp.name)
-        (self.root / "go.mod").write_text("module example.org/fixture\n\ngo 1.26.10\n")
+        (self.root / "go.mod").write_text("module example.org/fixture\n\ngo 1.26.11\n")
         (self.root / "main.go").write_text("package fixture\nconst X = 1\n")
         (self.root / "osv-scanner.toml").write_text('[[IgnoredVulns]]\nid = "GO-2026-5932"\nignoreUntil = 2026-12-06\nreason = "Package closure checked"\n')
         subprocess.run(["git", "init", "-q", str(self.root)], check=True)
@@ -218,7 +218,7 @@ ctx = next(c for c in contexts if c["goos"] == os.environ["GOOS"] and c["goarch"
 assert "-json" in sys.argv and "-mode=source" in sys.argv and "-scan=symbol" in sys.argv and sys.argv[-1] == "./..."
 assert ("-tags=integration" in sys.argv) == ctx["tests"]
 assert not (out / ctx["id"] / "completion.json").exists(), "completion before process return"
-print(json.dumps({"config": {"protocol_version": "v1.0.0", "scanner_name": "govulncheck", "scanner_version": "v1.9.0", "go_version": "go1.26.10", "db": "https://vuln.go.dev", "db_last_modified": "2026-10-27T12:00:00Z", "scan_mode": "source", "scan_level": "symbol", "diagnostic": "token=fixture-secret /Users/private/build"}}))
+print(json.dumps({"config": {"protocol_version": "v1.0.0", "scanner_name": "govulncheck", "scanner_version": "v1.9.0", "go_version": "go1.26.11", "db": "https://vuln.go.dev", "db_last_modified": "2026-10-27T12:00:00Z", "scan_mode": "source", "scan_level": "symbol", "diagnostic": "token=fixture-secret /Users/private/build"}}))
 sbom = {"go_version": ctx["go_version"], "roots": ctx["roots"], "modules": ctx["modules"]}
 if os.environ.get("FAKE_FAILURE") == "inject":
  field, value = os.environ["INJECT_FIELD"], os.environ["INJECT_VALUE"]
@@ -257,7 +257,7 @@ assert sys.argv[1:3] == ["scan", "source"]
 assert "--no-call-analysis=go" in sys.argv
 assert "--format=json" in sys.argv
 if os.environ.get("FAKE_FAILURE") == "osv-error": sys.exit(2)
-data = {"experimental_config": {"licenses": {"summary": False, "allowlist": None}}, "results": [{"source": {"path": "go.mod", "type": "lockfile"}, "packages": [{"package": {"name": "stdlib", "version": "1.26.10", "ecosystem": "Go"}, "vulnerabilities": [{"id": "GO-2026-6505", "summary": "token=fixture-secret"}]}]}]}
+data = {"experimental_config": {"licenses": {"summary": False, "allowlist": None}}, "results": [{"source": {"path": "go.mod", "type": "lockfile"}, "packages": [{"package": {"name": "stdlib", "version": "1.26.11", "ecosystem": "Go"}, "vulnerabilities": [{"id": "GO-2026-6505", "summary": "token=fixture-secret"}]}]}]}
 if os.environ.get("FAKE_FAILURE") == "osv-inject":
  field, value = os.environ["INJECT_OSV_FIELD"], os.environ["INJECT_VALUE"]
  if field == "source": data["results"][0]["source"]["path"] = value

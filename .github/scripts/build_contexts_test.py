@@ -13,7 +13,7 @@ class BuildContextsTest(unittest.TestCase):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
         self.root = Path(self.tmp.name)
-        (self.root / "go.mod").write_text("module example.org/fixture\n\ngo 1.26.10\n")
+        (self.root / "go.mod").write_text("module example.org/fixture\n\ngo 1.26.11\n")
         (self.root / "common.go").write_text("package fixture\nconst Common = 1\n")
         for platform in ("linux", "darwin", "windows", "freebsd"):
             (self.root / ("platform_" + platform + ".go")).write_text("package fixture\nconst Platform = \"" + platform + "\"\n")
@@ -37,6 +37,11 @@ class BuildContextsTest(unittest.TestCase):
                                        "freebsd-amd64", "linux-amd64-integration", "linux-amd64-default"})
         self.assertEqual(contexts["linux-amd64-default"]["cgo_enabled"], "1")
         self.assertEqual(contexts["linux-amd64"]["cgo_enabled"], "0")
+        for context in contexts.values():
+            self.assertEqual(context["go_version"], "go1.26.11")
+            self.assertIn({"path": "stdlib", "version": "v1.26.11"}, context["modules"])
+        self.assertIn({"path": "stdlib", "version": "v1.26.11"},
+                      manifest["metadata_context"]["modules"])
         linux, darwin = contexts["linux-amd64"], contexts["darwin-amd64"]
         self.assertEqual(linux["packages"], darwin["packages"])
         self.assertEqual(linux["modules"], darwin["modules"])

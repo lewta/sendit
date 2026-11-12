@@ -23,7 +23,7 @@ if sys.version_info < (3, 9):
 MAX_BYTES = 64 * 1024 * 1024
 TOOL = "v1.9.0"
 OSV_TOOL = "v2.7.0"
-GO_VERSION = "go1.26.10"
+GO_VERSION = "go1.26.11"
 DATABASE = "https://vuln.go.dev"
 # Retain all release targets. No package/module-list equivalence collapse.
 TARGETS = [("linux", "amd64", ""), ("linux", "arm64", ""), ("linux", "arm", "7"),
@@ -235,13 +235,13 @@ def generate_contexts(root, output):
     for context in target_contexts():
         env = build_env(context)
         version = go_output(root, env, "env", "GOVERSION").decode().strip()
-        require(version == GO_VERSION, "Go 1.26.10 required for advisory evidence")
+        require(version == GO_VERSION, "Go 1.26.11 required for advisory evidence")
         args = ["list", "-deps", "-json"]
         if context["tests"]:
             args += ["-test", "-tags=integration"]
         packages = stream(go_output(root, env, *args, "./..."))
         roots, names, inputs, package_modules = set(), set(), [], {}
-        modules = {("stdlib", "v1.26.10")}
+        modules = {("stdlib", "v1.26.11")}
         for pkg in packages:
             require(not pkg.get("Error") and not pkg.get("DepsErrors") and not pkg.get("Incomplete"), "incomplete package closure")
             name = package_path(pkg["ImportPath"])
@@ -253,7 +253,7 @@ def generate_contexts(root, output):
                 module = module.get("Replace") or module
                 require(not module["Path"].startswith(("/", ".")), "local module replacements require explicit review")
                 modules.add((module["Path"], module.get("Version", "")))
-            coordinate = {"path": module["Path"], "version": module.get("Version", "")} if module else {"path": "stdlib", "version": "v1.26.10"}
+            coordinate = {"path": module["Path"], "version": module.get("Version", "")} if module else {"path": "stdlib", "version": "v1.26.11"}
             package_modules[name] = coordinate
             fields = FILE_FIELDS + (("TestGoFiles", "XTestGoFiles", "TestEmbedFiles", "XTestEmbedFiles") if context["tests"] else ())
             for field in fields:
@@ -280,7 +280,7 @@ def generate_contexts(root, output):
                        inputs=inputs, input_digest=digest(canonical(inputs)))
         contexts.append(context)
     graph = stream(go_output(root, build_env(contexts[0]), "list", "-m", "-json", "all"))
-    metadata_modules = [{"path": "stdlib", "version": "v1.26.10"}]
+    metadata_modules = [{"path": "stdlib", "version": "v1.26.11"}]
     for module in graph:
         require(not module.get("Replace"), "OSV replacement metadata requires review")
         metadata_modules.append({"path": module["Path"], "version": module.get("Version", "")})

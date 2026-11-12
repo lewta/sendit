@@ -11,7 +11,7 @@ compatible with the project's [MIT licence](https://github.com/lewta/sendit/blob
 The module graph is managed with `go mod tidy` and kept minimal — no dependency
 appears that cannot be justified by the table below.
 
-HTTP/1.1 and HTTP/2 selection use Go 1.26.10's standard `net/http.Protocols` and TLS ALPN verification; no new transport dependency is required. HTTP/3/QUIC dependency and distribution choices remain tracked in [#320](https://github.com/lewta/sendit/issues/320).
+HTTP/1.1 and HTTP/2 selection use Go 1.26.11's standard `net/http.Protocols` and TLS ALPN verification; no new transport dependency is required. HTTP/3/QUIC dependency and distribution choices remain tracked in [#320](https://github.com/lewta/sendit/issues/320).
 
 ## Direct dependencies
 
@@ -64,7 +64,7 @@ These are development requirements, not additional runtime dependencies of the s
 
 The existing Security `govulncheck` job installs
 `golang.org/x/vuln/cmd/govulncheck@v1.9.0` and analyzes `./...` in source/symbol mode
-with the project's pinned Go 1.26.10. The OSV Scanner v2.7.0 container action is
+with the project's pinned Go 1.26.11. The OSV Scanner v2.7.0 container action is
 pinned to commit `0a65f82af05cd58cf587827b0bb0489548c18346`; it reads `go.mod` with
 Go call analysis disabled and transitive metadata resolution retained. OSV is a module-coordinate
 metadata complement, and makes no independent reachability claim. Its container

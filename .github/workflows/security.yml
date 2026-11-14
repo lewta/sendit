@@ -36,7 +36,7 @@ jobs:
       # evaluator requires complete JSON; this cannot make an error clean.
       - name: Collect pinned OSV metadata
         id: osv
-        uses: google/osv-scanner-action/osv-scanner-action@d3c1414ded37de590f207572e37a7d180f1d0ef7  # v2.7.0
+        uses: google/osv-scanner-action/osv-scanner-action@d3c1414ded37de590f207572e37a7d180f1d0ef7  # v2.7.1
         continue-on-error: true
         with:
           scan-args: |-

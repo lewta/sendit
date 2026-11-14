@@ -1,6 +1,7 @@
 ## [Unreleased]
 
 ### Security
+- Update the pinned OSV scanner action to upstream commit `d3c1414ded37de590f207572e37a7d180f1d0ef7`, using the v2.7.1 scanner image, and keep the offline workflow-policy fixture aligned with that pin.
 - Upgrade Go to 1.26.11 across local, docs-module, advisory-evidence, and digest-pinned Docker build toolchains for the upstream toolchain and `net/http` security fixes.
 - Verify the dedicated release App in approved run `41109942873`: the temporary token exposed only `lewta/sendit`, the protected-main SHA matched, no repository write was attempted, and post-job cleanup reported token revocation; remove the one-time diagnostic afterward. This did not independently prove installation-wide App scope outside that token request, write permission, tag creation, tag-rule bypass or immutability, signing or notarization, or release publication.
 - Replace the production publisher's generic repository write token with short-lived, environment-gated GitHub App tokens scoped to `lewta/sendit`; prepare candidate-derived completions in a separate credential-free job, retain only contents/workflow writes needed for exact tag creation and release publication, request a fresh token before publishing, and attempt token revocation after the job.
@@ -37,6 +38,7 @@
 
 ### Changed
 - Update `github.com/chromedp/chromedp` from v0.22.0 to v0.23.0 for ordered target-detachment handling and the new detached-target and listener APIs.
+- Update `golang.org/x/sys` from v0.49.0 to v0.50.0 for platform syscall, memory-information, and Unix control-message validation fixes.
 - Bump the github/codeql-action group (init/autobuild/analyze/upload-sarif) from v4.39.1 to v4.39.3 for upstream fixes.
 - Bump github.com/chromedp/chromedp from v0.21.0 to v0.22.0 and github.com/chromedp/cdproto to v0.159.0 for upstream browser automation and protocol updates.
 - Bump go.yaml.in/yaml/v3 from v3.0.5 to v3.0.6 for upstream fixes, including quoting literal `<<` keys during encoding.

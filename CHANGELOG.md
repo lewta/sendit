@@ -1,6 +1,7 @@
 ## [Unreleased]
 
 ### Security
+- Update the pinned OSV scanner action to upstream commit `d3c1414ded37de590f207572e37a7d180f1d0ef7`, using the v2.7.1 scanner image, and keep the offline workflow-policy fixture aligned with that pin.
 - Upgrade Go to 1.26.11 across local, docs-module, advisory-evidence, and digest-pinned Docker build toolchains for the upstream toolchain and `net/http` security fixes.
 - Verify the dedicated release App in approved run `41109942873`: the temporary token exposed only `lewta/sendit`, the protected-main SHA matched, no repository write was attempted, and post-job cleanup reported token revocation; remove the one-time diagnostic afterward. This did not independently prove installation-wide App scope outside that token request, write permission, tag creation, tag-rule bypass or immutability, signing or notarization, or release publication.
 - Replace the production publisher's generic repository write token with short-lived, environment-gated GitHub App tokens scoped to `lewta/sendit`; prepare candidate-derived completions in a separate credential-free job, retain only contents/workflow writes needed for exact tag creation and release publication, request a fresh token before publishing, and attempt token revocation after the job.
@@ -36,7 +37,7 @@
 - Require explicit policy grants for special-use network destinations and fail closed for reserved/unallocated IPv6 space. Support native Windows drive and UNC grants with metadata-based junction/symlink resolution and platform-aware containment while retaining strict POSIX path rules.
 
 ### Changed
-- Update `modernc.org/sqlite` from v1.61.1 to v1.62.0 with its required `modernc.org/libc` v1.80.1 dependency.
+- Update `golang.org/x/sys` from v0.49.0 to v0.50.0 for platform syscall, memory-information, and Unix control-message validation fixes.
 - Bump the github/codeql-action group (init/autobuild/analyze/upload-sarif) from v4.39.1 to v4.39.3 for upstream fixes.
 - Bump github.com/chromedp/chromedp from v0.21.0 to v0.22.0 and github.com/chromedp/cdproto to v0.159.0 for upstream browser automation and protocol updates.
 - Bump go.yaml.in/yaml/v3 from v3.0.5 to v3.0.6 for upstream fixes, including quoting literal `<<` keys during encoding.
@@ -44,6 +45,8 @@
 - Bumped github.com/pkg/sftp from v1.13.11 to v1.13.12 for stricter malformed-packet handling and upstream fixes.
 - Bumped google.golang.org/grpc from v1.84.0 to v1.85.0 and aligned google.golang.org/genproto/googleapis/rpc for upstream fixes.
 - Bumped github/codeql-action group (init/autobuild/analyze/upload-sarif) from v4.38.3 to v4.39.1 for upstream fixes.
+- Update `modernc.org/sqlite` from v1.61.1 to v1.62.0 with its required `modernc.org/libc` v1.80.1 dependency.
+
 
 ## [1.8.3] - 2026-10-21
 

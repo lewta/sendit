@@ -37,6 +37,7 @@
 - Require explicit policy grants for special-use network destinations and fail closed for reserved/unallocated IPv6 space. Support native Windows drive and UNC grants with metadata-based junction/symlink resolution and platform-aware containment while retaining strict POSIX path rules.
 
 ### Changed
+- Bumped `github.com/chromedp/chromedp` from v0.23.0 to v0.24.0 and aligned `github.com/chromedp/cdproto` to v0.160.1.
 - Update `github.com/chromedp/chromedp` from v0.22.0 to v0.23.0 for ordered target-detachment handling and the new detached-target and listener APIs.
 - Update `golang.org/x/sys` from v0.49.0 to v0.50.0 for platform syscall, memory-information, and Unix control-message validation fixes.
 - Bump the github/codeql-action group (init/autobuild/analyze/upload-sarif) from v4.39.1 to v4.39.3 for upstream fixes.

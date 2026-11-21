@@ -39,6 +39,7 @@
 ### Changed
 - Bumped `golang.org/x/net` from v0.62.0 to v0.63.0 and `golang.org/x/crypto` from v0.58.0 to v0.59.0, aligning the related `golang.org/x` modules. The updated SSH library no longer supports DSA.
 - Update `github.com/chromedp/chromedp` from v0.22.0 to v0.23.0 for ordered target-detachment handling and the new detached-target and listener APIs.
+- Bumped `github.com/chromedp/chromedp` from v0.23.0 to v0.24.0 and aligned `github.com/chromedp/cdproto` to v0.160.1.
 - Update `golang.org/x/sys` from v0.49.0 to v0.50.0 for platform syscall, memory-information, and Unix control-message validation fixes.
 - Bump the github/codeql-action group (init/autobuild/analyze/upload-sarif) from v4.39.1 to v4.39.3 for upstream fixes.
 - Bump github.com/chromedp/chromedp from v0.21.0 to v0.22.0 and github.com/chromedp/cdproto to v0.159.0 for upstream browser automation and protocol updates.

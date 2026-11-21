@@ -42,6 +42,7 @@
 - Bumped `github.com/chromedp/chromedp` from v0.23.0 to v0.24.0 and aligned `github.com/chromedp/cdproto` to v0.160.1.
 - Update `golang.org/x/sys` from v0.49.0 to v0.50.0 for platform syscall, memory-information, and Unix control-message validation fixes.
 - Bump the github/codeql-action group (init/autobuild/analyze/upload-sarif) from v4.39.1 to v4.39.3 for upstream fixes.
+- Bumped the `peaceiris/actions-hugo` action from v3.2.1 to v3.3.0 for the documentation build, keeping the Hugo version at 0.147.1.
 - Bump github.com/chromedp/chromedp from v0.21.0 to v0.22.0 and github.com/chromedp/cdproto to v0.159.0 for upstream browser automation and protocol updates.
 - Bump go.yaml.in/yaml/v3 from v3.0.5 to v3.0.6 for upstream fixes, including quoting literal `<<` keys during encoding.
 - Bumped modernc.org/sqlite from v1.60.1 to v1.61.1 and aligned its transitive dependencies for upstream prepared-statement, context-cancellation, VFS, and provenance fixes.

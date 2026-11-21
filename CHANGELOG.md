@@ -37,7 +37,7 @@
 - Require explicit policy grants for special-use network destinations and fail closed for reserved/unallocated IPv6 space. Support native Windows drive and UNC grants with metadata-based junction/symlink resolution and platform-aware containment while retaining strict POSIX path rules.
 
 ### Changed
-- Bumped `actions/setup-go` from v7.0.0 to v7.1.0 in CI, documentation, security, and release workflows while retaining the repository's configured Go version.
+- Bumped `golang.org/x/net` from v0.62.0 to v0.63.0 and `golang.org/x/crypto` from v0.58.0 to v0.59.0, aligning the related `golang.org/x` modules. The updated SSH library no longer supports DSA.
 - Update `github.com/chromedp/chromedp` from v0.22.0 to v0.23.0 for ordered target-detachment handling and the new detached-target and listener APIs.
 - Update `golang.org/x/sys` from v0.49.0 to v0.50.0 for platform syscall, memory-information, and Unix control-message validation fixes.
 - Bump the github/codeql-action group (init/autobuild/analyze/upload-sarif) from v4.39.1 to v4.39.3 for upstream fixes.
@@ -47,6 +47,7 @@
 - Bumped github.com/pkg/sftp from v1.13.11 to v1.13.12 for stricter malformed-packet handling and upstream fixes.
 - Bumped google.golang.org/grpc from v1.84.0 to v1.85.0 and aligned google.golang.org/genproto/googleapis/rpc for upstream fixes.
 - Bumped github/codeql-action group (init/autobuild/analyze/upload-sarif) from v4.38.3 to v4.39.1 for upstream fixes.
+- Bumped `actions/setup-go` from v7.0.0 to v7.1.0 in CI, documentation, security, and release workflows while retaining the repository's configured Go version.
 - Update `modernc.org/sqlite` from v1.61.1 to v1.62.0 with its required `modernc.org/libc` v1.80.1 dependency.
 
 

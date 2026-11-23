@@ -28,6 +28,7 @@
 - Include local observability policy, unsafe-fixture regression checks, and credential-free Compose rendering checks in `make verify` (requires Docker CLI with Compose, without starting containers).
 
 ### Fixed
+- Freeze the offline scanner fixture clock so expiry-boundary tests stay deterministic without changing the live advisory cutoff.
 - Fail PCAP export promptly on malformed or truncated JSONL instead of retrying the same undecodable input indefinitely.
 - Enforce SFTP timeouts and shutdown cancellation during upload, download, and directory-list operations; evict interrupted cached connections so retries use a clean session.
 - Reject HTTPS-to-HTTP redirects at every HTTP driver hop before sending the cleartext request, including traffic runs, probe, and replay.

@@ -1,5 +1,6 @@
 """Offline protocol and scanner-process boundary regressions."""
 import copy
+import datetime as dt
 import hashlib
 import importlib.util
 import json
@@ -9,10 +10,12 @@ from pathlib import Path
 import subprocess
 import tempfile
 import unittest
+from unittest import mock
 import sys
 
 SCRIPTS = Path(__file__).resolve().parent
 SHA = "a" * 40
+BEFORE_EXCEPTION_CUTOFF = "2026-12-05T23:59:59Z"
 CTX = {"id": "linux-amd64", "goos": "linux", "goarch": "amd64", "goarm": "",
        "tags": [], "tests": False, "cgo_enabled": "0", "go_version": "go1.26.11",
        "commit": SHA, "roots": ["example.org/fixture"],
@@ -35,6 +38,19 @@ def load_evidence():
     evidence = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(evidence)
     return evidence
+
+
+def fixture_datetime(instant):
+    frozen = dt.datetime.fromisoformat(instant.replace("Z", "+00:00"))
+
+    class FrozenDatetime(dt.datetime):
+        @classmethod
+        def now(cls, tz=None):
+            if tz is None:
+                return frozen.astimezone().replace(tzinfo=None)
+            return frozen.astimezone(tz)
+
+    return FrozenDatetime
 
 
 def osv_fixture(findings=False):
@@ -268,10 +284,32 @@ sys.exit(2 if os.environ.get("FAKE_FAILURE") == "osv-error" else 1)
 ''')
         osv.chmod(0o755)
         self.output = self.root / "evidence"
+        # Select the fixture interpreter only for this test's real scan wrapper.
+        # Neither the parent test runner nor the production wrapper sets a clock override.
+        self.fixture_python = self.bin / "fixture-python"
+        self.fixture_python.write_text("#!" + sys.executable + "\n" + f'''import datetime
+import os
+from pathlib import Path
+import runpy
+import sys
 
-    def run_scans(self, failure="", **extra):
+sys.dont_write_bytecode = True
+sys.path.insert(0, {str(SCRIPTS)!r})
+from security_evidence_test import fixture_datetime
+
+script = Path({str(SCRIPTS / "security-evidence.py")!r})
+if Path(sys.argv[1]).resolve() != script or sys.argv[2] != "scan" or Path(sys.argv[3]) != Path({str(self.root)!r}):
+    raise SystemExit("fixture interpreter only runs its scanner fixture")
+datetime.datetime = fixture_datetime(os.environ["SENDIT_FIXTURE_UTC"])
+sys.argv = sys.argv[1:]
+runpy.run_path(str(script), run_name="__main__")
+''')
+        self.fixture_python.chmod(0o755)
+
+    def run_scans(self, failure="", *, at=BEFORE_EXCEPTION_CUTOFF, **extra):
         env = dict(os.environ, PATH=str(self.bin) + os.pathsep + os.environ["PATH"],
-                   FAKE_EVIDENCE=str(self.output), FAKE_FAILURE=failure)
+                   FAKE_EVIDENCE=str(self.output), FAKE_FAILURE=failure,
+                   PYTHON=str(self.fixture_python), SENDIT_FIXTURE_UTC=at)
         env.update(extra)
         # The pinned action's process boundary: only completed scans produce JSON.
         osv = subprocess.run([str(self.bin / "osv-scanner"), "scan", "source", "--no-call-analysis=go", "--format=json"], env=env, capture_output=True)
@@ -284,6 +322,9 @@ sys.exit(2 if os.environ.get("FAKE_FAILURE") == "osv-error" else 1)
         result = self.run_scans()
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(len(list(self.output.glob("*/completion.json"))), 11)
+        completion = json.loads((self.output / "linux-amd64" / "completion.json").read_text())
+        self.assertEqual(completion["started_at"], BEFORE_EXCEPTION_CUTOFF)
+        self.assertEqual(completion["finished_at"], BEFORE_EXCEPTION_CUTOFF)
         for path in self.output.rglob("*.json"):
             content = path.read_text()
             self.assertNotIn("fixture-secret", content, str(path))
@@ -327,16 +368,21 @@ sys.exit(2 if os.environ.get("FAKE_FAILURE") == "osv-error" else 1)
                         self.assertNotIn(value, artifact.read_text(), str(artifact))
 
     def test_exception_expiry_blocks(self):
-        (self.root / "osv-scanner.toml").write_text('[[IgnoredVulns]]\nid = "GO-2026-5932"\nignoreUntil = 2020-01-01\nreason = "expired"\n')
-        result = self.run_scans()
-        self.assertNotEqual(result.returncode, 0)
-        self.assertIn("expired", result.stderr)
+        for day in (6, 7):
+            at = f"2026-12-{day:02d}T00:00:00Z"
+            with self.subTest(at=at):
+                self.output = self.root / f"expired-{day}"
+                result = self.run_scans(at=at)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn("GO-2026-5932 exception expired", result.stderr)
+                self.assertFalse(list(self.output.glob("*/completion.json")))
 
     def test_exception_blocks_any_affected_package_in_any_context(self):
         for package in ("golang.org/x/crypto/openpgp", "golang.org/x/crypto/openpgp/armor"):
             with self.subTest(package=package):
-                with self.assertRaisesRegex(ValueError, "affected package"):
-                    load_evidence().check_exception(self.root, {"contexts": [{"id": "windows-arm64", "packages": [package]}]})
+                with mock.patch.object(dt, "datetime", fixture_datetime(BEFORE_EXCEPTION_CUTOFF)):
+                    with self.assertRaisesRegex(ValueError, "affected package"):
+                        load_evidence().check_exception(self.root, {"contexts": [{"id": "windows-arm64", "packages": [package]}]})
 
 
 class MetadataValidationTest(unittest.TestCase):
